@@ -22,17 +22,31 @@ export class ReportService {
   static async getCurrentWeekReport(): Promise<WeeklyReport | null> {
     try {
       return await api.get<WeeklyReport>('/reports/current-week')
-    } catch (error) {
-      return null
+    } catch (error: any) {
+      // Return null if no report found (404)
+      if (error.status === 404) {
+        return null
+      }
+      throw error
     }
   }
 
-  static async updateTaskReport(taskId: string, data: UpdateTaskReportDto): Promise<void> {
-    return api.put<void>(`/reports/tasks/${taskId}`, data)
+  static async updateReport(id: string, data: any): Promise<WeeklyReport> {
+    return api.patch<WeeklyReport>(`/reports/${id}`, data) // Changed from PUT to PATCH
   }
 
   static async deleteReport(id: string): Promise<void> {
     return api.delete<void>(`/reports/${id}`)
+  }
+
+  // New method to delete individual task
+  static async deleteTask(taskId: string): Promise<void> {
+    return api.delete<void>(`/reports/tasks/${taskId}`)
+  }
+
+  // New method to update individual task
+  static async updateTask(taskId: string, data: any): Promise<any> {
+    return api.patch(`/reports/tasks/${taskId}`, data)
   }
 
   // Admin/Superadmin endpoints
@@ -59,5 +73,17 @@ export class ReportService {
       ...(year && { year: year.toString() })
     })
     return api.get(`/reports/stats?${params}`)
+  }
+
+  static async getReportByWeek(weekNumber: number, year: number): Promise<WeeklyReport | null> {
+    try {
+      return await api.get<WeeklyReport>(`/reports/week/${weekNumber}/year/${year}`)
+    } catch (error: any) {
+      // Return null if no report found (404)
+      if (error.status === 404) {
+        return null
+      }
+      throw error
+    }
   }
 }

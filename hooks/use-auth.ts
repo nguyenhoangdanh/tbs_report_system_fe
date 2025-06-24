@@ -14,9 +14,26 @@ export function useAuth() {
     error
   } = useQuery({
     queryKey: ['auth', 'profile'],
-    queryFn: () => api.get<User>('/users/profile'),
-    retry: false,
+    queryFn: async () => {
+      try {
+        return await api.get<User>('/users/profile')
+      } catch (error: any) {
+        // Don't show toast for 401 errors (user not logged in)
+        if (error.status !== 401) {
+          console.error('Profile fetch error:', error)
+        }
+        throw error
+      }
+    },
+    retry: (failureCount, error: any) => {
+      // Don't retry on auth errors
+      if (error?.status === 401 || error?.status === 403) {
+        return false
+      }
+      return failureCount < 2
+    },
     staleTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
   })
 
   // Login mutation
@@ -52,6 +69,7 @@ export function useAuth() {
     },
     onError: (error: Error) => {
       console.error('Logout failed:', error)
+      // Clear cache anyway on logout error
       queryClient.clear()
     }
   })
@@ -68,7 +86,7 @@ export function useAuth() {
   })
 
   return {
-    user: user ?? null, // Convert undefined to null
+    user: user ?? null,
     isLoading,
     isAuthenticated: !!user && !error,
     login: async (employeeCode: string, password: string) => {

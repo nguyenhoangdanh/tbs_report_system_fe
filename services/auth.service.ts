@@ -57,7 +57,7 @@ export class AuthService {
 
   static async getProfile(): Promise<User> {
     try {
-      return await api.get<User>('/auth/profile')
+      return await api.get<User>('/users/profile')
     } catch (error) {
       if (error instanceof ApiError && error.status === 401) {
         throw new Error('Phiên đăng nhập đã hết hạn')

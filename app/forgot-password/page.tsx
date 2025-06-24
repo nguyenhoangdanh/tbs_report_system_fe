@@ -13,6 +13,9 @@ import { toast } from "react-hot-toast";
 import Link from "next/link";
 import { forgotPasswordSchema, resetPasswordSchema, type ForgotPasswordFormData, type ResetPasswordFormData } from "@/lib/validations/auth";
 import type { ForgotPasswordResponse } from "@/types";
+import { AppLoading } from '@/components/ui/app-loading'
+import { SubmitButton } from '@/components/ui/submit-button'
+import { KeyRound, KeySquare } from "lucide-react";
 
 export default function ForgotPasswordPage() {
   const [step, setStep] = useState<'verify' | 'reset'>('verify');
@@ -72,13 +75,18 @@ export default function ForgotPasswordPage() {
     resetForm.reset();
   };
 
+  if (isLoading) {
+    return <AppLoading />
+  }
+
   return (
     <AuthLayout
       title="Quên mật khẩu"
       description={step === 'verify' ? 'Nhập thông tin để xác thực danh tính' : 'Đặt mật khẩu mới cho tài khoản'}
-      icon="🔑"
-      gradientFrom="blue-50"
-      gradientTo="indigo-50"
+      icon={<KeyRound className="w-8 h-8 text-yellow-300" />}
+      // icon="🔑"
+      // gradientFrom="blue-50"
+      // gradientTo="indigo-50"
     >
       {step === 'verify' ? (
         <form onSubmit={verifyForm.handleSubmit(handleVerify)} className="space-y-6">
@@ -118,13 +126,12 @@ export default function ForgotPasswordPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.5 }}
           >
-            <Button
-              type="submit"
-              className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-              disabled={isLoading}
-            >
-              {isLoading ? 'Đang xác thực...' : 'Xác thực thông tin'}
-            </Button>
+            <SubmitButton
+              loading={isLoading}
+              text={isLoading ? 'Đang xác thực...' : 'Xác thực thông tin'}
+              size="lg"
+              className="w-full"
+            />
           </motion.div>
         </form>
       ) : (
@@ -189,13 +196,12 @@ export default function ForgotPasswordPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.6 }}
             >
-              <Button
-                type="submit"
-                className="w-full h-12 text-lg font-semibold bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700"
-                disabled={isLoading}
-              >
-                {isLoading ? 'Đang cập nhật...' : 'Đặt lại mật khẩu'}
-              </Button>
+              <SubmitButton
+                loading={isLoading}
+                text={isLoading ? 'Đang cập nhật...' : 'Đặt lại mật khẩu'}
+                size="lg"
+                className="w-full"
+              />
 
               <button
                 type="button"

@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { UserService } from '@/services/user.service';
 import { motion } from 'framer-motion';
+import { MainLayout } from '@/components/layout/main-layout';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -104,27 +105,37 @@ export default function UsersManagementPage() {
 
   if (currentUser?.role !== 'SUPERADMIN') {
     return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold text-red-600 mb-4">Không có quyền truy cập</h1>
-          <p className="text-muted-foreground">Chỉ Superadmin mới có thể truy cập trang này.</p>
+      <MainLayout
+        title="Không có quyền truy cập"
+        showBreadcrumb
+        breadcrumbItems={[
+          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Admin', href: '/admin' },
+          { label: 'Quản lý Users' }
+        ]}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <h1 className="text-2xl font-bold text-red-600 mb-4">Không có quyền truy cập</h1>
+            <p className="text-muted-foreground">Chỉ Superadmin mới có thể truy cập trang này.</p>
+          </div>
         </div>
-      </div>
+      </MainLayout>
     );
   }
 
   return (
-    <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-6"
-        >
-          <h1 className="text-3xl font-bold text-foreground mb-2">Quản lý Users</h1>
-          <p className="text-muted-foreground">Quản lý tất cả người dùng trong hệ thống</p>
-        </motion.div>
-
+    <MainLayout
+      title="Quản lý Users"
+      subtitle="Quản lý tất cả người dùng trong hệ thống"
+      showBreadcrumb
+      breadcrumbItems={[
+        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Admin', href: '/admin' },
+        { label: 'Quản lý Users' }
+      ]}
+    >
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search */}
         <Card className="mb-6">
           <CardContent className="p-6">
@@ -339,6 +350,6 @@ export default function UsersManagementPage() {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </MainLayout>
   );
 }

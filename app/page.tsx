@@ -5,8 +5,9 @@ import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import { AnimatedButton } from '@/components/ui/animated-button'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
 import Link from 'next/link'
+import { MainLayout } from '@/components/layout/main-layout'
+import { AppLoading } from '@/components/ui/app-loading'
 
 const StatCard = ({ number, label, delay }: { number: string; label: string; delay: number }) => (
   <motion.div
@@ -55,53 +56,11 @@ export default function HomePage() {
   }, [isAuthenticated, isLoading, router])
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Đang tải...</p>
-        </div>
-      </div>
-    )
+    return <AppLoading />
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-background/80 backdrop-blur-md border-b border-border">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16 md:h-20">
-            <div className="flex items-center space-x-3">
-              <div className="w-10 h-10 bg-gradient-to-br from-green-600 to-emerald-600 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-lg">📊</span>
-              </div>
-              <span className="text-xl font-bold text-foreground">WeeklyReport</span>
-            </div>
-            
-            {/* Desktop Navigation */}
-            <nav className="hidden md:flex items-center space-x-8">
-              <a href="#features" className="text-muted-foreground hover:text-foreground transition-colors font-medium">Tính năng</a>
-              <a href="#benefits" className="text-muted-foreground hover:text-foreground transition-colors font-medium">Lợi ích</a>
-              <a href="#contact" className="text-muted-foreground hover:text-foreground transition-colors font-medium">Liên hệ</a>
-            </nav>
-
-            <div className="flex items-center space-x-3">
-              <ThemeToggle />
-              <Link href="/login">
-                <button className="text-muted-foreground hover:text-foreground font-medium transition-colors px-4 py-2">
-                  Đăng nhập
-                </button>
-              </Link>
-              <Link href="/register">
-                <AnimatedButton variant="gradient" size="sm" className="px-6 py-2">
-                  Đăng ký
-                </AnimatedButton>
-              </Link>
-            </div>
-          </div>
-        </div>
-      </header>
-
+    <MainLayout title={undefined} subtitle={undefined} showBreadcrumb={false}>
       {/* Hero Section */}
       <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden">
         {/* Background Elements */}
@@ -130,7 +89,7 @@ export default function HomePage() {
               Quản lý tiến độ công việc thông minh, tăng năng suất và minh bạch cho doanh nghiệp
             </motion.p>
             
-            <motion.div 
+            {/* <motion.div 
               className="flex flex-col sm:flex-row gap-4 justify-center"
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -146,7 +105,7 @@ export default function HomePage() {
                   Đăng nhập
                 </button>
               </Link>
-            </motion.div>
+            </motion.div> */}
           </div>
 
           {/* Stats Section */}
@@ -241,7 +200,7 @@ export default function HomePage() {
             >
               <h2 className="text-3xl md:text-5xl font-bold text-gray-900 mb-8">
                 Tại sao chọn{' '}
-                <span className="text-blue-600">WeeklyReport?</span>
+                <span className="text-green-600">WeeklyReport?</span>
               </h2>
               
               <div className="space-y-6">
@@ -284,7 +243,7 @@ export default function HomePage() {
               viewport={{ once: true }}
               transition={{ duration: 0.8 }}
             >
-              <div className="relative bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl p-8 text-white">
+              <div className="relative bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 text-white">
                 <div className="absolute top-4 right-4 w-20 h-20 bg-white/10 rounded-full" />
                 <div className="absolute bottom-4 left-4 w-16 h-16 bg-white/5 rounded-full" />
                 
@@ -348,56 +307,6 @@ export default function HomePage() {
           </motion.div>
         </div>
       </section>
-
-      {/* Footer */}
-      <footer id="contact" className="bg-gray-900 text-white py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
-            <div className="col-span-1 md:col-span-2">
-              <div className="flex items-center space-x-3 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">📊</span>
-                </div>
-                <span className="text-xl font-bold">WeeklyReport</span>
-              </div>
-              <p className="text-gray-400 leading-relaxed mb-6 max-w-md">
-                Giải pháp báo cáo công việc thông minh cho doanh nghiệp hiện đại. 
-                Tăng hiệu quả, giảm chi phí, nâng cao chất lượng quản lý.
-              </p>
-              <div className="flex space-x-4">
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
-                  📧
-                </a>
-                <a href="#" className="w-10 h-10 bg-gray-800 rounded-lg flex items-center justify-center hover:bg-gray-700 transition-colors">
-                  📞
-                </a>
-              </div>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-6">Sản phẩm</h4>
-              <ul className="space-y-3 text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Tính năng</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Bảng giá</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Demo</a></li>
-              </ul>
-            </div>
-            
-            <div>
-              <h4 className="font-semibold mb-6">Hỗ trợ</h4>
-              <ul className="space-y-3 text-gray-400">
-                <li><a href="#" className="hover:text-white transition-colors">Trung tâm trợ giúp</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Liên hệ</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Báo lỗi</a></li>
-              </ul>
-            </div>
-          </div>
-          
-          <div className="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400">
-            <p>&copy; 2024 WeeklyReport. All rights reserved.</p>
-          </div>
-        </div>
-      </footer>
-    </div>
+    </MainLayout>
   )
 }

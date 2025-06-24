@@ -1,3 +1,5 @@
+ export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'USER' | 'OFFICE_MANAGER' | 'OFFICE_ADMIN'
+
 export interface User {
   id: string
   employeeCode: string
@@ -6,7 +8,7 @@ export interface User {
   lastName: string
   fullName?: string // Computed property from backend
   cardId?: string // Optional CCCD
-  role: 'SUPERADMIN' | 'ADMIN' | 'USER' // Use string literal instead of enum
+  role: UserRole 
   jobPositionId: string
   isActive: boolean
   officeId: string
@@ -15,7 +17,6 @@ export interface User {
   office: Office
   jobPosition: JobPosition
 }
-
 export interface Office {
   id: string
   name: string
@@ -98,6 +99,7 @@ export interface RegisterDto {
   cardId?: string
   jobPositionId: string // JobPosition đã chứa departmentId
   officeId: string
+  role: UserRole
 }
 
 export interface ChangePasswordDto {

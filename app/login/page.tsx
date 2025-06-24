@@ -7,12 +7,15 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { motion } from 'framer-motion'
 import { AuthLayout } from '@/components/auth/auth-layout'
 import { FormField } from '@/components/ui/form-field'
-import { AnimatedButton } from '@/components/ui/animated-button'
+import { SubmitButton } from '@/components/ui/submit-button'
 import { loginSchema, type LoginFormData } from '@/lib/validations/auth'
 import Link from 'next/link'
+import { AppLoading } from '@/components/ui/app-loading'
+import { UserLock } from 'lucide-react'
+import { PasswordField } from '@/components/ui/password-field'
 
 export default function LoginPage() {
-  const { login, isLoginLoading } = useAuth()
+  const { login, isLoginLoading, isLoading } = useAuth()
   const router = useRouter()
 
   const {
@@ -32,11 +35,15 @@ export default function LoginPage() {
     }
   }
 
+  if (isLoading) {
+    return <AppLoading />
+  }
+
   return (
     <AuthLayout
       title="Đăng nhập"
       description="Hệ thống báo cáo công việc hàng tuần"
-      icon="🔐"
+      icon={<UserLock className="w-8 h-8" />}
     >
       <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
         <motion.div
@@ -67,6 +74,14 @@ export default function LoginPage() {
             {...register('password')}
             error={errors.password?.message}
           />
+          {/* <PasswordField
+            id="password"
+            label="Mật khẩu"
+            required
+            placeholder="Nhập mật khẩu"
+            {...register('password')}
+            error={errors.password?.message}
+          /> */}
         </motion.div>
         
         <motion.div
@@ -74,14 +89,12 @@ export default function LoginPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.5 }}
         >
-          <AnimatedButton
-            type="submit"
-            variant="gradient"
-            className="w-full h-12 text-lg font-semibold"
+          <SubmitButton
             loading={isLoginLoading}
-          >
-            {isLoginLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-          </AnimatedButton>
+            text={isLoginLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            size="lg"
+            className="w-full"
+          />
         </motion.div>
       </form>
       
@@ -110,7 +123,7 @@ export default function LoginPage() {
         animate={{ opacity: 1 }}
         transition={{ delay: 0.7 }}
       >
-        Demo: CEO001/123456 hoặc EMP001/123456
+        Demo: EMP001/123456
       </motion.div>
     </AuthLayout>
   )

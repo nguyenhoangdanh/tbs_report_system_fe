@@ -12,13 +12,14 @@ import { UserService } from '@/services/user.service'
 import { useAuth } from '@/components/providers/auth-provider'
 import { toast } from 'react-hot-toast'
 import type { Office, JobPosition, Department } from '@/types'
+import { PasswordField } from '../ui/password-field'
 
 export function RegisterForm() {
   const [offices, setOffices] = useState<Office[]>([])
   const [departments, setDepartments] = useState<Department[]>([])
   const [jobPositions, setJobPositions] = useState<JobPosition[]>([])
   const [loading, setLoading] = useState(true)
-  
+
   const { register: registerUser, isRegisterLoading } = useAuth()
 
   const {
@@ -28,7 +29,20 @@ export function RegisterForm() {
     setValue,
     formState: { errors }
   } = useForm<RegisterFormData>({
-    resolver: zodResolver(registerSchema)
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      employeeCode: '',
+      email: '',
+      password: 'Abcd@1234',
+      confirmPassword: 'Abcd@1234',
+      firstName: '',
+      lastName: '',
+      cardId: '',
+      officeId: '',
+      departmentId: '',
+      jobPositionId: '',
+      role: 'USER', // Default role
+    }
   })
 
   const watchedOfficeId = watch('officeId')
@@ -36,13 +50,13 @@ export function RegisterForm() {
 
   // Memoize filtered data for performance
   const filteredDepartments = useMemo(() => {
-    return watchedOfficeId 
+    return watchedOfficeId
       ? departments.filter(dept => dept.officeId === watchedOfficeId)
       : []
   }, [departments, watchedOfficeId])
 
   const filteredJobPositions = useMemo(() => {
-    return watchedDepartmentId 
+    return watchedDepartmentId
       ? jobPositions.filter(jp => jp.departmentId === watchedDepartmentId)
       : []
   }, [jobPositions, watchedDepartmentId])
@@ -93,8 +107,15 @@ export function RegisterForm() {
     }
   }
 
+  const roleOptions = [
+    { value: 'USER', label: 'User' },
+    { value: 'OFFICE_ADMIN', label: 'Office Admin' },
+    { value: 'OFFICE_MANAGER', label: 'Office Manager' }
+  ]
+
   const onSubmit = async (data: RegisterFormData) => {
     try {
+      console.log('Submitting registration data:', data)
       await registerUser({
         employeeCode: data.employeeCode,
         email: data.email || undefined,
@@ -104,6 +125,7 @@ export function RegisterForm() {
         cardId: data.cardId || undefined,
         jobPositionId: data.jobPositionId,
         officeId: data.officeId,
+        role: data.role,
       })
     } catch (error) {
       // Error is handled by the auth provider
@@ -112,203 +134,199 @@ export function RegisterForm() {
 
   if (loading) {
     return (
-      <div className="text-center py-8">
-        <div className="w-8 h-8 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-        <p className="text-muted-foreground">Đang tải dữ liệu...</p>
+      <div className="flex items-center justify-center py-16 min-h-[300px]">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          animate={{ opacity: 1, scale: 1 }}
+          transition={{ duration: 0.4, ease: 'easeOut' }}
+          className="flex flex-col items-center"
+        >
+          <div className="w-8 h-8 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mb-4" />
+          <p className="text-muted-foreground">Đang tải dữ liệu...</p>
+        </motion.div>
       </div>
     )
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <FormField
-            id="employeeCode"
-            label="Mã nhân viên"
-            placeholder="EMP001"
-            required
-            {...register('employeeCode')}
-            error={errors.employeeCode?.message}
-          />
-        </motion.div>
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+        <div className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.15 }}
+          >
+            <FormField
+              id="employeeCode"
+              label="Mã nhân viên"
+              placeholder="EMP001"
+              required
+              {...register('employeeCode')}
+              error={errors.employeeCode?.message}
+            />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.18 }}
+          >
+            <FormField
+              id="firstName"
+              label="Họ"
+              required
+              {...register('firstName')}
+              error={errors.firstName?.message}
+            />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.21 }}
+          >
+            <SelectField
+              label="Văn phòng"
+              required
+              placeholder="Chọn văn phòng"
+              value={watch('officeId')}
+              onValueChange={(value) => setValue('officeId', value)}
+              error={errors.officeId?.message}
+            >
+              {offices.map((office) => (
+                <SelectItem key={office.id} value={office.id}>
+                  <div className="flex items-center gap-2">
+                    <span>{office.type === 'HEAD_OFFICE' ? '🏢' : '🏭'}</span>
+                    {office.name}
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectField>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.24 }}
+          >
+            <SelectField
+              label="Vai trò"
+              required
+              placeholder="Chọn vai trò"
+              value={watch('role')}
+              onValueChange={(value) => setValue('role', value as RegisterFormData['role'])}
+              error={errors.role?.message}
+            >
+              {roleOptions.map((role) => (
+                <SelectItem key={role.value} value={role.value}>
+                  {role.label}
+                </SelectItem>
+              ))}
+            </SelectField>
+          </motion.div>
+        </div>
+        <div className="space-y-6">
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.15 }}
+          >
 
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <FormField
-            id="email"
-            type="email"
-            label="Email"
-            placeholder="your.email@company.com"
-            {...register('email')}
-            error={errors.email?.message}
-          />
-        </motion.div>
+            <FormField
+              id="cardId"
+              label="Căn cước công dân"
+              placeholder="12345678900"
+              maxLength={12}
+              {...register('cardId')}
+              error={errors.cardId?.message}
+            />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.18 }}
+          >
+            <FormField
+              id="lastName"
+              label="Tên"
+              required
+              {...register('lastName')}
+              error={errors.lastName?.message}
+            />
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.21 }}
+          >
+            <SelectField
+              label="Phòng ban"
+              required
+              placeholder={!watchedOfficeId ? "Vui lòng chọn văn phòng trước" : "Chọn phòng ban"}
+              value={watch('departmentId')}
+              onValueChange={(value) => setValue('departmentId', value)}
+              disabled={!watchedOfficeId}
+              error={errors.departmentId?.message}
+            >
+              {filteredDepartments.map((department) => (
+                <SelectItem key={department.id} value={department.id}>
+                  {department.name}
+                </SelectItem>
+              ))}
+            </SelectField>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.24 }}
+          >
+            <SelectField
+              label="Vị trí công việc"
+              required
+              placeholder={!watchedDepartmentId ? "Vui lòng chọn phòng ban trước" : "Chọn vị trí công việc"}
+              value={watch('jobPositionId')}
+              onValueChange={(value) => setValue('jobPositionId', value)}
+              disabled={!watchedDepartmentId}
+              error={errors.jobPositionId?.message}
+            >
+              {filteredJobPositions.map((jobPosition) => (
+                <SelectItem key={jobPosition.id} value={jobPosition.id}>
+                  <div className="flex flex-col">
+                    <span className="font-medium">{jobPosition.jobName}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {jobPosition.position?.name} - {jobPosition.code}
+                    </span>
+                  </div>
+                </SelectItem>
+              ))}
+            </SelectField>
+          </motion.div>
+        </div>
       </div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <FormField
-            id="firstName"
-            label="Họ"
-            required
-            {...register('firstName')}
-            error={errors.firstName?.message}
-          />
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <FormField
-            id="lastName"
-            label="Tên"
-            required
-            {...register('lastName')}
-            error={errors.lastName?.message}
-          />
-        </motion.div>
-      </div>
-      
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
+        transition={{ delay: 0.3 }}
       >
-        <FormField
-          id="cardId"
-          label="Căn cước công dân"
-          placeholder="012345678901"
-          maxLength={12}
-          {...register('cardId')}
-          error={errors.cardId?.message}
-        />
-      </motion.div>
-
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <FormField
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <PasswordField
             id="password"
-            type="password"
             label="Mật khẩu"
             required
             {...register('password')}
             error={errors.password?.message}
           />
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
-        >
-          <FormField
+          <PasswordField
             id="confirmPassword"
-            type="password"
             label="Xác nhận mật khẩu"
             required
             {...register('confirmPassword')}
             error={errors.confirmPassword?.message}
           />
-        </motion.div>
-      </div>
-
-      <div className="space-y-4">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-        >
-          <SelectField
-            label="Văn phòng"
-            required
-            placeholder="Chọn văn phòng"
-            value={watch('officeId')}
-            onValueChange={(value) => setValue('officeId', value)}
-            error={errors.officeId?.message}
-          >
-            {offices.map((office) => (
-              <SelectItem key={office.id} value={office.id}>
-                <div className="flex items-center gap-2">
-                  <span>{office.type === 'HEAD_OFFICE' ? '🏢' : '🏭'}</span>
-                  {office.name}
-                </div>
-              </SelectItem>
-            ))}
-          </SelectField>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.8 }}
-        >
-          <SelectField
-            label="Phòng ban"
-            required
-            placeholder={!watchedOfficeId ? "Vui lòng chọn văn phòng trước" : "Chọn phòng ban"}
-            value={watch('departmentId')}
-            onValueChange={(value) => setValue('departmentId', value)}
-            disabled={!watchedOfficeId}
-            error={errors.departmentId?.message}
-          >
-            {filteredDepartments.map((department) => (
-              <SelectItem key={department.id} value={department.id}>
-                {department.name}
-              </SelectItem>
-            ))}
-          </SelectField>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9 }}
-        >
-          <SelectField
-            label="Vị trí công việc"
-            required
-            placeholder={!watchedDepartmentId ? "Vui lòng chọn phòng ban trước" : "Chọn vị trí công việc"}
-            value={watch('jobPositionId')}
-            onValueChange={(value) => setValue('jobPositionId', value)}
-            disabled={!watchedDepartmentId}
-            error={errors.jobPositionId?.message}
-          >
-            {filteredJobPositions.map((jobPosition) => (
-              <SelectItem key={jobPosition.id} value={jobPosition.id}>
-                <div className="flex flex-col">
-                  <span className="font-medium">{jobPosition.jobName}</span>
-                  <span className="text-xs text-muted-foreground">
-                    {jobPosition.position?.name} - {jobPosition.code}
-                  </span>
-                </div>
-              </SelectItem>
-            ))}
-          </SelectField>
-        </motion.div>
-      </div>
-      
+        </div>
+      </motion.div>
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 1.0 }}
+        transition={{ delay: 0.35 }}
       >
         <AnimatedButton
           type="submit"
@@ -318,6 +336,9 @@ export function RegisterForm() {
         >
           {isRegisterLoading ? 'Đang đăng ký...' : 'Đăng ký tài khoản'}
         </AnimatedButton>
+        <div className="text-xs text-muted-foreground mt-2 text-center">
+          Tài khoản mặc định: <span className="font-semibold">USER</span> / <span className="font-semibold">Abcd@1234</span>
+        </div>
       </motion.div>
     </form>
   )

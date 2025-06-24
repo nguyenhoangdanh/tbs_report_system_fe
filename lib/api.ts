@@ -1,4 +1,4 @@
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
 
 export class ApiError extends Error {
   constructor(public status: number, message: string) {
@@ -12,12 +12,14 @@ async function apiRequest<T>(
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
+  
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
       ...options.headers,
     },
     credentials: 'include', // Include cookies (auth-token)
+    mode: 'cors', // Explicitly set CORS mode
     ...options,
   }
 
@@ -58,6 +60,7 @@ async function apiRequest<T>(
       throw error
     }
     // Network or other errors
+    console.error('Network error:', error)
     throw new ApiError(0, 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.')
   }
 }

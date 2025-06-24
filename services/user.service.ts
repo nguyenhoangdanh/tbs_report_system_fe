@@ -23,7 +23,7 @@ export class UserService {
   }
 
   static async changePassword(data: { currentPassword: string; newPassword: string }): Promise<void> {
-    return api.post<void>('/auth/change-password', data)
+    return api.patch<void>('/auth/change-password', data)
   }
 
   // Public endpoints for registration

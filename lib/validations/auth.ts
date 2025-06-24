@@ -16,6 +16,9 @@ export const registerSchema = z.object({
   officeId: z.string().min(1, 'Vui lòng chọn văn phòng'),
   departmentId: z.string().min(1, 'Vui lòng chọn phòng ban'),
   jobPositionId: z.string().min(1, 'Vui lòng chọn vị trí công việc'),
+  role: z.enum(['SUPERADMIN', 'ADMIN', 'USER', 'OFFICE_ADMIN', 'OFFICE_MANAGER'], {
+    errorMap: () => ({ message: 'Vai trò không hợp lệ' }),
+  }),
 }).refine(data => data.password === data.confirmPassword, {
   message: 'Mật khẩu xác nhận không khớp',
   path: ['confirmPassword'],
