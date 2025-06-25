@@ -4,6 +4,7 @@ import type { RegisterDto, ChangePasswordDto, User } from '@/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 import { useEffect, useState } from 'react'
+import { debugCookies, pollCookieChanges } from '@/lib/cookie-debug'
 
 export function useAuth() {
   const queryClient = useQueryClient()
@@ -41,19 +42,20 @@ export function useAuth() {
     mutationFn: ({ employeeCode, password }: { employeeCode: string; password: string }) => 
       AuthService.login({ employeeCode, password }),
     onSuccess: (response) => {
-      console.log('[AUTH] Login success response:', response)
+      console.log('[AUTH] Login success - cookie should be set by backend')
       
+      // Set user data in cache immediately
       queryClient.setQueryData(['auth', 'profile'], response.user)
       toast.success('Đăng nhập thành công!')
       
-      // Force refetch profile to ensure auth state is updated
-      queryClient.invalidateQueries({ queryKey: ['auth', 'profile'] })
+      // Wait for cookie to be properly set on production
+      const redirectDelay = process.env.NODE_ENV === 'production' ? 2000 : 500
       
-      // Redirect immediately without cookie check - let middleware handle auth
       setTimeout(() => {
-        console.log('[AUTH] Redirecting to dashboard...')
-        window.location.href = '/dashboard'
-      }, 100) // Minimal delay
+        console.log('[AUTH] Redirecting to dashboard after cookie delay')
+        // Use replace to prevent back button issues
+        window.location.replace('/dashboard')
+      }, redirectDelay)
     },
     onError: (error: Error) => {
       console.error('[AUTH] Login error:', error)
