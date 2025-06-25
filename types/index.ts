@@ -187,12 +187,14 @@ export interface UpdateTaskReportDto {
   reasonNotDone?: string
 }
 
-// API Response Types
+// Auth related types
 export interface AuthResponse {
+  success: boolean
   user: User
   message: string
 }
 
+// API Response Types
 export interface ApiResponse<T = any> {
   data: T
   message?: string

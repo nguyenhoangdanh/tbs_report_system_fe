@@ -12,6 +12,7 @@ import Link from 'next/link'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts'
 import { CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, Hourglass, FileText } from 'lucide-react'
 import { AppLoading } from '@/components/ui/app-loading'
+import type { RecentActivity } from '@/services/statistics.service'
 
 // --- Pie Chart Card Component ---
 interface TaskPieChartCardProps {
@@ -23,8 +24,7 @@ interface TaskPieChartCardProps {
   color: string
   link?: string
   icon?: React.ReactNode
-  filter?: string,
-  textColor?: string,
+  filter?: string
 }
 
 const TaskPieChartCard = memo(function TaskPieChartCard({
@@ -40,27 +40,26 @@ const TaskPieChartCard = memo(function TaskPieChartCard({
 }: TaskPieChartCardProps) {
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // Custom label for PieChart: show % directly on each slice
+  // Custom label for PieChart
   const renderPieLabel = (props: any) => {
-    const { cx, cy, midAngle, innerRadius, outerRadius, percent, index } = props
+    const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props
     const RADIAN = Math.PI / 180
-    // Calculate label position at the middle of the arc
     const radius = innerRadius + (outerRadius - innerRadius) * 0.65
     const x = cx + radius * Math.cos(-midAngle * RADIAN)
     const y = cy + radius * Math.sin(-midAngle * RADIAN)
-    // Only show label if value > 0
+    
     return percent > 0 ? (
       <text
         x={x}
         y={y}
-        fill="white" // Sử dụng màu trắng để tương phản tốt với cả màu xanh và cam
+        fill="white"
         textAnchor="middle"
         dominantBaseline="central"
         fontSize={16}
         fontWeight={600}
         style={{ 
-          textShadow: '0 1px 3px rgba(0,0,0,0.8)', // Tăng shadow để text rõ hơn
-          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))' // Thêm drop-shadow cho độ tương phản tốt hơn
+          textShadow: '0 1px 3px rgba(0,0,0,0.8)',
+          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))'
         }}
       >
         {`${Math.round(percent * 100)}%`}
@@ -72,7 +71,7 @@ const TaskPieChartCard = memo(function TaskPieChartCard({
     <Card className="flex flex-col md:flex-row items-center justify-between w-full max-w-4xl bg-white dark:bg-card rounded-2xl shadow-lg p-6 md:p-8 mx-auto mb-8 transition-all">
       {/* Left: Info */}
       <div className="flex flex-col items-center md:items-start w-full md:w-1/2 gap-2">
-        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-2  border border-muted-foreground shadow ${color}`}>
+        <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-2 border border-muted-foreground shadow ${color}`}>
           {icon}
         </div>
         <div className="text-base md:text-lg font-semibold text-foreground text-center md:text-left">{title}</div>
@@ -121,16 +120,6 @@ const TaskPieChartCard = memo(function TaskPieChartCard({
                   fontSize: 13,
                   boxShadow: '0 2px 12px 0 rgba(0,0,0,0.10)',
                   padding: 10,
-                }}
-                itemStyle={{
-                  color: 'var(--foreground)',
-                  fontWeight: 500,
-                  fontSize: 13,
-                }}
-                labelStyle={{
-                  color: 'var(--muted-foreground)',
-                  fontWeight: 400,
-                  fontSize: 12,
                 }}
               />
               <Legend
@@ -197,10 +186,7 @@ export default function DashboardPage() {
   // Show loading while fetching all dashboard data
   if (isDashboardLoading) {
     return (
-      <MainLayout
-        // title="Dashboard"
-        // subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
-      >
+      <MainLayout>
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div className="px-2 sm:px-4 py-6">
             <AppLoading text="Đang tải dữ liệu dashboard..." minimal={false} />
@@ -213,10 +199,7 @@ export default function DashboardPage() {
   // Handle error state
   if (error) {
     return (
-      <MainLayout
-        // title="Dashboard"
-        // subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
-      >
+      <MainLayout>
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div className="px-2 sm:px-4 py-6">
             <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
@@ -240,11 +223,11 @@ export default function DashboardPage() {
     )
   }
 
-  // All data is loaded, destructure from dashboardData
-  const { activities, weeklyTaskStats, monthlyTaskStats, yearlyTaskStats } = dashboardData || {}
+  // Destructure data properly from the new structure
+  const { dashboardStats, activities, weeklyTaskStats, monthlyTaskStats, yearlyTaskStats } = dashboardData || {}
 
   // Utility functions
-  const getActivityColor = (activity: any) => {
+  const getActivityColor = (activity: RecentActivity) => {
     switch (activity.status) {
       case 'completed':
         return 'bg-green-500'
@@ -255,7 +238,7 @@ export default function DashboardPage() {
     }
   }
 
-  const getActivityIcon = (activity: any) => {
+  const getActivityIcon = (activity: RecentActivity) => {
     switch (activity.status) {
       case 'completed':
         return <CheckCircle2 className="text-green-500 w-5 h-5" />
@@ -268,9 +251,9 @@ export default function DashboardPage() {
 
   // Pie chart data for each section
   const weeklyTaskPieData = buildTaskPieData(weeklyTaskStats)
-  const monthStat = (monthlyTaskStats?.stats || []).find(item => item.month === currentMonth)
+  const monthStat = monthlyTaskStats?.stats?.find((item: any) => item.month === currentMonth)
   const monthlyTaskPieData = buildTaskPieData(monthStat)
-  const yearStat = (yearlyTaskStats?.stats || []).find(item => item.year === currentYear)
+  const yearStat = yearlyTaskStats?.stats?.find((item: any) => item.year === currentYear)
   const yearlyTaskPieData = buildTaskPieData(yearStat)
 
   // Icon classes
@@ -284,10 +267,7 @@ export default function DashboardPage() {
   const yearFilter = `year&year=${currentYear}`
 
   return (
-    <MainLayout
-      // title="Dashboard"
-      // subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
-    >
+    <MainLayout>
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-2 sm:px-4 py-6">
           {/* Pie Chart Cards Column */}
@@ -350,7 +330,7 @@ export default function DashboardPage() {
               <CardContent>
                 {activities && activities.length > 0 ? (
                   <div className="space-y-4">
-                    {activities.map((activity: any) => (
+                    {activities.map((activity: RecentActivity) => (
                       <motion.div 
                         key={activity.id} 
                         className="flex items-center space-x-4 p-4 bg-muted/50 rounded-lg"

@@ -26,7 +26,7 @@ async function apiRequest<T>(
   }
   
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 10000) // Reduced to 10s
+  const timeoutId = setTimeout(() => controller.abort(), 6000) // Reduced to 10s
   
   const config: RequestInit = {
     headers: {

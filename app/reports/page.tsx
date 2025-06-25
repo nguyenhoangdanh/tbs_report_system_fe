@@ -377,8 +377,8 @@ export default function ReportsPage() {
 
   return (
     <MainLayout
-      title="Báo cáo công việc"
-      subtitle="Quản lý và tạo báo cáo công việc hàng tuần"
+      // title="Báo cáo công việc"
+      // subtitle="Quản lý và tạo báo cáo công việc hàng tuần"
       showBreadcrumb
       breadcrumbItems={[
         { label: 'Dashboard', href: '/dashboard' },

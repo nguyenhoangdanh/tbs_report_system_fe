@@ -1,101 +1,103 @@
+'use client'
+
 import { useQuery } from '@tanstack/react-query'
 import { StatisticsService } from '@/services/statistics.service'
+import type { 
+  DashboardStats, 
+  RecentActivity, 
+  WeeklyTaskStats, 
+  MonthlyTaskStats, 
+  YearlyTaskStats 
+} from '@/services/statistics.service'
 
-// Combined hook for dashboard data
 export function useDashboardData() {
   return useQuery({
-    queryKey: ['dashboard', 'combined-data'],
+    queryKey: ['statistics', 'dashboard-combined'],
     queryFn: async () => {
-      // Fetch all dashboard data in parallel using Promise.all
+      // Parallel API calls for better performance
       const [
-        recentActivities,
+        dashboardStats,
+        activities,
         weeklyTaskStats,
         monthlyTaskStats,
-        yearlyTaskStats
+        yearlyTaskStats,
       ] = await Promise.all([
-        StatisticsService.getRecentActivities(),
-        StatisticsService.getWeeklyTaskStats(),
-        StatisticsService.getMonthlyTaskStats(),
-        StatisticsService.getYearlyTaskStats()
+        StatisticsService.getDashboardStats().catch(() => null),
+        StatisticsService.getRecentActivities().catch(() => []),
+        StatisticsService.getWeeklyTaskStats().catch(() => ({ weekNumber: 0, year: 0, completed: 0, uncompleted: 0, total: 0 })),
+        StatisticsService.getMonthlyTaskStats().catch(() => ({ year: new Date().getFullYear(), stats: [] })),
+        StatisticsService.getYearlyTaskStats().catch(() => ({ stats: [] })),
       ]);
 
       return {
-        activities: recentActivities,
+        dashboardStats,
+        activities,
         weeklyTaskStats,
         monthlyTaskStats,
-        yearlyTaskStats
+        yearlyTaskStats,
       };
     },
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 2 * 60 * 1000, // 2 minutes
+    gcTime: 5 * 60 * 1000, // 5 minutes
     refetchOnWindowFocus: false,
     retry: 1,
-  })
+    // Enable background refetch
+    refetchInterval: 5 * 60 * 1000, // 5 minutes background refresh
+  });
 }
 
-// Keep individual hooks for other pages that need specific data
+// Individual hooks for specific data if needed
 export function useDashboardStats() {
   return useQuery({
     queryKey: ['statistics', 'dashboard'],
-    queryFn: StatisticsService.getDashboardStats,
-    staleTime: 60 * 1000,
+    queryFn: () => StatisticsService.getDashboardStats(),
+    staleTime: 3 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-  })
+    retry: 1,
+  });
 }
 
 export function useRecentActivities() {
   return useQuery({
     queryKey: ['statistics', 'recent-activities'],
-    queryFn: StatisticsService.getRecentActivities,
-    staleTime: 2 * 60 * 1000,
+    queryFn: () => StatisticsService.getRecentActivities(),
+    staleTime: 60 * 1000, // 1 minute for activities
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-  })
-}
-
-export function useAdminDashboardStats(filters?: {
-  departmentId?: string
-  weekNumber?: number
-  year?: number
-}) {
-  return useQuery({
-    queryKey: ['statistics', 'admin-dashboard', filters],
-    queryFn: () => StatisticsService.getAdminDashboardStats(filters),
-    staleTime: 60 * 1000,
-    refetchOnWindowFocus: false,
-  })
-}
-
-export function useUserReportStats() {
-  return useQuery({
-    queryKey: ['statistics', 'user-reports'],
-    queryFn: StatisticsService.getUserReportStats,
-    staleTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-  })
+    retry: 1,
+  });
 }
 
 export function useWeeklyTaskStats() {
   return useQuery({
     queryKey: ['statistics', 'weekly-task-stats'],
-    queryFn: StatisticsService.getWeeklyTaskStats,
-    staleTime: 60 * 1000,
+    queryFn: () => StatisticsService.getWeeklyTaskStats(),
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-  })
+    retry: 1,
+  });
 }
 
 export function useMonthlyTaskStats(year?: number) {
   return useQuery({
     queryKey: ['statistics', 'monthly-task-stats', year],
     queryFn: () => StatisticsService.getMonthlyTaskStats(year),
-    staleTime: 60 * 1000,
+    staleTime: 5 * 60 * 1000, // 5 minutes for monthly data
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
-  })
+    retry: 1,
+  });
 }
 
 export function useYearlyTaskStats() {
   return useQuery({
     queryKey: ['statistics', 'yearly-task-stats'],
-    queryFn: StatisticsService.getYearlyTaskStats,
-    staleTime: 60 * 1000,
+    queryFn: () => StatisticsService.getYearlyTaskStats(),
+    staleTime: 10 * 60 * 1000, // 10 minutes for yearly data
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
-  })
+    retry: 1,
+  });
 }
