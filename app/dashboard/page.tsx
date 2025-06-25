@@ -198,8 +198,8 @@ export default function DashboardPage() {
   if (isDashboardLoading) {
     return (
       <MainLayout
-        title="Dashboard"
-        subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
+        // title="Dashboard"
+        // subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
       >
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div className="px-2 sm:px-4 py-6">
@@ -214,8 +214,8 @@ export default function DashboardPage() {
   if (error) {
     return (
       <MainLayout
-        title="Dashboard"
-        subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
+        // title="Dashboard"
+        // subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
       >
         <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
           <div className="px-2 sm:px-4 py-6">
@@ -285,8 +285,8 @@ export default function DashboardPage() {
 
   return (
     <MainLayout
-      title="Dashboard"
-      subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
+      // title="Dashboard"
+      // subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
     >
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-2 sm:px-4 py-6">

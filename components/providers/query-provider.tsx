@@ -10,7 +10,8 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 minute default
+            staleTime: 5 * 60 * 1000, // 5 minutes - increased from 1 minute
+            gcTime: 10 * 60 * 1000, // 10 minutes
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
             retry: (failureCount, error: any) => {
@@ -18,14 +19,17 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
               if (error?.status >= 400 && error?.status < 500) {
                 return false
               }
-              // Only retry 1 time for faster error feedback
+              // Only retry once for 5xx errors
               return failureCount < 1
             },
-            // Add timeout for faster response
             networkMode: 'online',
+            // Add request deduplication
+            structuralSharing: true,
           },
           mutations: {
-            retry: 1, // Reduce mutation retries
+            retry: 1,
+            // Add mutation timeout
+            networkMode: 'online',
           },
         },
       }),

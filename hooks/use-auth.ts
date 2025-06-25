@@ -1,117 +1,134 @@
-import { AuthService } from '@/services/auth.service'
-import { api } from '@/lib/api'
-import type { RegisterDto, ChangePasswordDto, User } from '@/types'
+'use client'
+
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { api } from '@/lib/api'
 import { toast } from 'react-hot-toast'
-import { useEffect, useState } from 'react'
-import { debugCookies, pollCookieChanges } from '@/lib/cookie-debug'
+import type { User, RegisterDto, ChangePasswordDto } from '@/types'
+
+interface LoginResponse {
+  success: boolean
+  user: User
+  message: string
+}
+
+interface AuthResponse {
+  user: User
+}
 
 export function useAuth() {
   const queryClient = useQueryClient()
-  const [isMounted, setIsMounted] = useState(false)
 
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
-  // Get current user profile with optimized config
+  // Get current user profile - with longer stale time to reduce API calls
   const {
-    data: user,
+    data: authData,
     isLoading,
-    error
+    error,
   } = useQuery({
     queryKey: ['auth', 'profile'],
-    queryFn: async () => {
-      return await api.get<User>('/users/profile')
-    },
-    retry: (failureCount, error: any) => {
-      // Reduce retry attempts for faster failure detection
-      if (error?.status === 401 || error?.status === 403) {
-        return false
+    queryFn: async (): Promise<AuthResponse> => {
+      try {
+        return await api.get<AuthResponse>('/users/profile')
+      } catch (error: any) {
+        if (error.status === 401) {
+          // Clear any stale auth data
+          queryClient.removeQueries({ queryKey: ['auth'] })
+          throw error
+        }
+        throw error
       }
+    },
+    staleTime: 10 * 60 * 1000, // 10 minutes - much longer than before
+    gcTime: 15 * 60 * 1000, // 15 minutes
+    retry: (failureCount, error: any) => {
+      // Don't retry on 401 (unauthorized)
+      if (error?.status === 401) return false
       return failureCount < 1
     },
-    staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
-    enabled: isMounted, // Only run client-side
-    // Add network mode for better offline handling
-    networkMode: 'online',
+    refetchOnMount: false, // Don't refetch on every mount
   })
 
-  // Login mutation with faster redirect
+  // Login mutation
   const loginMutation = useMutation({
-    mutationFn: ({ employeeCode, password }: { employeeCode: string; password: string }) => 
-      AuthService.login({ employeeCode, password }),
-    onSuccess: (response) => {
-      console.log('[AUTH] Login success - setting user data and redirecting')
-      
-      // Set user data immediately to prevent loading flash
-      queryClient.setQueryData(['auth', 'profile'], response.user)
-      
-      // Preload dashboard data in background
-      queryClient.prefetchQuery({
-        queryKey: ['dashboard', 'combined-data'],
-        staleTime: 60 * 1000,
-      })
-      
-      toast.success('Đăng nhập thành công!')
-      
-      // Immediate redirect for better UX
-      setTimeout(() => {
-        window.location.href = '/dashboard'
-      }, 500)
+    mutationFn: async ({ employeeCode, password }: { employeeCode: string; password: string }) => {
+      return await api.post<LoginResponse>('/auth/login', { employeeCode, password })
     },
-    onError: (error: Error) => {
-      console.error('[AUTH] Login error:', error)
-      toast.error(error.message)
-    }
+    onSuccess: (data) => {
+      // Update the auth cache with new user data
+      queryClient.setQueryData(['auth', 'profile'], { user: data.user })
+      
+      // Invalidate related queries
+      queryClient.invalidateQueries({ queryKey: ['auth'] })
+      
+      toast.success(data.message || 'Đăng nhập thành công!')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Đăng nhập thất bại!')
+    },
   })
 
   // Register mutation
   const registerMutation = useMutation({
-    mutationFn: (data: RegisterDto) => AuthService.register(data),
-    onSuccess: () => {
-      toast.success('Đăng ký thành công!\nVui lòng đăng nhập.')
+    mutationFn: async (data: RegisterDto) => {
+      return await api.post('/auth/register', data)
     },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    }
+    onSuccess: (data: any) => {
+      toast.success(data.message || 'Đăng ký thành công!')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Đăng ký thất bại!')
+    },
   })
 
   // Logout mutation
   const logoutMutation = useMutation({
-    mutationFn: () => AuthService.logout(),
+    mutationFn: async () => {
+      return await api.post('/auth/logout')
+    },
     onSuccess: () => {
-      queryClient.clear()
+      // Clear all auth-related cache
+      queryClient.removeQueries({ queryKey: ['auth'] })
+      queryClient.removeQueries({ queryKey: ['users'] })
+      queryClient.removeQueries({ queryKey: ['reports'] })
+      
       toast.success('Đăng xuất thành công!')
     },
-    onError: (error: Error) => {
-      // Clear cache anyway on logout error
-      queryClient.clear()
-    }
+    onError: (error: any) => {
+      // Even if logout fails on server, clear local state
+      queryClient.removeQueries({ queryKey: ['auth'] })
+      toast.error(error.message || 'Có lỗi khi đăng xuất!')
+    },
   })
 
   // Change password mutation
   const changePasswordMutation = useMutation({
-    mutationFn: (data: ChangePasswordDto) => AuthService.changePassword(data),
-    onSuccess: () => {
-      toast.success('Đổi mật khẩu thành công!')
+    mutationFn: async (data: ChangePasswordDto) => {
+      return await api.patch('/auth/change-password', data)
     },
-    onError: (error: Error) => {
-      toast.error(error.message)
-    }
+    onSuccess: (data: any) => {
+      toast.success(data.message || 'Đổi mật khẩu thành công!')
+    },
+    onError: (error: any) => {
+      toast.error(error.message || 'Đổi mật khẩu thất bại!')
+    },
   })
 
   return {
-    user: user ?? null,
-    isLoading: !isMounted || isLoading,
-    isAuthenticated: isMounted && !!user && !error,
+    user: authData?.user,
+    isLoading,
+    isAuthenticated: !!authData?.user && !error,
     login: async (employeeCode: string, password: string) => {
       await loginMutation.mutateAsync({ employeeCode, password })
     },
-    register: registerMutation.mutateAsync,
-    logout: logoutMutation.mutateAsync,
-    changePassword: changePasswordMutation.mutateAsync,
+    register: async (data: RegisterDto) => {
+      await registerMutation.mutateAsync(data)
+    },
+    logout: async () => {
+      await logoutMutation.mutateAsync()
+    },
+    changePassword: async (data: ChangePasswordDto) => {
+      await changePasswordMutation.mutateAsync(data)
+    },
     isLoginLoading: loginMutation.isPending,
     isRegisterLoading: registerMutation.isPending,
     isLogoutLoading: logoutMutation.isPending,

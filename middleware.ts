@@ -32,72 +32,36 @@ function addCorsHeaders(response: NextResponse, request: NextRequest): NextRespo
   if (origin && allowedOrigins.includes(origin)) {
     response.headers.set('Access-Control-Allow-Origin', origin);
     response.headers.set('Access-Control-Allow-Credentials', 'true');
-    response.headers.set('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE,PATCH,OPTIONS');
-    response.headers.set('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept, Authorization, Cookie, Set-Cookie, Cache-Control');
-    response.headers.set('Access-Control-Expose-Headers', 'Set-Cookie');
   }
 
   return response;
 }
 
 /**
- * Enhanced token validation với httpOnly cookies
+ * Lightweight token validation - only decode JWT without API call
  */
-async function validateToken(
-  request: NextRequest,
-): Promise<{ isValid: boolean; shouldRefresh: boolean; userData?: any }> {
-  // CRITICAL: Lấy auth-token từ httpOnly cookies
-  const token = request.cookies.get('auth-token')?.value;
-
-  console.log(`[MIDDLEWARE] Checking httpOnly cookie token: ${token ? 'Present' : 'Missing'}`);
-
-  if (!token) {
-    return { isValid: false, shouldRefresh: false };
-  }
-
+function validateTokenLocally(token: string): { isValid: boolean; exp?: number } {
   try {
-    // QUAN TRỌNG: Gọi API endpoint để validate token
-    // Vì token đã trong cookie, chỉ cần forward toàn bộ cookies
-    const cookieHeader = request.headers.get('cookie') || '';
+    // Simple JWT decode without verification (for middleware performance)
+    const parts = token.split('.');
+    if (parts.length !== 3) return { isValid: false };
     
-    console.log(`[MIDDLEWARE] Forwarding cookies to API: ${cookieHeader.substring(0, 100)}...`);
+    const payload = JSON.parse(atob(parts[1]));
+    const now = Math.floor(Date.now() / 1000);
     
-    const verifyResponse = await fetch(`${middlewareConfig.apiBaseUrl}/users/profile`, {
-      method: 'GET',
-      headers: {
-        // Forward tất cả cookies từ request gốc - ĐÂY LÀ KEY!
-        'Cookie': cookieHeader,
-        'Cache-Control': 'no-cache',
-        'User-Agent': request.headers.get('user-agent') || 'Next.js Middleware',
-        'Accept': 'application/json',
-        'Content-Type': 'application/json',
-      },
-      signal: AbortSignal.timeout(5000),
-    });
-
-    console.log(`[MIDDLEWARE] API response status: ${verifyResponse.status}`);
-
-    if (verifyResponse.ok) {
-      // Token hợp lệ, lấy thông tin người dùng
-      const userData = await verifyResponse.json();
-      console.log('[MIDDLEWARE] Token valid, user data received');
-      return { isValid: true, shouldRefresh: false, userData };
-    } else if (verifyResponse.status === 401) {
-      // Token không hợp lệ hoặc hết hạn
-      console.log('[MIDDLEWARE] Token invalid or expired');
-      return { isValid: false, shouldRefresh: true };
+    // Check if token is expired
+    if (payload.exp && payload.exp < now) {
+      return { isValid: false, exp: payload.exp };
     }
-
-    return { isValid: false, shouldRefresh: false };
+    
+    return { isValid: true, exp: payload.exp };
   } catch (error) {
-    console.error('[MIDDLEWARE] Error validating token:', error);
-    // If network error, temporarily allow access to avoid blocking
-    return { isValid: true, shouldRefresh: false };
+    return { isValid: false };
   }
 }
 
 /**
- * Main middleware function
+ * Main middleware function - OPTIMIZED
  */
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -115,8 +79,7 @@ export async function middleware(request: NextRequest) {
     pathname.includes('.') ||
     pathname.startsWith('/api/')
   ) {
-    const response = NextResponse.next();
-    return addCorsHeaders(response, request);
+    return NextResponse.next();
   }
 
   const token = request.cookies.get('auth-token')?.value;
@@ -124,11 +87,13 @@ export async function middleware(request: NextRequest) {
 
   // For public routes
   if (isPublicRoute) {
-    // If user has token and tries to access auth pages, redirect to dashboard
+    // If user has valid token and tries to access auth pages, redirect to dashboard
     if (token && (pathname === '/login' || pathname === '/register')) {
-      console.log(`[MIDDLEWARE] Authenticated user accessing ${pathname}, redirecting to dashboard`);
-      const response = NextResponse.redirect(new URL('/dashboard', request.url));
-      return addCorsHeaders(response, request);
+      const tokenCheck = validateTokenLocally(token);
+      if (tokenCheck.isValid) {
+        const response = NextResponse.redirect(new URL('/dashboard', request.url));
+        return addCorsHeaders(response, request);
+      }
     }
     
     // Allow access to public routes
@@ -141,28 +106,34 @@ export async function middleware(request: NextRequest) {
     return response;
   }
 
-  // For protected routes - check authentication
-  const { isValid, shouldRefresh, userData } = await validateToken(request);
-
-  if (!isValid) {
-    console.log(`[MIDDLEWARE] Access denied for ${pathname}, redirecting to login`);
-    
-    // Avoid redirect loops - don't redirect if already going to login
-    if (pathname === '/login') {
-      return NextResponse.next();
-    }
+  // For protected routes - lightweight token check
+  if (!token) {
+    console.log(`[MIDDLEWARE] No token for ${pathname}, redirecting to login`);
     
     const loginUrl = new URL('/login', request.url);
-    // Only add returnUrl if it's not a sensitive or auth route
     if (!pathname.startsWith('/login') && !pathname.startsWith('/register')) {
       loginUrl.searchParams.set('returnUrl', pathname);
     }
-    loginUrl.searchParams.set('reason', shouldRefresh ? 'token_expired' : 'no_token');
+    loginUrl.searchParams.set('reason', 'no_token');
 
     let response = NextResponse.redirect(loginUrl);
     response = addCorsHeaders(response, request);
+    response.cookies.delete('auth-token');
     
-    // Clear invalid token - NO DOMAIN
+    return response;
+  }
+
+  // Validate token locally (no API call)
+  const tokenCheck = validateTokenLocally(token);
+  
+  if (!tokenCheck.isValid) {
+    console.log(`[MIDDLEWARE] Invalid token for ${pathname}, redirecting to login`);
+    
+    const loginUrl = new URL('/login', request.url);
+    loginUrl.searchParams.set('reason', 'token_expired');
+    
+    let response = NextResponse.redirect(loginUrl);
+    response = addCorsHeaders(response, request);
     response.cookies.delete('auth-token');
     
     return response;
@@ -173,15 +144,8 @@ export async function middleware(request: NextRequest) {
   // Token is valid - allow access
   let response = NextResponse.next();
 
-  // If token should be refreshed, add header
-  if (shouldRefresh) {
-    response.headers.set('X-Token-Refresh-Required', 'true');
-  }
-
   // Add auth status header
-  if (userData) {
-    response.headers.set('X-Auth-Status', 'authenticated');
-  }
+  response.headers.set('X-Auth-Status', 'authenticated');
 
   // Add CORS headers
   response = addCorsHeaders(response, request);
@@ -192,8 +156,6 @@ export async function middleware(request: NextRequest) {
 
   // Add cache control for authenticated pages
   response.headers.set('Cache-Control', 'private, no-cache, no-store, must-revalidate');
-  response.headers.set('Pragma', 'no-cache');
-  response.headers.set('Expires', '0');
 
   return response;
 }

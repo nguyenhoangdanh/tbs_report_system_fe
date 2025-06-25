@@ -1,14 +1,26 @@
- export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'USER' | 'OFFICE_MANAGER' | 'OFFICE_ADMIN'
+export enum Role {
+  SUPERADMIN = 'SUPERADMIN',
+  OFFICE_MANAGER = 'OFFICE_MANAGER',
+  OFFICE_ADMIN = 'OFFICE_ADMIN',
+  ADMIN = 'ADMIN',
+  USER = 'USER',
+}
+
+export enum OfficeType {
+  HEAD_OFFICE = 'HEAD_OFFICE',
+  FACTORY_OFFICE = 'FACTORY_OFFICE',
+}
+
+export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'USER' | 'OFFICE_MANAGER' | 'OFFICE_ADMIN'
 
 export interface User {
   id: string
   employeeCode: string
-  email?: string // Optional
+  email?: string
   firstName: string
   lastName: string
-  fullName?: string // Computed property from backend
-  cardId?: string // Optional CCCD
-  role: UserRole 
+  cardId?: string
+  role: Role
   jobPositionId: string
   isActive: boolean
   officeId: string
@@ -20,7 +32,7 @@ export interface User {
 export interface Office {
   id: string
   name: string
-  type: 'HEAD_OFFICE' | 'FACTORY_OFFICE'
+  type: OfficeType
   description?: string
   createdAt: string
   updatedAt: string
@@ -54,8 +66,8 @@ export interface JobPosition {
   isActive: boolean
   createdAt: string
   updatedAt: string
-  department: Department
   position: Position
+  department: Department
 }
 
 export interface WeeklyReport {
@@ -97,9 +109,9 @@ export interface RegisterDto {
   firstName: string
   lastName: string
   cardId?: string
-  jobPositionId: string // JobPosition đã chứa departmentId
+  jobPositionId: string
   officeId: string
-  role: UserRole
+  role?: Role
 }
 
 export interface ChangePasswordDto {

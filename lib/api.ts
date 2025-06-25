@@ -7,14 +7,26 @@ export class ApiError extends Error {
   }
 }
 
+// Request deduplication cache
+const requestCache = new Map<string, Promise<any>>();
+
 async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
   
+  // Create cache key for GET requests
+  const cacheKey = options.method === 'GET' || !options.method ? 
+    `${url}_${JSON.stringify(options.headers)}` : null;
+  
+  // Return cached promise for duplicate GET requests
+  if (cacheKey && requestCache.has(cacheKey)) {
+    return requestCache.get(cacheKey);
+  }
+  
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 15000)
+  const timeoutId = setTimeout(() => controller.abort(), 10000) // Reduced to 10s
   
   const config: RequestInit = {
     headers: {
@@ -26,87 +38,85 @@ async function apiRequest<T>(
       }),
       ...options.headers,
     },
-    credentials: 'include', // Critical for cookie transmission
+    credentials: 'include',
     cache: 'no-cache',
     signal: controller.signal,
     ...options,
   }
 
-  try {
-    console.log('[API] Making request to:', url)
-    console.log('[API] Environment:', process.env.NODE_ENV)
-    
-    // Only log cookies in development to avoid noise
-    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
-      console.log('[API] Client cookies before request:', document.cookie)
-    }
-    
-    const response = await fetch(url, config)
-    clearTimeout(timeoutId)
-    
-    console.log('[API] Response status:', response.status)
-    
-    // Only log detailed headers in development
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[API] Response headers:', Object.fromEntries(response.headers.entries()))
-      
-      const corsOrigin = response.headers.get('access-control-allow-origin')
-      const corsCredentials = response.headers.get('access-control-allow-credentials')
-      console.log('[API] CORS headers:', { origin: corsOrigin, credentials: corsCredentials })
-      
-      const setCookieHeader = response.headers.get('set-cookie')
-      if (setCookieHeader) {
-        console.log('[API] Set-Cookie header received:', setCookieHeader)
+  const requestPromise = (async () => {
+    try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[API] Making request to:', url)
       }
-    }
-    
-    if (!response.ok) {
-      let errorMessage = 'Có lỗi xảy ra'
       
-      try {
-        const errorData = await response.json()
-        if (errorData.message) {
-          errorMessage = Array.isArray(errorData.message) 
-            ? errorData.message.join(', ') 
-            : errorData.message
-        } else if (errorData.error) {
-          errorMessage = errorData.error
-        } else if (typeof errorData === 'string') {
-          errorMessage = errorData
+      const response = await fetch(url, config)
+      clearTimeout(timeoutId)
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('[API] Response status:', response.status)
+      }
+      
+      if (!response.ok) {
+        let errorMessage = 'Có lỗi xảy ra'
+        
+        try {
+          const errorData = await response.json()
+          if (errorData.message) {
+            errorMessage = Array.isArray(errorData.message) 
+              ? errorData.message.join(', ') 
+              : errorData.message
+          } else if (errorData.error) {
+            errorMessage = errorData.error
+          }
+        } catch (parseError) {
+          errorMessage = response.statusText || `Lỗi ${response.status}`
         }
-      } catch (parseError) {
-        errorMessage = response.statusText || `Lỗi ${response.status}`
+        
+        throw new ApiError(response.status, errorMessage)
+      }
+
+      const contentType = response.headers.get('content-type')
+      if (contentType && contentType.includes('application/json')) {
+        const data = await response.json()
+        return data
+      } else {
+        return {} as T
+      }
+    } catch (error: any) {
+      clearTimeout(timeoutId)
+      
+      if (error instanceof ApiError) {
+        throw error
       }
       
-      throw new ApiError(response.status, errorMessage)
-    }
-
-    const contentType = response.headers.get('content-type')
-    if (contentType && contentType.includes('application/json')) {
-      const data = await response.json()
-      return data
-    } else {
-      return {} as T
-    }
-  } catch (error: any) {
-    clearTimeout(timeoutId)
-    
-    if (error instanceof ApiError) {
-      throw error
-    }
-    
-    if (error?.name === 'AbortError') {
-      throw new ApiError(0, 'Request timeout - vui lòng thử lại sau')
-    }
-    
-    if (error?.name === 'TypeError') {
-      if (error?.message?.includes('fetch')) {
-        throw new ApiError(0, 'Không thể kết nối đến server. Kiểm tra kết nối mạng.')
+      if (error?.name === 'AbortError') {
+        throw new ApiError(0, 'Request timeout - vui lòng thử lại sau')
+      }
+      
+      if (error?.name === 'TypeError') {
+        if (error?.message?.includes('fetch')) {
+          throw new ApiError(0, 'Không thể kết nối đến server. Kiểm tra kết nối mạng.')
+        }
+      }
+      
+      throw new ApiError(0, 'Lỗi không xác định. Vui lòng thử lại.')
+    } finally {
+      // Clean up cache after 5 seconds for GET requests
+      if (cacheKey) {
+        setTimeout(() => {
+          requestCache.delete(cacheKey);
+        }, 5000);
       }
     }
-    
-    throw new ApiError(0, 'Lỗi không xác định. Vui lòng thử lại.')
+  })();
+
+  // Cache GET requests
+  if (cacheKey) {
+    requestCache.set(cacheKey, requestPromise);
   }
+
+  return requestPromise;
 }
 
 export const api = {
