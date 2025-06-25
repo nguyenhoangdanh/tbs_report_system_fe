@@ -136,7 +136,7 @@ export interface UpdateProfileDto {
   cardId?: string
   jobPositionId?: string
   officeId?: string
-  role?: 'SUPERADMIN' | 'ADMIN' | 'USER'
+  role?: UserRole
   phoneNumber?: string
   address?: string
   dateOfBirth?: string

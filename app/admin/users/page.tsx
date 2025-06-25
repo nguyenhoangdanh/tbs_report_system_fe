@@ -12,7 +12,18 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'react-hot-toast';
-import type { User, Office, JobPosition } from '@/types';
+import type { User, Office, JobPosition, UserRole } from '@/types';
+
+interface EditUser{
+  employeeCode: string;
+  firstName: string;
+  lastName: string;
+  email: string;
+  cardId: string;
+  jobPositionId: string;
+  officeId: string;
+  role: UserRole;
+}
 
 export default function UsersManagementPage() {
   const { user: currentUser } = useAuth();
@@ -24,7 +35,7 @@ export default function UsersManagementPage() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [editData, setEditData] = useState({
+  const [editData, setEditData] = useState<EditUser>({
     employeeCode: '',
     firstName: '',
     lastName: '',
@@ -32,7 +43,7 @@ export default function UsersManagementPage() {
     cardId: '',
     jobPositionId: '',
     officeId: '',
-    role: 'USER' as 'SUPERADMIN' | 'ADMIN' | 'USER', // Fix: proper type annotation
+    role: 'USER',
   });
 
   useEffect(() => {
