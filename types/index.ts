@@ -111,7 +111,7 @@ export interface RegisterDto {
   cardId?: string
   jobPositionId: string
   officeId: string
-  role?: Role
+  role: Role
 }
 
 export interface ChangePasswordDto {

@@ -11,7 +11,7 @@ import { registerSchema, type RegisterFormData } from '@/lib/validations/auth'
 import { UserService } from '@/services/user.service'
 import { useAuth } from '@/components/providers/auth-provider'
 import { toast } from 'react-hot-toast'
-import type { Office, JobPosition, Department } from '@/types'
+import { type Office, type JobPosition, type Department, Role } from '@/types'
 import { PasswordField } from '../ui/password-field'
 
 export function RegisterForm() {
@@ -41,7 +41,7 @@ export function RegisterForm() {
       officeId: '',
       departmentId: '',
       jobPositionId: '',
-      role: 'USER', // Default role
+      role: Role.USER, // Default role
     }
   })
 
