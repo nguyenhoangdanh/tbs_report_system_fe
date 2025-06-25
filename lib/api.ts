@@ -13,16 +13,14 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
   
-  // Add timeout to avoid hanging requests
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), 15000) // Increased timeout for production
+  const timeoutId = setTimeout(() => controller.abort(), 15000)
   
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
       'Cache-Control': 'no-cache',
-      // Add User-Agent for server identification
       ...(typeof window !== 'undefined' && {
         'X-Requested-With': 'XMLHttpRequest',
       }),
@@ -37,15 +35,9 @@ async function apiRequest<T>(
   try {
     console.log('[API] Making request to:', url)
     console.log('[API] Environment:', process.env.NODE_ENV)
-    console.log('[API] Request config:', {
-      method: config.method || 'GET',
-      credentials: config.credentials,
-      mode: config.mode,
-      headers: config.headers
-    })
     
-    // Log cookies before request
-    if (typeof window !== 'undefined') {
+    // Only log cookies in development to avoid noise
+    if (typeof window !== 'undefined' && process.env.NODE_ENV === 'development') {
       console.log('[API] Client cookies before request:', document.cookie)
     }
     
@@ -53,24 +45,19 @@ async function apiRequest<T>(
     clearTimeout(timeoutId)
     
     console.log('[API] Response status:', response.status)
-    console.log('[API] Response headers:', Object.fromEntries(response.headers.entries()))
     
-    // Check CORS headers in response
-    const corsOrigin = response.headers.get('access-control-allow-origin')
-    const corsCredentials = response.headers.get('access-control-allow-credentials')
-    console.log('[API] CORS headers:', { origin: corsOrigin, credentials: corsCredentials })
-    
-    // Log cookie handling
-    const setCookieHeader = response.headers.get('set-cookie')
-    if (setCookieHeader) {
-      console.log('[API] Set-Cookie header received:', setCookieHeader)
-    }
-    
-    // Log cookies after response
-    if (typeof window !== 'undefined') {
-      setTimeout(() => {
-        console.log('[API] Client cookies after response:', document.cookie)
-      }, 100)
+    // Only log detailed headers in development
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[API] Response headers:', Object.fromEntries(response.headers.entries()))
+      
+      const corsOrigin = response.headers.get('access-control-allow-origin')
+      const corsCredentials = response.headers.get('access-control-allow-credentials')
+      console.log('[API] CORS headers:', { origin: corsOrigin, credentials: corsCredentials })
+      
+      const setCookieHeader = response.headers.get('set-cookie')
+      if (setCookieHeader) {
+        console.log('[API] Set-Cookie header received:', setCookieHeader)
+      }
     }
     
     if (!response.ok) {
@@ -78,8 +65,6 @@ async function apiRequest<T>(
       
       try {
         const errorData = await response.json()
-        console.log('[API] Error response data:', errorData)
-        
         if (errorData.message) {
           errorMessage = Array.isArray(errorData.message) 
             ? errorData.message.join(', ') 
@@ -90,31 +75,21 @@ async function apiRequest<T>(
           errorMessage = errorData
         }
       } catch (parseError) {
-        console.log('[API] Failed to parse error response:', parseError)
         errorMessage = response.statusText || `Lỗi ${response.status}`
-      }
-      
-      // Special handling for CORS errors
-      if (response.status === 0 || !corsOrigin) {
-        errorMessage = 'Lỗi kết nối CORS. Vui lòng kiểm tra cấu hình server.'
       }
       
       throw new ApiError(response.status, errorMessage)
     }
 
-    // Handle empty responses
     const contentType = response.headers.get('content-type')
     if (contentType && contentType.includes('application/json')) {
       const data = await response.json()
-      console.log('[API] Success response for', endpoint, '- Data type:', typeof data)
       return data
     } else {
-      console.log('[API] Non-JSON response for', endpoint)
       return {} as T
     }
   } catch (error: any) {
     clearTimeout(timeoutId)
-    console.error('[API] Request failed for', endpoint, ':', error)
     
     if (error instanceof ApiError) {
       throw error
@@ -124,14 +99,10 @@ async function apiRequest<T>(
       throw new ApiError(0, 'Request timeout - vui lòng thử lại sau')
     }
     
-    // Network errors
-    if (error?.name === 'TypeError' && error?.message?.includes('fetch')) {
-      throw new ApiError(0, 'Không thể kết nối đến server. Kiểm tra kết nối mạng.')
-    }
-    
-    // CORS errors
-    if (error?.message?.includes('CORS')) {
-      throw new ApiError(0, 'Lỗi CORS. Vui lòng liên hệ admin.')
+    if (error?.name === 'TypeError') {
+      if (error?.message?.includes('fetch')) {
+        throw new ApiError(0, 'Không thể kết nối đến server. Kiểm tra kết nối mạng.')
+      }
     }
     
     throw new ApiError(0, 'Lỗi không xác định. Vui lòng thử lại.')

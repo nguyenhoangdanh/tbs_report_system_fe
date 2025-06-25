@@ -42,33 +42,18 @@ export function useAuth() {
       AuthService.login({ employeeCode, password }),
     onSuccess: (response) => {
       console.log('[AUTH] Login success response:', response)
-      console.log('[AUTH] Checking cookies after login...')
-      
-      // Check cookies immediately
-      setTimeout(() => {
-        console.log('[AUTH] Cookies 100ms after login:', document.cookie)
-      }, 100)
-      
-      setTimeout(() => {
-        console.log('[AUTH] Cookies 500ms after login:', document.cookie)
-      }, 500)
       
       queryClient.setQueryData(['auth', 'profile'], response.user)
       toast.success('Đăng nhập thành công!')
       
-      // Wait for cookie to be set, then redirect
+      // Force refetch profile to ensure auth state is updated
+      queryClient.invalidateQueries({ queryKey: ['auth', 'profile'] })
+      
+      // Redirect immediately without cookie check - let middleware handle auth
       setTimeout(() => {
-        console.log('[AUTH] Final cookies before redirect:', document.cookie)
-        const hasAuthToken = document.cookie.includes('auth-token')
-        console.log('[AUTH] Has auth token before redirect:', hasAuthToken)
-        
-        if (hasAuthToken) {
-          window.location.href = '/dashboard'
-        } else {
-          console.error('[AUTH] No auth token found after login!')
-          toast.error('Đăng nhập thành công nhưng có lỗi xảy ra. Vui lòng thử lại.')
-        }
-      }, 1500) // Increased timeout for production
+        console.log('[AUTH] Redirecting to dashboard...')
+        window.location.href = '/dashboard'
+      }, 100) // Minimal delay
     },
     onError: (error: Error) => {
       console.error('[AUTH] Login error:', error)
