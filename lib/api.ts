@@ -48,6 +48,7 @@ async function apiRequest<T>(
     try {
       if (process.env.NODE_ENV === 'development') {
         console.log('[API] Making request to:', url)
+        console.log('[API] Environment API URL:', API_BASE_URL)
       }
       
       const response = await fetch(url, config)
@@ -55,6 +56,7 @@ async function apiRequest<T>(
       
       if (process.env.NODE_ENV === 'development') {
         console.log('[API] Response status:', response.status)
+        console.log('[API] Response headers:', Object.fromEntries(response.headers.entries()))
       }
       
       if (!response.ok) {
@@ -91,16 +93,16 @@ async function apiRequest<T>(
       }
       
       if (error?.name === 'AbortError') {
-        throw new ApiError(0, 'Request timeout - vui lòng thử lại sau')
+        throw new ApiError(0, 'Kết nối timeout - Backend có thể đang khởi động. Vui lòng thử lại sau 30 giây.')
       }
       
       if (error?.name === 'TypeError') {
         if (error?.message?.includes('fetch')) {
-          throw new ApiError(0, 'Không thể kết nối đến server. Kiểm tra kết nối mạng.')
+          throw new ApiError(0, `Không thể kết nối đến server: ${API_BASE_URL}. Kiểm tra URL backend.`)
         }
       }
       
-      throw new ApiError(0, 'Lỗi không xác định. Vui lòng thử lại.')
+      throw new ApiError(0, `Lỗi kết nối: ${error.message}`)
     } finally {
       // Clean up cache after 5 seconds for GET requests
       if (cacheKey) {

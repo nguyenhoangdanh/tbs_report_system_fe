@@ -27,6 +27,7 @@ function addCorsHeaders(response: NextResponse, request: NextRequest): NextRespo
     'http://localhost:3000',
     'http://127.0.0.1:3000',
     'https://weeklyreport-orpin.vercel.app',
+    'https://weeklyreportsystem-mu.vercel.app', // Add this
   ];
 
   if (origin && allowedOrigins.includes(origin)) {
