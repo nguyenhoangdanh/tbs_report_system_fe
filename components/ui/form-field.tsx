@@ -1,7 +1,7 @@
 import { forwardRef } from 'react'
 import { Input } from './input'
 import { Label } from './label'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from './select'
+import { Select, SelectContent, SelectTrigger, SelectValue } from './select'
 import { cn } from '@/lib/utils'
 
 interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {

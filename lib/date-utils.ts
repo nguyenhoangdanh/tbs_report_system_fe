@@ -16,7 +16,7 @@ export function getCurrentWeek(): { weekNumber: number; year: number } {
   
   // Ensure week number is within valid range
   let validWeekNumber = weekNumber
-  let validYear = year
+  const validYear = year
   
   if (validWeekNumber > 52) {
     validWeekNumber = Math.min(validWeekNumber, 52)

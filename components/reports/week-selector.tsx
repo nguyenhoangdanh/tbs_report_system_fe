@@ -33,8 +33,8 @@ export const WeekSelector = memo(function WeekSelector({
   const router = useRouter();
   
   // Ensure weekNumber and year are valid numbers
-  let validWeekNumber = Number(weekNumber) || currentWeek.weekNumber
-  let validYear = Number(year) || currentWeek.year
+  const validWeekNumber = Number(weekNumber) || currentWeek.weekNumber
+  const validYear = Number(year) || currentWeek.year
   
   const { start, end } = getWeekDateRange(validWeekNumber, validYear)
   const dateRange = formatDateRange(start, end)

@@ -1,5 +1,5 @@
 import { Button } from './button'
-import { Loader, Loader2 } from 'lucide-react'
+import { Loader } from 'lucide-react'
 import React from 'react'
 
 interface SubmitButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
