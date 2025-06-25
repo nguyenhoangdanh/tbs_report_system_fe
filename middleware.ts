@@ -119,32 +119,47 @@ export async function middleware(request: NextRequest) {
     return addCorsHeaders(response, request);
   }
 
-  // Create initial response
-  let response = NextResponse.next();
+  const token = request.cookies.get('auth-token')?.value;
+  const isPublicRoute = publicRoutes.some(route => pathname === route || pathname.startsWith(route));
 
-  // Skip auth check for public routes
-  if (publicRoutes.some(route => pathname === route || pathname.startsWith(route))) {
+  // For public routes
+  if (isPublicRoute) {
+    // If user has token and tries to access auth pages, redirect to dashboard
+    if (token && (pathname === '/login' || pathname === '/register')) {
+      console.log(`[MIDDLEWARE] Authenticated user accessing ${pathname}, redirecting to dashboard`);
+      const response = NextResponse.redirect(new URL('/dashboard', request.url));
+      return addCorsHeaders(response, request);
+    }
+    
+    // Allow access to public routes
+    let response = NextResponse.next();
     response = addCorsHeaders(response, request);
     
-    // Add performance headers
     const processingTime = Date.now() - startTime;
     response.headers.set('X-Response-Time', `${processingTime}ms`);
     
     return response;
   }
 
-  // Check authentication for protected routes
+  // For protected routes - check authentication
   const { isValid, shouldRefresh, userData } = await validateToken(request);
 
   if (!isValid) {
     console.log(`[MIDDLEWARE] Access denied for ${pathname}, redirecting to login`);
     
-    // Redirect to login with return URL
-    const url = new URL('/login', request.url);
-    url.searchParams.set('returnUrl', pathname);
-    url.searchParams.set('reason', shouldRefresh ? 'token_expired' : 'no_token');
+    // Avoid redirect loops - don't redirect if already going to login
+    if (pathname === '/login') {
+      return NextResponse.next();
+    }
+    
+    const loginUrl = new URL('/login', request.url);
+    // Only add returnUrl if it's not a sensitive or auth route
+    if (!pathname.startsWith('/login') && !pathname.startsWith('/register')) {
+      loginUrl.searchParams.set('returnUrl', pathname);
+    }
+    loginUrl.searchParams.set('reason', shouldRefresh ? 'token_expired' : 'no_token');
 
-    response = NextResponse.redirect(url);
+    let response = NextResponse.redirect(loginUrl);
     response = addCorsHeaders(response, request);
     
     // Clear invalid token
@@ -154,6 +169,9 @@ export async function middleware(request: NextRequest) {
   }
 
   console.log(`[MIDDLEWARE] Access granted for ${pathname}`);
+
+  // Token is valid - allow access
+  let response = NextResponse.next();
 
   // If token should be refreshed, add header
   if (shouldRefresh) {

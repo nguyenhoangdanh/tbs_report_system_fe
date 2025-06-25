@@ -48,14 +48,12 @@ export function useAuth() {
       queryClient.setQueryData(['auth', 'profile'], response.user)
       toast.success('Đăng nhập thành công!')
       
-      // Wait for cookie to be properly set on production
-      const redirectDelay = process.env.NODE_ENV === 'production' ? 2000 : 500
-      
+      // Let middleware handle the redirect by invalidating auth state
+      // Don't manually redirect here to avoid conflicts
       setTimeout(() => {
-        console.log('[AUTH] Redirecting to dashboard after cookie delay')
-        // Use replace to prevent back button issues
-        window.location.replace('/dashboard')
-      }, redirectDelay)
+        // Force a page reload to let middleware handle routing
+        window.location.href = '/dashboard'
+      }, 1000)
     },
     onError: (error: Error) => {
       console.error('[AUTH] Login error:', error)

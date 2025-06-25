@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/components/providers/auth-provider'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -46,12 +46,24 @@ const FeatureCard = ({ icon, title, description, delay }: {
 export default function HomePage() {
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
+  const hasRedirectedRef = useRef(false)
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
-      router.push('/dashboard')
+    if (!isLoading && isAuthenticated && !hasRedirectedRef.current) {
+      hasRedirectedRef.current = true
+      console.log('[HOME] Authenticated user detected, redirecting to dashboard')
+      router.replace('/dashboard')
     }
   }, [isAuthenticated, isLoading, router])
+
+  // Show loading during redirect
+  if (isAuthenticated && !isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      </div>
+    )
+  }
 
   return (
     <MainLayout title={undefined} subtitle={undefined} showBreadcrumb={false}>

@@ -188,19 +188,21 @@ export default function DashboardPage() {
     setIsMounted(true)
   }, [])
 
-  useEffect(() => {
-    if (isMounted && !isLoading && !isAuthenticated) {
-      router.push('/login')
-    }
-  }, [isAuthenticated, isLoading, router, isMounted])
+  // Remove redirect logic - let middleware handle it
+  // useEffect(() => {
+  //   if (isMounted && !isLoading && !isAuthenticated) {
+  //     router.push('/login')
+  //   }
+  // }, [isAuthenticated, isLoading, router, isMounted])
 
   // Always show loading until mounted to prevent hydration mismatch
   if (!isMounted || isLoading) {
     return <AppLoading />
   }
 
+  // Let middleware handle unauthenticated users
   if (!user) {
-    return null
+    return <AppLoading text="Đang xác thực..." />
   }
 
   // Utility for activity color
