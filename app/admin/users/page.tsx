@@ -12,7 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'react-hot-toast';
-import type { User, Office, JobPosition, UserRole } from '@/types';
+import type { User, Office, JobPosition } from '@/types';
+import { Role } from '@/types';
 
 interface EditUser{
   employeeCode: string;
@@ -22,7 +23,7 @@ interface EditUser{
   cardId: string;
   jobPositionId: string;
   officeId: string;
-  role: UserRole;
+  role: Role;
 }
 
 export default function UsersManagementPage() {
@@ -43,7 +44,7 @@ export default function UsersManagementPage() {
     cardId: '',
     jobPositionId: '',
     officeId: '',
-    role: 'USER',
+    role: Role.USER, 
   });
 
   useEffect(() => {
