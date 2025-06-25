@@ -2,7 +2,6 @@
 
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { motion } from 'framer-motion'
 import { AuthLayout } from '@/components/auth/auth-layout'
@@ -10,12 +9,12 @@ import { FormField } from '@/components/ui/form-field'
 import { SubmitButton } from '@/components/ui/submit-button'
 import { loginSchema, type LoginFormData } from '@/lib/validations/auth'
 import Link from 'next/link'
-import { AppLoading } from '@/components/ui/app-loading'
 import { UserLock } from 'lucide-react'
-import { PasswordField } from '@/components/ui/password-field'
+import { useEffect } from 'react'
+import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
-  const { login, isLoginLoading, isLoading } = useAuth()
+  const { login, isLoginLoading, isLoading, isAuthenticated } = useAuth()
   const router = useRouter()
 
   const {
@@ -26,20 +25,23 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema)
   })
 
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated && !isLoading) {
+      router.replace('/dashboard')
+    }
+  }, [isAuthenticated, isLoading, router])
+
   const onSubmit = async (data: LoginFormData) => {
     try {
       await login(data.employeeCode, data.password)
-      router.push('/dashboard')
+      // Redirect xử lý trong mutation
     } catch (error) {
-      // Error is handled by the auth provider
+      // Error đã được xử lý
     }
   }
 
-  if (isLoading) {
-    return <AppLoading />
-  }
-
-  return (
+   return (
     <AuthLayout
       title="Đăng nhập"
       description="Hệ thống báo cáo công việc hàng tuần"

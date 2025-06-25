@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/components/providers/auth-provider'
 import { useRouter } from 'next/navigation'
-import { useEffect, memo } from 'react'
+import { useEffect, memo, useState } from 'react'
 import { motion } from 'framer-motion'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -11,7 +11,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import Link from 'next/link'
 import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts'
-import { PieChart as PieChartIcon, CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, Hourglass, FileText } from 'lucide-react'
+import { CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, Hourglass, FileText } from 'lucide-react'
 import { AppLoading } from '@/components/ui/app-loading'
 
 // --- Pie Chart Card Component ---
@@ -24,7 +24,8 @@ interface TaskPieChartCardProps {
   color: string
   link?: string
   icon?: React.ReactNode
-  filter?: string
+  filter?: string,
+  textColor?: string,
 }
 
 const TaskPieChartCard = memo(function TaskPieChartCard({
@@ -38,7 +39,7 @@ const TaskPieChartCard = memo(function TaskPieChartCard({
   icon,
   filter,
 }: TaskPieChartCardProps) {
-  const percent = total > 0 ? Math.round((completed / total) * 100) : 0
+  const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
   // Custom label for PieChart: show % directly on each slice
   const renderPieLabel = (props: any) => {
@@ -53,12 +54,15 @@ const TaskPieChartCard = memo(function TaskPieChartCard({
       <text
         x={x}
         y={y}
-        fill="#fff"
+        fill="white" // Sử dụng màu trắng để tương phản tốt với cả màu xanh và cam
         textAnchor="middle"
         dominantBaseline="central"
         fontSize={16}
         fontWeight={600}
-        style={{ textShadow: '0 1px 4px rgba(0,0,0,0.18)' }}
+        style={{ 
+          textShadow: '0 1px 3px rgba(0,0,0,0.8)', // Tăng shadow để text rõ hơn
+          filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))' // Thêm drop-shadow cho độ tương phản tốt hơn
+        }}
       >
         {`${Math.round(percent * 100)}%`}
       </text>
@@ -169,6 +173,8 @@ function buildTaskPieData(stat?: { completed?: number; uncompleted?: number }) {
 export default function DashboardPage() {
   const { user, isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
+  const [isMounted, setIsMounted] = useState(false)
+  
   const { data: activities, isLoading: activitiesLoading } = useRecentActivities()
   const { data: weeklyTaskStats, isLoading: weeklyTaskStatsLoading } = useWeeklyTaskStats()
   const { data: monthlyTaskStats, isLoading: monthlyTaskStatsLoading } = useMonthlyTaskStats()
@@ -179,12 +185,17 @@ export default function DashboardPage() {
   const currentMonth = now.getMonth() + 1
 
   useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
+    setIsMounted(true)
+  }, [])
+
+  useEffect(() => {
+    if (isMounted && !isLoading && !isAuthenticated) {
       router.push('/login')
     }
-  }, [isAuthenticated, isLoading, router])
+  }, [isAuthenticated, isLoading, router, isMounted])
 
-  if (isLoading) {
+  // Always show loading until mounted to prevent hydration mismatch
+  if (!isMounted || isLoading) {
     return <AppLoading />
   }
 

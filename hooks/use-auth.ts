@@ -15,25 +15,17 @@ export function useAuth() {
   } = useQuery({
     queryKey: ['auth', 'profile'],
     queryFn: async () => {
-      try {
         return await api.get<User>('/users/profile')
-      } catch (error: any) {
-        // Don't show toast for 401 errors (user not logged in)
-        if (error.status !== 401) {
-          console.error('Profile fetch error:', error)
-        }
-        throw error
-      }
     },
     retry: (failureCount, error: any) => {
-      // Don't retry on auth errors
       if (error?.status === 401 || error?.status === 403) {
         return false
       }
-      return failureCount < 2
+      return failureCount < 1 // Giảm retry
     },
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 10 * 60 * 1000, // 10 phút
     refetchOnWindowFocus: false,
+    enabled: typeof window !== 'undefined', // Chỉ chạy client-side
   })
 
   // Login mutation
@@ -43,6 +35,8 @@ export function useAuth() {
     onSuccess: (response) => {
       queryClient.setQueryData(['auth', 'profile'], response.user)
       toast.success('Đăng nhập thành công!')
+      // Redirect ngay lập tức
+      window.location.href = '/dashboard'
     },
     onError: (error: Error) => {
       toast.error(error.message)
@@ -68,7 +62,6 @@ export function useAuth() {
       toast.success('Đăng xuất thành công!')
     },
     onError: (error: Error) => {
-      console.error('Logout failed:', error)
       // Clear cache anyway on logout error
       queryClient.clear()
     }

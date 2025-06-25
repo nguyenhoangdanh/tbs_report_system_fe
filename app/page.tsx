@@ -4,10 +4,8 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
-import { AnimatedButton } from '@/components/ui/animated-button'
 import Link from 'next/link'
 import { MainLayout } from '@/components/layout/main-layout'
-import { AppLoading } from '@/components/ui/app-loading'
 
 const StatCard = ({ number, label, delay }: { number: string; label: string; delay: number }) => (
   <motion.div
@@ -54,10 +52,6 @@ export default function HomePage() {
       router.push('/dashboard')
     }
   }, [isAuthenticated, isLoading, router])
-
-  if (isLoading) {
-    return <AppLoading />
-  }
 
   return (
     <MainLayout title={undefined} subtitle={undefined} showBreadcrumb={false}>

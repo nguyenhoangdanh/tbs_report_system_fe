@@ -13,6 +13,10 @@ async function apiRequest<T>(
 ): Promise<T> {
   const url = `${API_BASE_URL}${endpoint}`
   
+  // Add timeout to avoid hanging requests
+  const controller = new AbortController()
+  const timeoutId = setTimeout(() => controller.abort(), 10000) // 10 second timeout
+  
   const config: RequestInit = {
     headers: {
       'Content-Type': 'application/json',
@@ -20,11 +24,16 @@ async function apiRequest<T>(
     },
     credentials: 'include', // Include cookies (auth-token)
     mode: 'cors', // Explicitly set CORS mode
+    signal: controller.signal,
     ...options,
   }
 
   try {
+    console.log('[API] Making request to:', endpoint)
     const response = await fetch(url, config)
+    clearTimeout(timeoutId)
+    
+    console.log('[API] Response status:', response.status)
     
     if (!response.ok) {
       let errorMessage = 'Có lỗi xảy ra'
@@ -41,7 +50,6 @@ async function apiRequest<T>(
           errorMessage = errorData
         }
       } catch {
-        // If JSON parsing fails, use status text
         errorMessage = response.statusText || `Lỗi ${response.status}`
       }
       
@@ -51,16 +59,20 @@ async function apiRequest<T>(
     // Handle empty responses
     const contentType = response.headers.get('content-type')
     if (contentType && contentType.includes('application/json')) {
-      return response.json()
+      const data = await response.json()
+      console.log('[API] Success response for', endpoint)
+      return data
     } else {
       return {} as T
     }
-  } catch (error) {
+  } catch (error: any) {
+    clearTimeout(timeoutId)
     if (error instanceof ApiError) {
       throw error
     }
-    // Network or other errors
-    console.error('Network error:', error)
+    if (error?.name === 'AbortError') {
+      throw new ApiError(0, 'Request timeout - vui lòng thử lại')
+    }
     throw new ApiError(0, 'Không thể kết nối đến máy chủ. Vui lòng kiểm tra kết nối mạng.')
   }
 }

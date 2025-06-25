@@ -3,26 +3,35 @@ import React from 'react'
 interface AppLoadingProps {
   text?: string
   size?: number
-  colorClass?: string
-  bgClass?: string
+  minimal?: boolean
 }
 
 export function AppLoading({
-  text = "Đang tải dữ liệu, vui lòng chờ...",
-  size = 50,
-  colorClass = "border-t-green-600 border-b-green-300 dark:border-t-green-400 dark:border-b-green-700",
-  bgClass = ""
+  text = "Đang tải...",
+  size = 40,
+  minimal = false
 }: AppLoadingProps) {
+  if (minimal) {
+    return (
+      <div className="flex items-center justify-center p-4">
+        <div
+          className="animate-spin rounded-full border-2 border-green-600/20 border-t-green-600"
+          style={{ width: size, height: size }}
+        />
+      </div>
+    )
+  }
+
   return (
-    <div className={`min-h-screen flex items-center justify-center bg-background py-24 ${bgClass}`}>
-      <div className="text-center space-y-6">
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="text-center space-y-4">
         <div className="flex items-center justify-center">
           <div
-            className={`animate-spin rounded-full border-t-2 border-b-2 ${colorClass}`}
+            className="animate-spin rounded-full border-2 border-green-600/20 border-t-green-600"
             style={{ width: size, height: size }}
           />
         </div>
-        <p className="text-lg text-muted-foreground font-medium">{text}</p>
+        <p className="text-sm text-muted-foreground">{text}</p>
       </div>
     </div>
   )
