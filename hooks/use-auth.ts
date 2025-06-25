@@ -1,11 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AuthService } from '@/services/auth.service'
 import { api } from '@/lib/api'
 import type { RegisterDto, ChangePasswordDto, User } from '@/types'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
+import { useEffect, useState } from 'react'
 
 export function useAuth() {
   const queryClient = useQueryClient()
+  const [isMounted, setIsMounted] = useState(false)
+
+  useEffect(() => {
+    setIsMounted(true)
+  }, [])
 
   // Get current user profile
   const {
@@ -15,9 +21,11 @@ export function useAuth() {
   } = useQuery({
     queryKey: ['auth', 'profile'],
     queryFn: async () => {
-        return await api.get<User>('/users/profile')
+      console.log('[AUTH] Fetching profile, cookies:', document.cookie)
+      return await api.get<User>('/users/profile')
     },
     retry: (failureCount, error: any) => {
+      console.log('[AUTH] Retry:', failureCount, 'Status:', error?.status)
       if (error?.status === 401 || error?.status === 403) {
         return false
       }
@@ -25,7 +33,7 @@ export function useAuth() {
     },
     staleTime: 10 * 60 * 1000, // 10 phút
     refetchOnWindowFocus: false,
-    enabled: typeof window !== 'undefined', // Chỉ chạy client-side
+    enabled: isMounted, // Chỉ chạy client-side
   })
 
   // Login mutation
@@ -33,12 +41,20 @@ export function useAuth() {
     mutationFn: ({ employeeCode, password }: { employeeCode: string; password: string }) => 
       AuthService.login({ employeeCode, password }),
     onSuccess: (response) => {
+      console.log('[AUTH] Login success, checking cookies...')
+      console.log('[AUTH] Cookies after login:', document.cookie)
+      
       queryClient.setQueryData(['auth', 'profile'], response.user)
       toast.success('Đăng nhập thành công!')
-      // Redirect ngay lập tức
-      window.location.href = '/dashboard'
+      
+      // Wait longer for cookie to be set on production
+      setTimeout(() => {
+        console.log('[AUTH] Final cookies before redirect:', document.cookie)
+        window.location.href = '/dashboard'
+      }, 1000)
     },
     onError: (error: Error) => {
+      console.error('[AUTH] Login error:', error)
       toast.error(error.message)
     }
   })
@@ -80,8 +96,8 @@ export function useAuth() {
 
   return {
     user: user ?? null,
-    isLoading,
-    isAuthenticated: !!user && !error,
+    isLoading: !isMounted || isLoading,
+    isAuthenticated: isMounted && !!user && !error,
     login: async (employeeCode: string, password: string) => {
       await loginMutation.mutateAsync({ employeeCode, password })
     },

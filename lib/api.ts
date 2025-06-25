@@ -23,7 +23,6 @@ async function apiRequest<T>(
       ...options.headers,
     },
     credentials: 'include', // Include cookies (auth-token)
-    mode: 'cors', // Explicitly set CORS mode
     signal: controller.signal,
     ...options,
   }
