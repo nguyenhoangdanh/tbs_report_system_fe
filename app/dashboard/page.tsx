@@ -1,12 +1,11 @@
 'use client'
 
 import { useAuth } from '@/components/providers/auth-provider'
-import { useRouter } from 'next/navigation'
-import { useEffect, memo, useState } from 'react'
+import { memo, useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useRecentActivities, useWeeklyTaskStats, useMonthlyTaskStats, useYearlyTaskStats } from '@/hooks/use-statistics'
+import { useDashboardData } from '@/hooks/use-statistics'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import Link from 'next/link'
@@ -171,33 +170,23 @@ function buildTaskPieData(stat?: { completed?: number; uncompleted?: number }) {
 
 // --- Main DashboardPage ---
 export default function DashboardPage() {
-  const { user, isAuthenticated, isLoading } = useAuth()
-  const router = useRouter()
+  const { user } = useAuth()
   const [isMounted, setIsMounted] = useState(false)
   
-  const { data: activities, isLoading: activitiesLoading } = useRecentActivities()
-  const { data: weeklyTaskStats, isLoading: weeklyTaskStatsLoading } = useWeeklyTaskStats()
-  const { data: monthlyTaskStats, isLoading: monthlyTaskStatsLoading } = useMonthlyTaskStats()
-  const { data: yearlyTaskStats, isLoading: yearlyTaskStatsLoading } = useYearlyTaskStats()
-
-  const now = new Date()
-  const currentYear = now.getFullYear()
-  const currentMonth = now.getMonth() + 1
+  // Use combined hook for all dashboard data
+  const { data: dashboardData, isLoading: isDashboardLoading, error } = useDashboardData()
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  // Remove redirect logic - let middleware handle it
-  // useEffect(() => {
-  //   if (isMounted && !isLoading && !isAuthenticated) {
-  //     router.push('/login')
-  //   }
-  // }, [isAuthenticated, isLoading, router, isMounted])
+  const now = new Date()
+  const currentYear = now.getFullYear()
+  const currentMonth = now.getMonth() + 1
 
-  // Always show loading until mounted to prevent hydration mismatch
-  if (!isMounted || isLoading) {
-    return <AppLoading />
+  // Wait for mount to prevent hydration mismatch
+  if (!isMounted) {
+    return <AppLoading text="Đang khởi tạo..." />
   }
 
   // Let middleware handle unauthenticated users
@@ -205,7 +194,56 @@ export default function DashboardPage() {
     return <AppLoading text="Đang xác thực..." />
   }
 
-  // Utility for activity color
+  // Show loading while fetching all dashboard data
+  if (isDashboardLoading) {
+    return (
+      <MainLayout
+        title="Dashboard"
+        subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
+      >
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-2 sm:px-4 py-6">
+            <AppLoading text="Đang tải dữ liệu dashboard..." minimal={false} />
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
+  // Handle error state
+  if (error) {
+    return (
+      <MainLayout
+        title="Dashboard"
+        subtitle={`Chào mừng trở lại, ${user.lastName || 'Người dùng'}`}
+      >
+        <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+          <div className="px-2 sm:px-4 py-6">
+            <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
+              <CardContent className="pt-6">
+                <div className="text-center">
+                  <p className="text-red-600 dark:text-red-400 mb-4">
+                    Không thể tải dữ liệu dashboard
+                  </p>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
+                  >
+                    Thử lại
+                  </button>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
+  // All data is loaded, destructure from dashboardData
+  const { activities, weeklyTaskStats, monthlyTaskStats, yearlyTaskStats } = dashboardData || {}
+
+  // Utility functions
   const getActivityColor = (activity: any) => {
     switch (activity.status) {
       case 'completed':
@@ -217,7 +255,6 @@ export default function DashboardPage() {
     }
   }
 
-  // Utility for activity icon (lucide)
   const getActivityIcon = (activity: any) => {
     switch (activity.status) {
       case 'completed':
@@ -236,12 +273,12 @@ export default function DashboardPage() {
   const yearStat = (yearlyTaskStats?.stats || []).find(item => item.year === currentYear)
   const yearlyTaskPieData = buildTaskPieData(yearStat)
 
-  // Sử dụng icon với màu phù hợp cho cả light/dark mode
+  // Icon classes
   const iconClass = "w-6 h-6 text-green-600 dark:text-white"
   const iconMonthClass = "w-6 h-6 text-blue-600 dark:text-white"
   const iconYearClass = "w-6 h-6 text-purple-600 dark:text-white"
 
-  // Tạo filter param cho từng loại báo cáo
+  // Filter params
   const weekFilter = 'week'
   const monthFilter = `month&month=${currentMonth}&year=${currentYear}`
   const yearFilter = `year&year=${currentYear}`
@@ -254,7 +291,12 @@ export default function DashboardPage() {
       <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
         <div className="px-2 sm:px-4 py-6">
           {/* Pie Chart Cards Column */}
-          <div className="flex flex-col gap-6">
+          <motion.div 
+            className="flex flex-col gap-6"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5 }}
+          >
             <TaskPieChartCard
               title="Công việc tuần này"
               data={weeklyTaskPieData}
@@ -287,65 +329,58 @@ export default function DashboardPage() {
               icon={<BarChart3 className={iconYearClass} />}
               filter={yearFilter}
             />
-          </div>
+          </motion.div>
+
           {/* Recent Activity Section */}
-          <div className="mt-8">
-            <motion.div
-              className="lg:col-span-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5, delay: 0.2 }}
-            >
-              <Card>
-                <CardHeader>
-                  <div className="flex items-center space-x-3">
-                    <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center">
-                      <Clock3 className="text-white w-6 h-6" />
-                    </div>
-                    <CardTitle className="text-xl">Hoạt động gần đây</CardTitle>
+          <motion.div 
+            className="mt-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <Card>
+              <CardHeader>
+                <div className="flex items-center space-x-3">
+                  <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center">
+                    <Clock3 className="text-white w-6 h-6" />
                   </div>
-                </CardHeader>
-                <CardContent>
-                  {activitiesLoading ? (
-                    <div className="space-y-4">
-                      {[...Array(3)].map((_, i) => (
-                        <div key={i} className="flex items-center space-x-4 p-4 bg-muted/50 rounded-lg">
-                          <div className="w-2 h-2 bg-muted rounded-full animate-pulse"></div>
-                          <div className="flex-1 space-y-2">
-                            <div className="h-4 bg-muted rounded animate-pulse"></div>
-                            <div className="h-3 bg-muted rounded animate-pulse w-1/2"></div>
-                          </div>
+                  <CardTitle className="text-xl">Hoạt động gần đây</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {activities && activities.length > 0 ? (
+                  <div className="space-y-4">
+                    {activities.map((activity: any) => (
+                      <motion.div 
+                        key={activity.id} 
+                        className="flex items-center space-x-4 p-4 bg-muted/50 rounded-lg"
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <div className={`w-2 h-2 ${getActivityColor(activity)} rounded-full`}></div>
+                        <div className="flex-1">
+                          <p className="text-card-foreground font-medium">{activity.title}</p>
+                          <p className="text-muted-foreground text-sm">{activity.description}</p>
+                          <p className="text-muted-foreground text-xs">
+                            {formatDistanceToNow(new Date(activity.updatedAt), {
+                              addSuffix: true,
+                              locale: vi
+                            })}
+                          </p>
                         </div>
-                      ))}
-                    </div>
-                  ) : activities && activities.length > 0 ? (
-                    <div className="space-y-4">
-                      {activities.map((activity) => (
-                        <div key={activity.id} className="flex items-center space-x-4 p-4 bg-muted/50 rounded-lg">
-                          <div className={`w-2 h-2 ${getActivityColor(activity)} rounded-full`}></div>
-                          <div className="flex-1">
-                            <p className="text-card-foreground font-medium">{activity.title}</p>
-                            <p className="text-muted-foreground text-sm">{activity.description}</p>
-                            <p className="text-muted-foreground text-xs">
-                              {formatDistanceToNow(new Date(activity.updatedAt), {
-                                addSuffix: true,
-                                locale: vi
-                              })}
-                            </p>
-                          </div>
-                          <span className="text-lg">{getActivityIcon(activity)}</span>
-                        </div>
-                      ))}
-                    </div>
-                  ) : (
-                    <div className="text-center py-8">
-                      <p className="text-muted-foreground">Chưa có hoạt động nào gần đây</p>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
-          </div>
+                        <span className="text-lg">{getActivityIcon(activity)}</span>
+                      </motion.div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="text-center py-8">
+                    <p className="text-muted-foreground">Chưa có hoạt động nào gần đây</p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       </div>
     </MainLayout>

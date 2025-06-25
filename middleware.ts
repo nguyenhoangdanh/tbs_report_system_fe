@@ -162,7 +162,7 @@ export async function middleware(request: NextRequest) {
     let response = NextResponse.redirect(loginUrl);
     response = addCorsHeaders(response, request);
     
-    // Clear invalid token
+    // Clear invalid token - NO DOMAIN
     response.cookies.delete('auth-token');
     
     return response;

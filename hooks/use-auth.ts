@@ -14,7 +14,7 @@ export function useAuth() {
     setIsMounted(true)
   }, [])
 
-  // Get current user profile
+  // Get current user profile with optimized config
   const {
     data: user,
     isLoading,
@@ -22,38 +22,44 @@ export function useAuth() {
   } = useQuery({
     queryKey: ['auth', 'profile'],
     queryFn: async () => {
-      console.log('[AUTH] Fetching profile, cookies:', document.cookie)
       return await api.get<User>('/users/profile')
     },
     retry: (failureCount, error: any) => {
-      console.log('[AUTH] Retry:', failureCount, 'Status:', error?.status)
+      // Reduce retry attempts for faster failure detection
       if (error?.status === 401 || error?.status === 403) {
         return false
       }
-      return failureCount < 1 // Giảm retry
+      return failureCount < 1
     },
-    staleTime: 10 * 60 * 1000, // 10 phút
+    staleTime: 10 * 60 * 1000, // 10 minutes
     refetchOnWindowFocus: false,
-    enabled: isMounted, // Chỉ chạy client-side
+    enabled: isMounted, // Only run client-side
+    // Add network mode for better offline handling
+    networkMode: 'online',
   })
 
-  // Login mutation
+  // Login mutation with faster redirect
   const loginMutation = useMutation({
     mutationFn: ({ employeeCode, password }: { employeeCode: string; password: string }) => 
       AuthService.login({ employeeCode, password }),
     onSuccess: (response) => {
-      console.log('[AUTH] Login success - cookie should be set by backend')
+      console.log('[AUTH] Login success - setting user data and redirecting')
       
-      // Set user data in cache immediately
+      // Set user data immediately to prevent loading flash
       queryClient.setQueryData(['auth', 'profile'], response.user)
+      
+      // Preload dashboard data in background
+      queryClient.prefetchQuery({
+        queryKey: ['dashboard', 'combined-data'],
+        staleTime: 60 * 1000,
+      })
+      
       toast.success('Đăng nhập thành công!')
       
-      // Let middleware handle the redirect by invalidating auth state
-      // Don't manually redirect here to avoid conflicts
+      // Immediate redirect for better UX
       setTimeout(() => {
-        // Force a page reload to let middleware handle routing
         window.location.href = '/dashboard'
-      }, 1000)
+      }, 500)
     },
     onError: (error: Error) => {
       console.error('[AUTH] Login error:', error)
