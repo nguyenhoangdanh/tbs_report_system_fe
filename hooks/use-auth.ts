@@ -41,17 +41,34 @@ export function useAuth() {
     mutationFn: ({ employeeCode, password }: { employeeCode: string; password: string }) => 
       AuthService.login({ employeeCode, password }),
     onSuccess: (response) => {
-      console.log('[AUTH] Login success, checking cookies...')
-      console.log('[AUTH] Cookies after login:', document.cookie)
+      console.log('[AUTH] Login success response:', response)
+      console.log('[AUTH] Checking cookies after login...')
+      
+      // Check cookies immediately
+      setTimeout(() => {
+        console.log('[AUTH] Cookies 100ms after login:', document.cookie)
+      }, 100)
+      
+      setTimeout(() => {
+        console.log('[AUTH] Cookies 500ms after login:', document.cookie)
+      }, 500)
       
       queryClient.setQueryData(['auth', 'profile'], response.user)
       toast.success('Đăng nhập thành công!')
       
-      // Wait longer for cookie to be set on production
+      // Wait for cookie to be set, then redirect
       setTimeout(() => {
         console.log('[AUTH] Final cookies before redirect:', document.cookie)
-        window.location.href = '/dashboard'
-      }, 1000)
+        const hasAuthToken = document.cookie.includes('auth-token')
+        console.log('[AUTH] Has auth token before redirect:', hasAuthToken)
+        
+        if (hasAuthToken) {
+          window.location.href = '/dashboard'
+        } else {
+          console.error('[AUTH] No auth token found after login!')
+          toast.error('Đăng nhập thành công nhưng có lỗi xảy ra. Vui lòng thử lại.')
+        }
+      }, 1500) // Increased timeout for production
     },
     onError: (error: Error) => {
       console.error('[AUTH] Login error:', error)
