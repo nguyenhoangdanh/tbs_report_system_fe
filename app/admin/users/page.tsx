@@ -291,7 +291,7 @@ export default function UsersManagementPage() {
                 <Label>Vai trò</Label>
                 <Select
                   value={editData.role}
-                  onValueChange={(value: 'SUPERADMIN' | 'ADMIN' | 'USER') => setEditData({ ...editData, role: value })}
+                  onValueChange={(value) => setEditData({ ...editData, role: value as Role })}
                 >
                   <SelectTrigger>
                     <SelectValue />
