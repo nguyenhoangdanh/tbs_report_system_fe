@@ -25,7 +25,9 @@ export function UserNav() {
   if (!user) return null
 
   const userInitials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`
-  const userFullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+  const userFullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+
+  console.log('UserNav rendered for:', user)
 
   return (
     <div className="relative">

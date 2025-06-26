@@ -16,7 +16,7 @@ export function useAuth() {
     setIsMounted(true)
   }, [])
 
-  // Get current user profile - optimized stale time
+  // Get current user profile - simplified error handling
   const {
     data: user,
     isLoading,
@@ -24,38 +24,27 @@ export function useAuth() {
   } = useQuery({
     queryKey: ['auth', 'profile'],
     queryFn: async (): Promise<User> => {
-      try {
-        return await AuthService.getProfile()
-      } catch (error: any) {
-        if (error.status === 401) {
-          queryClient.removeQueries({ queryKey: ['auth'] })
-          throw error
-        }
-        throw error
-      }
+      return await AuthService.getProfile()
     },
-    staleTime: 3 * 60 * 1000, // 3 minutes - giảm từ 10 phút
+    staleTime: 3 * 60 * 1000, // 3 minutes
     gcTime: 5 * 60 * 1000, // 5 minutes
     retry: (failureCount, error: any) => {
+      // Don't retry on auth errors
       if (error?.status === 401) return false
       return failureCount < 1
     },
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    // Thêm network detection
     networkMode: 'online',
   })
 
-  // Login mutation với optimized error handling
+  // Login mutation - let backend handle all error responses
   const loginMutation = useMutation({
     mutationFn: async ({ employeeCode, password }: { employeeCode: string; password: string }) => {
       return await AuthService.login({ employeeCode, password })
     },
     onSuccess: (data: AuthResponse) => {
-      // Update the auth cache with new user data
       queryClient.setQueryData(['auth', 'profile'], data.user)
-      
-      // Invalidate and refetch auth queries
       queryClient.invalidateQueries({ queryKey: ['auth'] })
       
       // Preload dashboard data
@@ -67,11 +56,12 @@ export function useAuth() {
       toast.success(data.message || 'Đăng nhập thành công!')
     },
     onError: (error: any) => {
+      // Backend already provides user-friendly error messages
       toast.error(error.message || 'Đăng nhập thất bại!')
     },
   })
 
-  // Register mutation
+  // Register mutation - simplified
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterDto) => {
       return await AuthService.register(data)
@@ -84,24 +74,43 @@ export function useAuth() {
     },
   })
 
-  // Logout mutation với aggressive cache clearing
+  // Logout mutation - simplified
   const logoutMutation = useMutation({
     mutationFn: async () => {
       return await AuthService.logout()
     },
     onSuccess: () => {
-      // Clear all cache
+      console.log('[AUTH] Logout successful, clearing cache and redirecting...');
+      
       queryClient.clear()
+      queryClient.removeQueries()
+      queryClient.invalidateQueries()
+      
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login?reason=logged_out';
+        }
+      }, 100);
+      
       toast.success('Đăng xuất thành công!')
     },
     onError: (error: any) => {
-      // Even if logout fails on server, clear local state
+      console.warn('[AUTH] Logout error, but clearing local state anyway:', error);
+      
       queryClient.clear()
-      toast.error(error.message || 'Có lỗi khi đăng xuất!')
+      queryClient.removeQueries()
+      
+      setTimeout(() => {
+        if (typeof window !== 'undefined') {
+          window.location.href = '/login?reason=logout_error';
+        }
+      }, 100);
+      
+      toast.error(error.message || 'Đã đăng xuất (có lỗi từ server)')
     },
   })
 
-  // Change password mutation
+  // Change password mutation - simplified
   const changePasswordMutation = useMutation({
     mutationFn: async (data: ChangePasswordDto) => {
       return await AuthService.changePassword(data)

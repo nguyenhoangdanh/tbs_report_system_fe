@@ -10,32 +10,29 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 2 * 60 * 1000, // 2 minutes - giảm từ 5 phút để data fresh hơn
-            gcTime: 5 * 60 * 1000, // 5 minutes - giảm từ 10 phút để tiết kiệm memory
+            staleTime: process.env.NODE_ENV === 'production' ? 5 * 60 * 1000 : 2 * 60 * 1000, // 5 min in prod
+            gcTime: process.env.NODE_ENV === 'production' ? 10 * 60 * 1000 : 5 * 60 * 1000, // 10 min in prod
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
-            refetchOnMount: true, // Enable lại để đảm bảo data fresh khi mount
+            refetchOnMount: 'always', // Always refetch on mount for fresh data
             retry: (failureCount, error: any) => {
-              // Don't retry on 4xx errors
               if (error?.status >= 400 && error?.status < 500) {
                 return false
               }
-              // Giảm retry xuống 0 cho production để response nhanh hơn
-              return process.env.NODE_ENV === 'development' ? failureCount < 1 : false
+              // More retries in production for reliability
+              return process.env.NODE_ENV === 'development' ? failureCount < 1 : failureCount < 2
             },
             networkMode: 'online',
             structuralSharing: true,
-            // Thêm timeout cho queries
             meta: {
-              timeout: 8000, // 8 giây thay vì 10 giây
+              timeout: 10000, // 10 seconds for production reliability
             },
           },
           mutations: {
-            retry: process.env.NODE_ENV === 'development' ? 1 : 0, // Không retry mutation trong production
+            retry: process.env.NODE_ENV === 'development' ? 1 : 2, // More retries in production
             networkMode: 'online',
-            // Timeout cho mutations ngắn hơn
             meta: {
-              timeout: 5000, // 5 giây cho mutations
+              timeout: 8000, // 8 seconds for mutations
             },
           },
         },

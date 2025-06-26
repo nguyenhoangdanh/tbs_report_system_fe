@@ -160,23 +160,13 @@ function buildTaskPieData(stat?: { completed?: number; uncompleted?: number }) {
 // --- Main DashboardPage ---
 export default function DashboardPage() {
   const { user } = useAuth()
-  const [isMounted, setIsMounted] = useState(false)
   
   // Use combined hook for all dashboard data
   const { data: dashboardData, isLoading: isDashboardLoading, error } = useDashboardData()
 
-  useEffect(() => {
-    setIsMounted(true)
-  }, [])
-
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
-
-  // Wait for mount to prevent hydration mismatch
-  if (!isMounted) {
-    return <AppLoading text="Đang khởi tạo..." />
-  }
 
   // Let middleware handle unauthenticated users
   if (!user) {
