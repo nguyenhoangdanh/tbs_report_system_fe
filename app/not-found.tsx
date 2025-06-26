@@ -1,18 +1,22 @@
 import Link from 'next/link'
+import { Button } from '@/components/ui/button'
 
 export default function NotFound() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
+    <div className="min-h-screen flex items-center justify-center bg-background">
       <div className="text-center">
-        <h1 className="text-6xl font-bold text-gray-900">404</h1>
-        <p className="text-xl text-gray-600 mt-4">Trang không tìm thấy</p>
-        <p className="text-gray-500 mt-2">Trang bạn đang tìm kiếm không tồn tại.</p>
-        <Link
-          href="/"
-          className="mt-6 inline-block bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700 transition-colors"
-        >
-          Về trang chủ
-        </Link>
+        <h1 className="text-9xl font-bold text-muted-foreground">404</h1>
+        <h2 className="text-2xl font-semibold text-foreground mb-4">
+          Trang không tồn tại
+        </h2>
+        <p className="text-muted-foreground mb-8">
+          Trang bạn đang tìm kiếm không tồn tại hoặc đã bị di chuyển.
+        </p>
+        <Button asChild>
+          <Link href="/dashboard">
+            Về trang chủ
+          </Link>
+        </Button>
       </div>
     </div>
   )

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from 'react';
+import { Suspense, useState, useEffect } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { UserService } from '@/services/user.service';
 import { motion } from 'framer-motion';
@@ -26,7 +26,7 @@ interface EditUser{
   role: Role;
 }
 
-export default function UsersManagementPage() {
+function AdminUsersContent() {
   const { user: currentUser } = useAuth();
   const [users, setUsers] = useState<User[]>([]);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
@@ -364,4 +364,27 @@ export default function UsersManagementPage() {
       </div>
     </MainLayout>
   );
+}
+
+export default function AdminUsersPage() {
+  return (
+    <MainLayout
+      showBreadcrumb
+      breadcrumbItems={[
+        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Quản lý người dùng' }
+      ]}
+    >
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Đang tải...</p>
+          </div>
+        </div>
+      }>
+        <AdminUsersContent />
+      </Suspense>
+    </MainLayout>
+  )
 }

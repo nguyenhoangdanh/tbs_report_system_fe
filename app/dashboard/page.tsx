@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/components/providers/auth-provider'
-import { memo, useState, useEffect } from 'react'
+import { memo } from 'react'
 import { motion } from 'framer-motion'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -164,19 +164,16 @@ function buildTaskPieData(stat?: { completed?: number; uncompleted?: number } | 
 export default function DashboardPage() {
   const { user } = useAuth()
   
-  // Use combined hook for all dashboard data
   const { data: dashboardData, isLoading: isDashboardLoading, error } = useDashboardData()
 
   const now = new Date()
   const currentYear = now.getFullYear()
   const currentMonth = now.getMonth() + 1
 
-  // Let middleware handle unauthenticated users
   if (!user) {
     return <AppLoading text="Đang xác thực..." />
   }
 
-  // Show loading while fetching all dashboard data
   if (isDashboardLoading) {
     return (
       <MainLayout>
@@ -189,7 +186,6 @@ export default function DashboardPage() {
     )
   }
 
-  // Handle error state
   if (error) {
     return (
       <MainLayout>

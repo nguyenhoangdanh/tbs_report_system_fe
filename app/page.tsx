@@ -1,7 +1,7 @@
 'use client'
 
+import { Suspense, useEffect, useRef } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
-import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
 import Link from 'next/link'
@@ -43,7 +43,7 @@ const FeatureCard = ({ icon, title, description, delay }: {
   </motion.div>
 )
 
-export default function HomePage() {
+function HomeContent() {
   const { isAuthenticated, isLoading } = useAuth()
   const router = useRouter()
   const hasRedirectedRef = useRef(false)
@@ -314,5 +314,20 @@ export default function HomePage() {
         </div>
       </section>
     </MainLayout>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Đang tải...</p>
+        </div>
+      </div>
+    }>
+      <HomeContent />
+    </Suspense>
   )
 }
