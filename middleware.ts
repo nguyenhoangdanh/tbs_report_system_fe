@@ -18,14 +18,15 @@ function isTokenValid(token: string): boolean {
   }
 }
 
-export async function middleware(request: NextRequest) {
+export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Skip middleware for static files and API routes
   if (
     staticRoutes.some(route => pathname.startsWith(route)) || 
     pathname.includes('.') ||
-    pathname.startsWith('/api/')
+    pathname.startsWith('/api/') ||
+    pathname.startsWith('/_next/')
   ) {
     return NextResponse.next()
   }
@@ -33,10 +34,11 @@ export async function middleware(request: NextRequest) {
   const token = request.cookies.get('auth-token')?.value
   const isPublicRoute = publicRoutes.includes(pathname)
 
-  // For authenticated users trying to access public routes
+  // For authenticated users trying to access auth pages
   if (isPublicRoute && token && isTokenValid(token)) {
     if (pathname === '/login' || pathname === '/register') {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      const dashboardUrl = new URL('/dashboard', request.url)
+      return NextResponse.redirect(dashboardUrl)
     }
     return NextResponse.next()
   }
@@ -55,7 +57,13 @@ export async function middleware(request: NextRequest) {
     
     const response = NextResponse.redirect(loginUrl)
     if (token) {
-      response.cookies.delete('auth-token') // Clear invalid token
+      response.cookies.set('auth-token', '', {
+        expires: new Date(0),
+        path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'lax',
+      })
     }
     return response
   }
@@ -65,5 +73,15 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|.*\\..*$).*)'],
+  matcher: [
+    /*
+     * Match all request paths except for the ones starting with:
+     * - api (API routes)
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - public files (images, etc.)
+     */
+    '/((?!api|_next/static|_next/image|favicon.ico|.*\\..*$).*)',
+  ],
 }
