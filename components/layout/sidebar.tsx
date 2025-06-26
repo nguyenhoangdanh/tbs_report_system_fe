@@ -253,7 +253,7 @@ function DashboardPage() {
                             <CardContent className="p-0">
                                 {activities && activities.length > 0 ? (
                                     <div className="divide-y divide-border">
-                                        {activities.map((activity: RecentActivity, index) => (
+                                        {activities.map((activity: RecentActivity, index: number) => (
                                             <motion.div
                                                 key={activity.id}
                                                 className="flex items-start space-x-4 p-6 hover:bg-muted/30 transition-colors"
