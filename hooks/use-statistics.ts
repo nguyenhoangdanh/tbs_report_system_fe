@@ -15,38 +15,78 @@ export const STATISTICS_QUERY_KEYS = {
   incompleteReasonsAnalysis: (filters: any) => ['statistics', 'incomplete-reasons-analysis', filters] as const,
 }
 
-// Optimized dashboard data loading with timeout and better error handling
+// Optimized dashboard data loading - ONLY load what's needed, no redundant calls
 export function useDashboardData() {
   return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.dashboardCombined,
     queryFn: async () => {
-      // Race condition with timeout to prevent hanging
       const timeoutPromise = new Promise((_, reject) => {
         setTimeout(() => reject(new Error('Dashboard data timeout')), 6000)
       })
 
       const dataPromise = Promise.allSettled([
-        StatisticsService.getDashboardStats(),
         StatisticsService.getWeeklyTaskStats(),
-        StatisticsService.getRecentActivities(),
         StatisticsService.getMonthlyTaskStats(),
         StatisticsService.getYearlyTaskStats(),
+        StatisticsService.getRecentActivities(),
       ])
 
       try {
         const results = await Promise.race([dataPromise, timeoutPromise]) as PromiseSettledResult<any>[]
         
-        return {
-          dashboardStats: results[0]?.status === 'fulfilled' ? results[0].value : getFallbackDashboardStats(),
-          weeklyTaskStats: results[1]?.status === 'fulfilled' ? results[1].value : getFallbackWeeklyStats(),
-          activities: results[2]?.status === 'fulfilled' ? results[2].value : [],
-          monthlyTaskStats: results[3]?.status === 'fulfilled' ? 
-            results[3].value : 
-            { year: new Date().getFullYear(), stats: [] },
-          yearlyTaskStats: results[4]?.status === 'fulfilled' ? 
-            results[4].value : 
-            { stats: [] },
+        // Enhanced data extraction with better error handling
+        const weeklyStats = results[0]?.status === 'fulfilled' ? results[0].value : null
+        const monthlyStats = results[1]?.status === 'fulfilled' ? results[1].value : null
+        const yearlyStats = results[2]?.status === 'fulfilled' ? results[2].value : null
+        const activities = results[3]?.status === 'fulfilled' ? results[3].value : null
+
+        // Debug logging
+        console.log('[DASHBOARD DATA] Raw API responses:', {
+          weeklyStats,
+          monthlyStats,
+          yearlyStats,
+          activities
+        })
+
+        // Safer data extraction
+        const safeWeeklyStats = weeklyStats || getFallbackWeeklyStats()
+        const safeMonthlyStats = monthlyStats || { year: new Date().getFullYear(), stats: [] }
+        const safeYearlyStats = yearlyStats || { stats: [] }
+        const safeActivities = Array.isArray(activities) ? activities : []
+
+        // Construct dashboard stats with null checks
+        const dashboardStats = {
+          currentWeek: {
+            weekNumber: safeWeeklyStats?.weekNumber || getWeekNumber(new Date()),
+            year: safeWeeklyStats?.year || new Date().getFullYear(),
+            hasReport: (safeWeeklyStats?.total || 0) > 0,
+            isCompleted: (safeWeeklyStats?.uncompleted || 0) === 0 && (safeWeeklyStats?.total || 0) > 0,
+            isLocked: false,
+            incompleteTasksAnalysis: (safeWeeklyStats?.incompleteReasonsAnalysis?.length || 0) > 0 ? {
+              totalIncompleteTasks: safeWeeklyStats.uncompleted || 0,
+              totalTasks: safeWeeklyStats.total || 0,
+              reasons: safeWeeklyStats.incompleteReasonsAnalysis || []
+            } : null
+          },
+          totals: {
+            totalReports: calculateTotalReports(safeMonthlyStats),
+            completedReports: calculateCompletedReports(safeMonthlyStats),
+            thisMonthReports: calculateThisMonthReports(safeMonthlyStats),
+            completionRate: calculateCompletionRate(safeMonthlyStats?.stats || [])
+          }
         }
+
+        const result = {
+          dashboardStats,
+          weeklyTaskStats: safeWeeklyStats,
+          monthlyTaskStats: safeMonthlyStats,
+          yearlyTaskStats: safeYearlyStats,
+          activities: safeActivities,
+        }
+
+        console.log('[DASHBOARD DATA] Final processed data:', result)
+        return result
+
       } catch (error) {
         console.warn('Dashboard data loading failed, using fallbacks:', error)
         return {
@@ -61,9 +101,36 @@ export function useDashboardData() {
     staleTime: process.env.NODE_ENV === 'production' ? 3 * 60 * 1000 : 30 * 1000,
     gcTime: process.env.NODE_ENV === 'production' ? 20 * 60 * 1000 : 5 * 60 * 1000,
     refetchOnWindowFocus: false,
-    retry: 1, // Only 1 retry to avoid redundant calls
+    retry: 1,
     networkMode: 'online',
   })
+}
+
+// Enhanced calculation functions with null safety
+function calculateTotalReports(monthlyStats: any): number {
+  if (!monthlyStats?.stats || !Array.isArray(monthlyStats.stats)) return 0
+  return monthlyStats.stats.reduce((sum: number, month: any) => sum + (month?.total || 0), 0)
+}
+
+function calculateCompletedReports(monthlyStats: any): number {
+  if (!monthlyStats?.stats || !Array.isArray(monthlyStats.stats)) return 0
+  return monthlyStats.stats.reduce((sum: number, month: any) => sum + (month?.completed || 0), 0)
+}
+
+function calculateThisMonthReports(monthlyStats: any): number {
+  if (!monthlyStats?.stats || !Array.isArray(monthlyStats.stats)) return 0
+  const currentMonth = new Date().getMonth() + 1
+  const thisMonth = monthlyStats.stats.find((m: any) => m?.month === currentMonth)
+  return thisMonth?.total || 0
+}
+
+function calculateCompletionRate(monthlyStats: any[]): number {
+  if (!monthlyStats || monthlyStats.length === 0) return 0
+  
+  const totalTasks = monthlyStats.reduce((sum, month) => sum + (month?.total || 0), 0)
+  const completedTasks = monthlyStats.reduce((sum, month) => sum + (month?.completed || 0), 0)
+  
+  return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 }
 
 // Fallback data functions
@@ -105,37 +172,15 @@ function getWeekNumber(date: Date): number {
   return 1 + Math.round(((d.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7)
 }
 
-// Individual hooks được đơn giản hóa với consistent cache keys
+// Individual hooks - these can be used when you only need specific data
 export function useWeeklyTaskStats() {
   return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.weeklyTaskStats,
     queryFn: () => StatisticsService.getWeeklyTaskStats(),
-    staleTime: 60 * 1000, // 1 minute
+    staleTime: 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
-  })
-}
-
-export function useDashboardStats() {
-  return useQuery({
-    queryKey: STATISTICS_QUERY_KEYS.dashboard,
-    queryFn: () => StatisticsService.getDashboardStats(),
-    staleTime: 2 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    retry: 1,
-  })
-}
-
-export function useRecentActivities() {
-  return useQuery({
-    queryKey: STATISTICS_QUERY_KEYS.recentActivities,
-    queryFn: () => StatisticsService.getRecentActivities(),
-    staleTime: 60 * 1000, // 1 minute
-    gcTime: 8 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    retry: 1,
   })
 }
 
@@ -156,6 +201,17 @@ export function useYearlyTaskStats() {
     queryFn: () => StatisticsService.getYearlyTaskStats(),
     staleTime: 10 * 60 * 1000,
     gcTime: 60 * 60 * 1000,
+    refetchOnWindowFocus: false,
+    retry: 1,
+  })
+}
+
+export function useRecentActivities() {
+  return useQuery({
+    queryKey: STATISTICS_QUERY_KEYS.recentActivities,
+    queryFn: () => StatisticsService.getRecentActivities(),
+    staleTime: 60 * 1000,
+    gcTime: 8 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 1,
   })

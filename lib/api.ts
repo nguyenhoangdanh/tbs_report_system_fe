@@ -144,11 +144,30 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
         throw new ApiError(errorMessage, response.status)
       }
 
-      // Handle successful response
+      // Enhanced response handling - fix data parsing
       const contentType = response.headers.get('content-type')
       if (contentType?.includes('application/json')) {
-        const data = await response.json()
-        return data?.data || data
+        const responseData = await response.json()
+        
+        // Debug logging for production
+        if (process.env.NODE_ENV === 'development') {
+          console.log(`[API] Raw response for ${endpoint}:`, responseData)
+        }
+        
+        // Handle different response structures from backend
+        // Case 1: Direct data (most common)
+        if (responseData && typeof responseData === 'object') {
+          // Case 1a: Response has 'data' wrapper
+          if (Object.prototype.hasOwnProperty.call(responseData, 'data') && responseData.data !== undefined) {
+            return responseData.data
+          }
+          
+          // Case 1b: Response is the data itself
+          return responseData
+        }
+        
+        // Case 2: Fallback for unexpected format
+        return responseData as T
       }
       
       return {} as T

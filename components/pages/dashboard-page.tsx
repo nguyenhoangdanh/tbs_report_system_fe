@@ -17,7 +17,6 @@ import type { RecentActivity } from '@/services/statistics.service'
 // --- Main DashboardPage ---
 function DashboardPage() {
     const { user } = useAuth()
-    // Sử dụng query key consistent để automatic invalidation hoạt động
     const { data: dashboardData, isLoading: isDashboardLoading, error, refetch } = useDashboardData()
 
     // Always call useMemo hooks at the top level
@@ -25,25 +24,58 @@ function DashboardPage() {
     const currentYear = useMemo(() => now.getFullYear(), [now])
     const currentMonth = useMemo(() => now.getMonth() + 1, [now])
 
-    // Destructure data properly from the new structure
-    const { dashboardStats, activities, weeklyTaskStats, monthlyTaskStats, yearlyTaskStats } = dashboardData || {}
+    // Fixed data destructuring - handle the new optimized structure
+    const { 
+        dashboardStats, 
+        activities = [], 
+        weeklyTaskStats, 
+        monthlyTaskStats, 
+        yearlyTaskStats 
+    } = dashboardData || {}
 
-    // Calculate overall dashboard stats - always call this hook
+    // Enhanced month and year stats with better error handling
+    const monthStat = useMemo(() => {
+        // Handle both array and object with stats property
+        const stats = Array.isArray(monthlyTaskStats) ? monthlyTaskStats : monthlyTaskStats?.stats
+        
+        if (!stats || !Array.isArray(stats)) {
+            console.warn('[DASHBOARD] monthlyTaskStats.stats is not an array:', monthlyTaskStats)
+            return { month: currentMonth, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
+        }
+        
+        const stat = stats.find((item: any) => item.month === currentMonth)
+        return stat || { month: currentMonth, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
+    }, [monthlyTaskStats, currentMonth])
+    
+    const yearStat = useMemo(() => {
+        // Handle both array and object with stats property
+        const stats = Array.isArray(yearlyTaskStats) ? yearlyTaskStats : yearlyTaskStats?.stats
+        
+        if (!stats || !Array.isArray(stats)) {
+            return { year: currentYear, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
+        }
+        
+        const stat = stats.find((item: any) => item.year === currentYear)
+        return stat || { year: currentYear, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
+    }, [yearlyTaskStats, currentYear])
+
+    // Calculate overall stats
     const overallStats = useMemo(() => {
-        const totalReports = dashboardStats?.totals?.totalReports || 0
-        const completedReports = dashboardStats?.totals?.completedReports || 0
-        const completionRate = dashboardStats?.totals?.completionRate || 0
+        const stats = {
+            totalReports: dashboardStats?.totals?.totalReports || 0,
+            completedReports: dashboardStats?.totals?.completedReports || 0,
+            completionRate: dashboardStats?.totals?.completionRate || 0,
+        }
+        
         
         return {
-            totalReports,
-            completedReports,
-            completionRate,
-            isExcellent: completionRate >= 90,
-            isGood: completionRate >= 70
+            ...stats,
+            isExcellent: stats.completionRate >= 90,
+            isGood: stats.completionRate >= 70
         }
     }, [dashboardStats])
 
-    // Utility functions - properly memoized with useCallback
+    // Utility functions
     const getActivityColor = useCallback((activity: RecentActivity) => {
         switch (activity.status) {
             case 'completed':
@@ -66,25 +98,7 @@ function DashboardPage() {
         }
     }, [])
 
-    // Get month and year stats - always calculate these
-    const monthStat = useMemo(() => 
-        monthlyTaskStats?.stats?.find((item: any) => item.month === currentMonth),
-        [monthlyTaskStats, currentMonth]
-    )
-    
-    const yearStat = useMemo(() => 
-        yearlyTaskStats?.stats?.find((item: any) => item.year === currentYear),
-        [yearlyTaskStats, currentYear]
-    )
-
-    // Effect để handle manual refetch nếu cần thiết (optional)
-    // Thường không cần vì cache invalidation tự động hoạt động
-    useEffect(() => {
-        // Có thể thêm logic để refetch khi cần thiết
-        // Nhưng với invalidation đúng cách thì không cần
-    }, [])
-
-    // Now handle conditional rendering after all hooks
+    // Handle loading and error states
     if (!user) {
         return <AppLoading text="Đang xác thực..." />
     }
@@ -101,36 +115,11 @@ function DashboardPage() {
         )
     }
 
-    if (error) {
-        return (
-            <MainLayout>
-                <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                    <div className="px-4 sm:px-6 py-6">
-                        <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
-                            <CardContent className="pt-6">
-                                <div className="text-center">
-                                    <p className="text-red-600 dark:text-red-400 mb-4">
-                                        Không thể tải dữ liệu dashboard
-                                    </p>
-                                    <button
-                                        onClick={() => window.location.reload()}
-                                        className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition-colors"
-                                    >
-                                        Thử lại
-                                    </button>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
-            </MainLayout>
-        )
-    }
-
     return (
         <MainLayout>
             <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
                 <div className="px-4 sm:px-6 py-6 space-y-8">
+
 
                     {/* Current Week Alert */}
                     {dashboardStats?.currentWeek?.incompleteTasksAnalysis && 
@@ -159,7 +148,7 @@ function DashboardPage() {
                                                 Bạn có <strong>{dashboardStats.currentWeek.incompleteTasksAnalysis.totalIncompleteTasks}</strong> công việc 
                                                 chưa hoàn thành trong tổng số <strong>{dashboardStats.currentWeek.incompleteTasksAnalysis.totalTasks}</strong> công việc tuần này.
                                             </p>
-                                            {dashboardStats.currentWeek.incompleteTasksAnalysis.reasons.length > 0 && (
+                                            {dashboardStats.currentWeek.incompleteTasksAnalysis.reasons?.length > 0 && (
                                                 <div className="text-sm text-amber-600 dark:text-amber-400">
                                                     <strong>Lý do chính:</strong> &quot;{dashboardStats.currentWeek.incompleteTasksAnalysis.reasons[0].reason}&quot;
                                                     {dashboardStats.currentWeek.incompleteTasksAnalysis.reasons.length > 1 && 
@@ -184,10 +173,10 @@ function DashboardPage() {
                         {/* Weekly Stats */}
                         <StatsCard
                             title="Công việc tuần này"
-                            total={weeklyTaskStats?.total || 0}
-                            completed={weeklyTaskStats?.completed || 0}
-                            uncompleted={weeklyTaskStats?.uncompleted || 0}
-                            period={`Tuần ${weeklyTaskStats?.weekNumber}/${weeklyTaskStats?.year}`}
+                            total={Number(weeklyTaskStats?.total) || 0}
+                            completed={Number(weeklyTaskStats?.completed) || 0}
+                            uncompleted={Number(weeklyTaskStats?.uncompleted) || 0}
+                            period={`Tuần ${weeklyTaskStats?.weekNumber || 'N/A'}/${weeklyTaskStats?.year || 'N/A'}`}
                             link="/reports"
                             linkFilter="week"
                             icon={<CalendarDays className="w-6 h-6 text-green-600 dark:text-green-400" />}
@@ -201,9 +190,9 @@ function DashboardPage() {
                         <StatsCard
                             title="Công việc tháng này"
                             subtitle={`Tháng ${currentMonth}/${currentYear}`}
-                            total={monthStat?.total || 0}
-                            completed={monthStat?.completed || 0}
-                            uncompleted={monthStat?.uncompleted || 0}
+                            total={Number(monthStat?.total) || 0}
+                            completed={Number(monthStat?.completed) || 0}
+                            uncompleted={Number(monthStat?.uncompleted) || 0}
                             period={`Tháng ${currentMonth}/${currentYear}`}
                             link="/reports"
                             linkFilter={`month&month=${currentMonth}&year=${currentYear}`}
@@ -218,9 +207,9 @@ function DashboardPage() {
                         <StatsCard
                             title="Công việc năm nay"
                             subtitle={`Năm ${currentYear}`}
-                            total={yearStat?.total || 0}
-                            completed={yearStat?.completed || 0}
-                            uncompleted={yearStat?.uncompleted || 0}
+                            total={Number(yearStat?.total) || 0}
+                            completed={Number(yearStat?.completed) || 0}
+                            uncompleted={Number(yearStat?.uncompleted) || 0}
                             period={`Năm ${currentYear}`}
                             link="/reports"
                             linkFilter={`year&year=${currentYear}`}
@@ -246,12 +235,14 @@ function DashboardPage() {
                                     </div>
                                     <div>
                                         <CardTitle className="text-xl text-foreground">Hoạt động gần đây</CardTitle>
-                                        <p className="text-sm text-muted-foreground">5 báo cáo được cập nhật gần nhất</p>
+                                        <p className="text-sm text-muted-foreground">
+                                            {Array.isArray(activities) ? activities.length : 0} hoạt động gần đây
+                                        </p>
                                     </div>
                                 </div>
                             </CardHeader>
                             <CardContent className="p-0">
-                                {activities && activities.length > 0 ? (
+                                {Array.isArray(activities) && activities.length > 0 ? (
                                     <div className="divide-y divide-border">
                                         {activities.map((activity: RecentActivity, index: number) => (
                                             <motion.div
@@ -278,7 +269,6 @@ function DashboardPage() {
                                                                     &quot;{activity.mostCommonIncompleteReason}&quot;
                                                                 </span>
                                                             </div>
-                                                            {/* Display sample tasks if available */}
                                                             {activity.incompleteTasksSample && activity.incompleteTasksSample.length > 0 && (
                                                                 <div className="text-xs text-orange-600 dark:text-orange-400">
                                                                     <span className="font-medium">Ví dụ:</span>{' '}
@@ -311,6 +301,12 @@ function DashboardPage() {
                                         </div>
                                         <h3 className="text-lg font-medium text-muted-foreground mb-2">Chưa có hoạt động nào</h3>
                                         <p className="text-muted-foreground">Bắt đầu tạo báo cáo để theo dõi hoạt động của bạn</p>
+                                        {/* Debug info for activities */}
+                                        {process.env.NODE_ENV === 'development' && (
+                                            <pre className="text-xs mt-4 p-2 bg-gray-100 rounded">
+                                                Activities type: {typeof activities}, isArray: {Array.isArray(activities)}, length: {Array.isArray(activities) ? activities.length : 'N/A'}
+                                            </pre>
+                                        )}
                                     </div>
                                 )}
                             </CardContent>
