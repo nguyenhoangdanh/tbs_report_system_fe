@@ -1,94 +1,105 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ReportService } from '@/services/report.service'
+import { toast } from 'react-hot-toast'
 import type { WeeklyReport, CreateWeeklyReportDto, PaginatedResponse } from '@/types'
 
-// Đơn giản hóa reports page data
-export function useReportsPageData(page = 1, limit = 10) {
-  return useQuery({
-    queryKey: ['reports', 'page-data', page, limit],
-    queryFn: async () => {
-      const [reportsData, currentWeekReport] = await Promise.allSettled([
-        ReportService.getMyReports(page, limit),
-        ReportService.getCurrentWeekReport(),
-      ])
-
-      return {
-        reports: reportsData.status === 'fulfilled' ? reportsData.value : { data: [], total: 0, page, limit },
-        currentWeekReport: currentWeekReport.status === 'fulfilled' ? currentWeekReport.value : null,
-      }
-    },
-    staleTime: process.env.NODE_ENV === 'production' ? 3 * 60 * 1000 : 60 * 1000,
-    gcTime: process.env.NODE_ENV === 'production' ? 10 * 60 * 1000 : 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    retry: 2,
-  })
+// Optimized query keys
+const QUERY_KEYS = {
+  reports: ['reports'] as const,
+  myReports: (page: number, limit: number) => ['reports', 'my', page, limit] as const,
+  reportById: (id: string) => ['reports', 'by-id', id] as const,
+  reportByWeek: (weekNumber: number, year: number) => ['reports', 'by-week', weekNumber, year] as const,
+  currentWeek: ['reports', 'current-week'] as const,
+  // Dashboard và statistics keys
+  statistics: ['statistics'] as const,
+  dashboardData: ['statistics', 'dashboard-combined'] as const,
 }
 
-// Optimized my reports query
+// Simplified error handler
+const handleError = (error: any, defaultMessage: string) => {
+  // Just use the error message from backend, fallback to default
+  const message = error?.message || defaultMessage
+  toast.error(message)
+}
+
+// Optimized my reports query with error handling
 export function useMyReports(page = 1, limit = 10) {
   return useQuery<PaginatedResponse<WeeklyReport>, Error>({
-    queryKey: ['reports', 'my', page, limit] as const,
+    queryKey: QUERY_KEYS.myReports(page, limit),
     queryFn: () => ReportService.getMyReports(page, limit),
-    staleTime: 3 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
     gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
-    retryDelay: (attemptIndex) => Math.min(500 * 2 ** attemptIndex, 3000),
-    networkMode: 'online',
-    meta: {
-      priority: 'normal',
-      timeout: 10000,
-    },
+    throwOnError: false, // Prevent throwing to React Error Boundary
   })
 }
 
-// Cached report by ID
 export function useReportById(id?: string) {
   return useQuery({
-    queryKey: ['report', id] as const,
-    queryFn: () => id ? ReportService.getReportById(id) : Promise.resolve(null),
+    queryKey: QUERY_KEYS.reportById(id!),
+    queryFn: () => ReportService.getReportById(id!),
     enabled: !!id,
     staleTime: 5 * 60 * 1000,
     gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
-    networkMode: 'online',
-    meta: {
-      priority: 'high',
-      timeout: 8000,
-    },
+    throwOnError: false,
   })
 }
 
-// Optimized report by week
 export function useReportByWeek(weekNumber?: number, year?: number) {
   return useQuery({
-    queryKey: ['report', 'week', weekNumber, year] as const,
-    queryFn: () => (weekNumber && year) ? ReportService.getReportByWeek(weekNumber, year) : Promise.resolve(null),
+    queryKey: QUERY_KEYS.reportByWeek(weekNumber!, year!),
+    queryFn: () => ReportService.getReportByWeek(weekNumber!, year!),
     enabled: !!weekNumber && !!year,
-    staleTime: 2 * 60 * 1000,
+    staleTime: 30 * 1000,
     gcTime: 8 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
-    networkMode: 'online',
-    meta: {
-      priority: 'high',
-      timeout: 8000,
-    },
+    throwOnError: false,
   })
 }
 
-// Đơn giản hóa mutations
+export function useCurrentWeekReport() {
+  return useQuery({
+    queryKey: QUERY_KEYS.currentWeek,
+    queryFn: () => ReportService.getCurrentWeekReport(),
+    staleTime: 30 * 1000,
+    gcTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+    retry: 2,
+    throwOnError: false,
+  })
+}
+
+// Optimized mutations with simplified error handling
 export function useCreateWeeklyReport() {
   const queryClient = useQueryClient()
   
   return useMutation({
     mutationFn: (data: CreateWeeklyReportDto) => ReportService.createWeeklyReport(data),
-    onSuccess: () => {
-      // Đơn giản hóa cache invalidation
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
-      queryClient.invalidateQueries({ queryKey: ['statistics'] })
+    onSuccess: (newReport) => {
+      queryClient.setQueryData(
+        QUERY_KEYS.reportByWeek(newReport.weekNumber, newReport.year),
+        newReport
+      )
+      
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.reports,
+        exact: false 
+      })
+      
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.currentWeek 
+      })
+
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.statistics,
+        exact: false 
+      })
     },
+    onError: (error) => handleError(error, 'Không thể tạo báo cáo'),
     retry: 1,
   })
 }
@@ -99,10 +110,23 @@ export function useUpdateReport() {
   return useMutation({
     mutationFn: ({ id, data }: { id: string, data: any }) => ReportService.updateReport(id, data),
     onSuccess: (updatedReport, variables) => {
-      queryClient.setQueryData(['report', variables.id], updatedReport)
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
-      queryClient.invalidateQueries({ queryKey: ['statistics'] })
+      queryClient.setQueryData(QUERY_KEYS.reportById(variables.id), updatedReport)
+      queryClient.setQueryData(
+        QUERY_KEYS.reportByWeek(updatedReport.weekNumber, updatedReport.year),
+        updatedReport
+      )
+      
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.reports,
+        exact: false 
+      })
+
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.statistics,
+        exact: false 
+      })
     },
+    onError: (error) => handleError(error, 'Không thể cập nhật báo cáo'),
     retry: 1,
   })
 }
@@ -112,31 +136,54 @@ export function useDeleteReport() {
   
   return useMutation({
     mutationFn: (id: string) => ReportService.deleteReport(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
-      queryClient.invalidateQueries({ queryKey: ['statistics'] })
+    onSuccess: (result, deletedId) => {
+      queryClient.removeQueries({ queryKey: QUERY_KEYS.reportById(deletedId) })
+      
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.reports,
+        exact: false 
+      })
+      
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.currentWeek 
+      })
+
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.statistics,
+        exact: false 
+      })
+
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.dashboardData 
+      })
+      
+      toast.success('Xóa báo cáo thành công!')
     },
+    onError: (error) => handleError(error, 'Không thể xóa báo cáo'),
     retry: 1,
   })
 }
 
-// Optimized task operations
 export function useDeleteTask() {
   const queryClient = useQueryClient()
   
   return useMutation({
     mutationFn: (taskId: string) => ReportService.deleteTask(taskId),
     onSuccess: () => {
-      // Invalidate related queries efficiently
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
-      queryClient.invalidateQueries({ queryKey: ['statistics', 'weekly-task-stats'] })
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.reports,
+        exact: false 
+      })
+
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.statistics,
+        exact: false 
+      })
+      
+      toast.success('Xóa công việc thành công!')
     },
+    onError: (error) => handleError(error, 'Không thể xóa công việc'),
     retry: 1,
-    retryDelay: 1000,
-    meta: {
-      priority: 'normal',
-      timeout: 8000,
-    },
   })
 }
 
@@ -146,15 +193,19 @@ export function useUpdateTask() {
   return useMutation({
     mutationFn: ({ taskId, data }: { taskId: string, data: any }) => ReportService.updateTask(taskId, data),
     onSuccess: () => {
-      // Efficient cache invalidation
-      queryClient.invalidateQueries({ queryKey: ['reports'] })
-      queryClient.invalidateQueries({ queryKey: ['statistics', 'weekly-task-stats'] })
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.reports,
+        exact: false 
+      })
+
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.statistics,
+        exact: false 
+      })
+      
+      toast.success('Cập nhật công việc thành công!')
     },
+    onError: (error) => handleError(error, 'Không thể cập nhật công việc'),
     retry: 1,
-    retryDelay: 1000,
-    meta: {
-      priority: 'normal',
-      timeout: 8000,
-    },
   })
 }

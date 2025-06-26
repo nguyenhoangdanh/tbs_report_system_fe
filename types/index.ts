@@ -75,6 +75,7 @@ export interface WeeklyReport {
   weekNumber: number
   year: number
   isLocked: boolean
+  isCompleted: boolean // Add this property
   tasks: TaskReport[]
   createdAt: string
   updatedAt: string

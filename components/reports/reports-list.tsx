@@ -1,17 +1,16 @@
 'use client'
 
-import { useState, memo } from 'react'
+import { useState, memo, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Eye, Calendar, Clock, CheckCircle, Lock, Users, Trash2 } from 'lucide-react'
+import { Eye, Trash2, Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import { getCurrentWeek, formatDateRange, getWeekDateRange } from '@/lib/date-utils'
+import { getCurrentWeek } from '@/lib/date-utils'
 import type { WeeklyReport } from '@/types'
-import { toast } from 'react-hot-toast'
 
 interface ReportsListProps {
   reports: WeeklyReport[]
@@ -19,6 +18,131 @@ interface ReportsListProps {
   onDeleteReport?: (reportId: string) => Promise<void>
   isLoading?: boolean
 }
+
+// Memoized ReportCard component with corrected prop types
+const ReportCard = memo(function ReportCard({
+  report,
+  onView,
+  onDelete,
+  canDelete
+}: {
+  report: WeeklyReport
+  onView: (report: WeeklyReport) => void
+  onDelete?: (report: WeeklyReport, e: React.MouseEvent) => void
+  canDelete: boolean
+}) {
+  // Memoize calculations
+  const stats = useMemo(() => {
+    const completedTasks = report.tasks?.filter(task => task.isCompleted).length || 0
+    const totalTasks = report.tasks?.length || 0
+    const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+    const isReportCompleted = totalTasks > 0 && completedTasks === totalTasks
+
+    return { completedTasks, totalTasks, completionRate, isReportCompleted }
+  }, [report.tasks])
+
+  // Memoize formatted date
+  const formattedDate = useMemo(() => {
+    return report.createdAt ? formatDistanceToNow(new Date(report.createdAt), { 
+      addSuffix: true, 
+      locale: vi 
+    }) : 'Không xác định'
+  }, [report.createdAt])
+
+  const handleClick = useCallback(() => onView(report), [onView, report])
+  const handleDeleteClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (onDelete) {
+      onDelete(report, e)
+    }
+  }, [onDelete, report])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+    >
+      <Card 
+        className="hover:shadow-md transition-shadow cursor-pointer"
+        onClick={handleClick}
+      >
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">
+              Tuần {report.weekNumber}/{report.year}
+            </CardTitle>
+            <Badge 
+              variant={stats.isReportCompleted ? "default" : "secondary"}
+              className={stats.isReportCompleted ? "bg-green-100 text-green-800" : ""}
+            >
+              {stats.isReportCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}
+            </Badge>
+          </div>
+          
+          <div className="flex items-center text-sm text-muted-foreground">
+            <Clock className="w-4 h-4 mr-1" />
+            {formattedDate}
+          </div>
+        </CardHeader>
+        
+        <CardContent className="pt-0">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between text-sm">
+              <span className="text-muted-foreground">Tiến độ công việc</span>
+              <span className="font-medium">{stats.completedTasks}/{stats.totalTasks}</span>
+            </div>
+            
+            <div className="w-full bg-gray-200 rounded-full h-2">
+              <div 
+                className="bg-green-600 h-2 rounded-full transition-all duration-300" 
+                style={{ width: `${stats.completionRate}%` }}
+              />
+            </div>
+            
+            <div className="flex items-center justify-between text-sm">
+              <div className="flex items-center text-green-600">
+                <CheckCircle2 className="w-4 h-4 mr-1" />
+                {stats.completedTasks} hoàn thành
+              </div>
+              {stats.totalTasks - stats.completedTasks > 0 && (
+                <div className="flex items-center text-orange-500">
+                  <XCircle className="w-4 h-4 mr-1" />
+                  {stats.totalTasks - stats.completedTasks} chưa xong
+                </div>
+              )}
+            </div>
+
+            <div className="flex gap-2 pt-2">
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleClick}
+                className="flex-1"
+              >
+                <Eye className="w-4 h-4 mr-1" />
+                Xem
+              </Button>
+              
+              {canDelete && onDelete && (
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={handleDeleteClick}
+                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
+  )
+})
+
+ReportCard.displayName = 'ReportCard'
 
 export const ReportsList = memo(function ReportsList({
   reports,
@@ -29,15 +153,24 @@ export const ReportsList = memo(function ReportsList({
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [reportToDelete, setReportToDelete] = useState<WeeklyReport | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
-  const currentWeek = getCurrentWeek()
 
-  const handleDeleteClick = (report: WeeklyReport, e: React.MouseEvent) => {
-    e.stopPropagation() // Prevent triggering onViewReport
+  // Memoize current week
+  const currentWeek = useMemo(() => getCurrentWeek(), [])
+
+  // Memoize delete permission check
+  const canDeleteReport = useCallback((report: WeeklyReport): boolean => {
+    const isCurrentWeek = report.weekNumber === currentWeek.weekNumber && report.year === currentWeek.year
+    return isCurrentWeek && !report.isLocked && !!onDeleteReport
+  }, [currentWeek, onDeleteReport])
+
+  // Optimized delete handlers - now takes report and event
+  const handleDeleteClick = useCallback((report: WeeklyReport, e: React.MouseEvent) => {
+    e.stopPropagation()
     setReportToDelete(report)
     setShowDeleteDialog(true)
-  }
+  }, [])
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = useCallback(async () => {
     if (!reportToDelete || !onDeleteReport) return
 
     setIsDeleting(true)
@@ -45,28 +178,39 @@ export const ReportsList = memo(function ReportsList({
       await onDeleteReport(reportToDelete.id)
       setShowDeleteDialog(false)
       setReportToDelete(null)
-    } catch (error) {
-      // Error is already handled in parent component
     } finally {
       setIsDeleting(false)
     }
-  }
+  }, [reportToDelete, onDeleteReport])
 
-  const canDeleteReport = (report: WeeklyReport) => {
-    const isCurrentWeek = report.weekNumber === currentWeek.weekNumber && report.year === currentWeek.year
-    return isCurrentWeek && !report.isLocked && onDeleteReport
-  }
+  const handleCloseDialog = useCallback(() => {
+    setShowDeleteDialog(false)
+    setReportToDelete(null)
+  }, [])
+
+  // Memoize filtered and valid reports
+  const validReports = useMemo(() => {
+    if (!Array.isArray(reports)) {
+      console.error('Reports is not an array:', reports)
+      return []
+    }
+
+    return reports.filter(report => report?.id)
+  }, [reports])
 
   if (isLoading) {
     return (
-      <div className="space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <Card key={i} className="animate-pulse">
-            <CardContent className="p-6">
-              <div className="space-y-3">
-                <div className="h-6 bg-muted rounded w-1/3"></div>
-                <div className="h-4 bg-muted rounded w-1/2"></div>
-                <div className="h-4 bg-muted rounded w-2/3"></div>
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {Array.from({ length: 6 }, (_, index) => (
+          <Card key={index} className="animate-pulse">
+            <CardHeader>
+              <div className="h-4 bg-gray-200 rounded w-3/4" />
+              <div className="h-3 bg-gray-200 rounded w-1/2" />
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2">
+                <div className="h-3 bg-gray-200 rounded" />
+                <div className="h-3 bg-gray-200 rounded w-2/3" />
               </div>
             </CardContent>
           </Card>
@@ -75,15 +219,15 @@ export const ReportsList = memo(function ReportsList({
     )
   }
 
-  if (reports.length === 0) {
+  if (!validReports.length) {
     return (
       <Card>
-        <CardContent className="p-12 text-center">
-          <div className="text-muted-foreground mb-4">
-            <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
-            <h3 className="text-lg font-medium">Chưa có báo cáo nào</h3>
-            <p className="text-sm">Bạn chưa tạo báo cáo nào. Hãy bắt đầu tạo báo cáo đầu tiên!</p>
-          </div>
+        <CardContent className="text-center py-8">
+          <Calendar className="mx-auto h-12 w-12 text-muted-foreground mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Chưa có báo cáo nào</h3>
+          <p className="text-muted-foreground">
+            Bạn chưa tạo báo cáo nào cho bộ lọc này. Hãy bắt đầu tạo báo cáo đầu tiên!
+          </p>
         </CardContent>
       </Card>
     )
@@ -91,174 +235,25 @@ export const ReportsList = memo(function ReportsList({
 
   return (
     <>
-      <div className="space-y-4">
-        {reports.map((report, index) => {
-          const { start, end } = getWeekDateRange(report.weekNumber, report.year)
-          const dateRange = formatDateRange(start, end)
-          const completedTasks = report.tasks?.filter(task => task.isCompleted).length || 0
-          const totalTasks = report.tasks?.length || 0
-          const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
-          const isCurrentWeek = report.weekNumber === currentWeek.weekNumber && report.year === currentWeek.year
-
-          return (
-            <motion.div
-              key={report.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.1 }}
-            >
-              <Card className="hover:shadow-lg transition-all duration-300 cursor-pointer group">
-                <CardContent className="p-6" onClick={() => onViewReport(report)}>
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                        isCurrentWeek 
-                          ? 'bg-gradient-to-br from-green-500 to-emerald-600' 
-                          : 'bg-gradient-to-br from-blue-500 to-indigo-600'
-                      }`}>
-                        <span className="text-white text-lg font-bold">
-                          {report.weekNumber}
-                        </span>
-                      </div>
-                      <div>
-                        <h3 className="text-xl font-semibold text-card-foreground">
-                          Báo cáo tuần {report.weekNumber}/{report.year}
-                        </h3>
-                        {isCurrentWeek && (
-                          <Badge variant="secondary" className="mt-1 bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300">
-                            Tuần hiện tại
-                          </Badge>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      {report.isLocked && (
-                        <Badge variant="destructive" className="flex items-center gap-1">
-                          <Lock className="w-3 h-3" />
-                          Đã khóa
-                        </Badge>
-                      )}
-                      <Badge variant={completionRate === 100 ? "default" : "secondary"} className="flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" />
-                        {completionRate}%
-                      </Badge>
-                    </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Users className="w-4 h-4" />
-                      <span className="text-sm">
-                        {completedTasks}/{totalTasks} công việc hoàn thành
-                      </span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Clock className="w-4 h-4" />
-                      <span className="text-sm">
-                        Cập nhật {formatDistanceToNow(new Date(report.updatedAt), { 
-                          addSuffix: true, 
-                          locale: vi 
-                        })}
-                      </span>
-                    </div>
-
-                    <div className="flex items-center gap-2 text-muted-foreground">
-                      <Calendar className="w-4 h-4" />
-                      <span className="text-sm">
-                        Tạo {formatDistanceToNow(new Date(report.createdAt), { 
-                          addSuffix: true, 
-                          locale: vi 
-                        })}
-                      </span>
-                    </div>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="mb-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-sm font-medium text-muted-foreground">Tiến độ hoàn thành</span>
-                      <span className="text-sm font-medium text-card-foreground">{completionRate}%</span>
-                    </div>
-                    <div className="w-full bg-muted rounded-full h-2">
-                      <div 
-                        className={`h-2 rounded-full transition-all duration-500 ${
-                          completionRate === 100 
-                            ? 'bg-gradient-to-r from-green-500 to-emerald-500' 
-                            : 'bg-gradient-to-r from-blue-500 to-indigo-500'
-                        }`}
-                        style={{ width: `${completionRate}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      {totalTasks > 0 && (
-                        <div className="flex -space-x-1">
-                          {report.tasks?.slice(0, 3).map((task, i) => (
-                            <div 
-                              key={i}
-                              className={`w-6 h-6 rounded-full border-2 border-background flex items-center justify-center text-xs font-medium ${
-                                task.isCompleted 
-                                  ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300' 
-                                  : 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300'
-                              }`}
-                            >
-                              {task.isCompleted ? '✓' : '○'}
-                            </div>
-                          ))}
-                          {totalTasks > 3 && (
-                            <div className="w-6 h-6 rounded-full border-2 border-background bg-muted flex items-center justify-center text-xs font-medium">
-                              +{totalTasks - 3}
-                            </div>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                      {canDeleteReport(report) && (
-                        <Button
-                          onClick={(e) => handleDeleteClick(report, e)}
-                          variant="destructive"
-                          size="sm"
-                          className="flex items-center gap-1"
-                        >
-                          <Trash2 className="w-4 h-4" />
-                          Xóa
-                        </Button>
-                      )}
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          onViewReport(report)
-                        }}
-                        variant="outline"
-                        size="sm"
-                        className="flex items-center gap-1"
-                      >
-                        <Eye className="w-4 h-4" />
-                        Xem chi tiết
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          )
-        })}
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+        {validReports.map((report) => (
+          <ReportCard
+            key={report.id}
+            report={report}
+            onView={onViewReport}
+            onDelete={handleDeleteClick}
+            canDelete={canDeleteReport(report)}
+          />
+        ))}
       </div>
 
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+      {/* Delete Dialog */}
+      <Dialog open={showDeleteDialog} onOpenChange={handleCloseDialog}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Xác nhận xóa báo cáo</DialogTitle>
             <DialogDescription>
-              Bạn có chắc chắn muốn xóa báo cáo tuần {reportToDelete?.weekNumber}/{reportToDelete?.year}? 
+              Bạn có chắc chắn muốn xóa báo cáo tuần {reportToDelete?.weekNumber}/{reportToDelete?.year}?
               <br />
               <span className="text-red-600 font-medium">
                 Thao tác này không thể hoàn tác và sẽ xóa tất cả công việc trong báo cáo.
@@ -268,7 +263,7 @@ export const ReportsList = memo(function ReportsList({
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowDeleteDialog(false)}
+              onClick={handleCloseDialog}
               disabled={isDeleting}
             >
               Hủy
@@ -297,3 +292,5 @@ export const ReportsList = memo(function ReportsList({
     </>
   )
 })
+
+ReportsList.displayName = 'ReportsList'

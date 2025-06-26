@@ -34,7 +34,11 @@ interface PaginatedResponse<T = any> {
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
 
 export class ApiError extends Error {
-  constructor(public status: number, message: string) {
+  constructor(
+    public message: string,
+    public status: number,
+    public data?: any
+  ) {
     super(message)
     this.name = 'ApiError'
   }
@@ -69,8 +73,8 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const url = `${API_BASE_URL}${endpoint}`
   const method = options.method || 'GET'
   
-  // Giảm timeout để tránh slow requests
-  const timeout = process.env.NODE_ENV === 'production' ? 8000 : 5000
+  // Increase timeout for production calls
+  const timeout = 20000 // 20 seconds for better reliability
   
   // Chỉ cache GET requests và không cache auth endpoints
   const shouldCache = method === 'GET' && !endpoint.includes('/auth/') && !endpoint.includes('/users/profile')
@@ -102,34 +106,42 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       'Accept': 'application/json',
       ...options.headers,
     },
+    // Always use 'include' for credentials to send cookies
     credentials: 'include',
     mode: 'cors',
     signal: controller.signal,
     ...options,
   }
 
-  const requestPromise = (async () => {
+   const requestPromise = (async () => {
     try {
       const response = await fetch(url, config)
       clearTimeout(timeoutId)
       
       if (!response.ok) {
-        let errorMessage = 'Có lỗi xảy ra'
+        let errorMessage = 'Request failed'
         
+        // Simplified error response handling - let backend handle error details
         try {
-          const errorData = await response.json()
-          errorMessage = errorData.message || errorData.error || errorMessage
+          const contentType = response.headers.get('content-type')
+          if (contentType?.includes('application/json')) {
+            const errorData = await response.json()
+            errorMessage = errorData.message || errorData.error || `HTTP ${response.status}`
+          } else {
+            errorMessage = `HTTP ${response.status}: ${response.statusText}`
+          }
         } catch {
-          errorMessage = response.statusText || `Lỗi ${response.status}`
+          // If can't parse error, use basic HTTP status
+          errorMessage = `HTTP ${response.status}: ${response.statusText || 'Unknown error'}`
         }
         
-        throw new ApiError(response.status, errorMessage)
+        throw new ApiError(errorMessage, response.status)
       }
 
+      // Handle successful response
       const contentType = response.headers.get('content-type')
       if (contentType?.includes('application/json')) {
         const data = await response.json()
-        // Backend đã xử lý response structure, chỉ cần return data
         return data?.data || data
       }
       
@@ -138,13 +150,22 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     } catch (error: any) {
       clearTimeout(timeoutId)
       
-      if (error instanceof ApiError) throw error
-      
-      if (error?.name === 'AbortError') {
-        throw new ApiError(0, 'Request timeout')
+      // Simplified error handling - just re-throw with minimal processing
+      if (error instanceof ApiError) {
+        throw error
       }
       
-      throw new ApiError(0, error.message || 'Network error')
+      if (error?.name === 'AbortError') {
+        throw new ApiError('Request timeout', 408)
+      }
+      
+      // Network errors - simplified handling
+      if (error?.name === 'TypeError' && error?.message?.includes('Failed to fetch')) {
+        throw new ApiError('Network connection failed', 0)
+      }
+      
+      // Default error
+      throw new ApiError(error.message || 'Request failed', 0)
     } finally {
       if (dedupeKey) {
         pendingRequests.delete(dedupeKey)
@@ -164,6 +185,7 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   return requestPromise
 }
 
+// Enhanced delete method with better error handling
 export const api = {
   get: <T>(endpoint: string) => apiRequest<T>(endpoint),
   post: <T>(endpoint: string, data?: any) =>
@@ -181,19 +203,35 @@ export const api = {
       method: 'PATCH',
       body: data ? JSON.stringify(data) : undefined,
     }),
-  delete: <T>(endpoint: string) =>
-    apiRequest<T>(endpoint, { method: 'DELETE' }),
+  delete: <T = void>(endpoint: string): Promise<T> => {
+    console.log(`DELETE request to: ${API_BASE_URL}${endpoint}`)
+    return apiRequest<T>(endpoint, { method: 'DELETE' })
+  },
 }
 
 // Đơn giản hóa health check
 export const checkApiHealth = async (): Promise<boolean> => {
   try {
+    console.log(`Checking API health at: ${API_BASE_URL}/health`)
+    
     const response = await fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
-      signal: AbortSignal.timeout(3000),
+      signal: AbortSignal.timeout(5000),
+      mode: 'cors',
+      credentials: 'include',
     })
-    return response.ok
-  } catch {
+    
+    console.log(`Health check response: ${response.status}`)
+    
+    if (response.ok) {
+      const data = await response.json()
+      console.log('Health check data:', data)
+      return true
+    }
+    
+    return false
+  } catch (error) {
+    console.error('Health check failed:', error)
     return false
   }
 }

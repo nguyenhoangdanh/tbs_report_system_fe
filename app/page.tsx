@@ -1,6 +1,6 @@
 'use client'
 
-import { Suspense, useEffect, useRef } from 'react'
+import { Suspense, useEffect, useRef, useState } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useRouter } from 'next/navigation'
 import { motion } from 'framer-motion'
@@ -318,12 +318,27 @@ function HomeContent() {
 }
 
 export default function HomePage() {
+  const { isAuthenticated, isLoading } = useAuth()
+  const [isRedirecting, setIsRedirecting] = useState(false)
+
+  useEffect(() => {
+    if (!isLoading && !isRedirecting) {
+      setIsRedirecting(true)
+      
+      if (isAuthenticated) {
+        window.location.replace('/dashboard')
+      } else {
+        window.location.replace('/login')
+      }
+    }
+  }, [isAuthenticated, isLoading, isRedirecting])
+
   return (
     <Suspense fallback={
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Đang tải...</p>
+          <p className="text-muted-foreground">Đang chuyển hướng...</p>
         </div>
       </div>
     }>

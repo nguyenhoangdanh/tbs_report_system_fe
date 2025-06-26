@@ -1,174 +1,90 @@
 'use client'
 
 import { useAuth } from '@/components/providers/auth-provider'
-import { memo } from 'react'
+import { useMemo, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Badge } from '@/components/ui/badge'
 import { useDashboardData } from '@/hooks/use-statistics'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import Link from 'next/link'
-import { ResponsiveContainer, PieChart, Pie, Cell, Tooltip, Legend } from 'recharts'
-import { CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, Hourglass, FileText } from 'lucide-react'
+import { CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, Hourglass, FileText, Info, Activity, Zap } from 'lucide-react'
 import { AppLoading } from '@/components/ui/app-loading'
+import { StatsCard } from '@/components/dashboard/stats-card'
 import type { RecentActivity } from '@/services/statistics.service'
 
-// --- Pie Chart Card Component ---
-interface TaskPieChartCardProps {
-    title: string
-    subtitle?: string
-    data: { name: string; value: number; fill: string }[]
-    total: number
-    completed: number
-    color: string
-    link?: string
-    icon?: React.ReactNode
-    filter?: string
-}
-
-const TaskPieChartCard = memo(function TaskPieChartCard({
-    title,
-    subtitle,
-    data,
-    total,
-    completed,
-    color,
-    link,
-    icon,
-    filter,
-}: TaskPieChartCardProps) {
-    const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    // Custom label for PieChart
-    const renderPieLabel = (props: any) => {
-        const { cx, cy, midAngle, innerRadius, outerRadius, percent } = props
-        const RADIAN = Math.PI / 180
-        const radius = innerRadius + (outerRadius - innerRadius) * 0.65
-        const x = cx + radius * Math.cos(-midAngle * RADIAN)
-        const y = cy + radius * Math.sin(-midAngle * RADIAN)
-
-        return percent > 0 ? (
-            <text
-                x={x}
-                y={y}
-                fill="white"
-                textAnchor="middle"
-                dominantBaseline="central"
-                fontSize={16}
-                fontWeight={600}
-                style={{
-                    textShadow: '0 1px 3px rgba(0,0,0,0.8)',
-                    filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.8))'
-                }}
-            >
-                {`${Math.round(percent * 100)}%`}
-            </text>
-        ) : null
-    }
-
-    return (
-        <Card className="flex flex-col md:flex-row items-center justify-between w-full max-w-4xl bg-white dark:bg-card rounded-2xl shadow-lg p-6 md:p-8 mx-auto mb-8 transition-all">
-            {/* Left: Info */}
-            <div className="flex flex-col items-center md:items-start w-full md:w-1/2 gap-2">
-                <div className={`w-12 h-12 rounded-xl flex items-center justify-center mb-2 border border-muted-foreground shadow ${color}`}>
-                    {icon}
-                </div>
-                <div className="text-base md:text-lg font-semibold text-foreground text-center md:text-left">{title}</div>
-                {subtitle && (
-                    <div className="text-xs md:text-sm text-muted-foreground mb-1 text-center md:text-left">{subtitle}</div>
-                )}
-                <div className="font-bold text-2xl md:text-3xl text-card-foreground mb-1">{total}</div>
-                <div className="text-xs md:text-sm text-muted-foreground mb-1">Tỷ lệ hoàn thành</div>
-                <div className={`font-bold text-lg md:text-xl ${color}`}>{percent}%</div>
-                {link && (
-                    <Link
-                        href={filter ? `${link}?filter=${filter}` : link}
-                        className="mt-3 text-xs md:text-sm px-4 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-semibold shadow hover:from-blue-700 hover:to-indigo-700 transition-all duration-300"
-                    >
-                        Xem tất cả báo cáo
-                    </Link>
-                )}
-            </div>
-            {/* Right: Chart */}
-            <div className="w-full md:w-1/2 flex items-center justify-center mt-6 md:mt-0">
-                <div className="w-full max-w-[340px] min-w-[220px]">
-                    <ResponsiveContainer width="100%" height={260}>
-                        <PieChart>
-                            <Pie
-                                data={data}
-                                dataKey="value"
-                                nameKey="name"
-                                cx="50%"
-                                cy="50%"
-                                outerRadius={95}
-                                innerRadius={60}
-                                label={renderPieLabel}
-                                labelLine={false}
-                                stroke="none"
-                            >
-                                {data.map((entry, index) => (
-                                    <Cell key={`cell-${index}`} fill={entry.fill} stroke="none" />
-                                ))}
-                            </Pie>
-                            <Tooltip
-                                contentStyle={{
-                                    borderRadius: 8,
-                                    background: 'var(--card)',
-                                    color: 'var(--foreground)',
-                                    border: '1px solid var(--border)',
-                                    fontSize: 13,
-                                    boxShadow: '0 2px 12px 0 rgba(0,0,0,0.10)',
-                                    padding: 10,
-                                }}
-                            />
-                            <Legend
-                                align="center"
-                                verticalAlign="bottom"
-                                iconType="circle"
-                                wrapperStyle={{
-                                    paddingTop: 8,
-                                    fontSize: 12,
-                                    color: 'var(--foreground)',
-                                    lineHeight: 1.2,
-                                }}
-                            />
-                        </PieChart>
-                    </ResponsiveContainer>
-                </div>
-            </div>
-        </Card>
-    )
-})
-
-// Utility function to build pie data - fix type handling
-function buildTaskPieData(stat?: { completed?: number; uncompleted?: number } | null) {
-    const completed = stat?.completed || 0
-    const uncompleted = stat?.uncompleted || 0
-
-    return [
-        {
-            name: 'Hoàn thành',
-            value: completed,
-            fill: '#10b981',
-        },
-        {
-            name: 'Chưa hoàn thành',
-            value: uncompleted,
-            fill: '#f59e42',
-        },
-    ]
-}
-
 // --- Main DashboardPage ---
-export default function DashboardPage() {
+function DashboardPage() {
     const { user } = useAuth()
-    const { data: dashboardData, isLoading: isDashboardLoading, error } = useDashboardData()
+    // Sử dụng query key consistent để automatic invalidation hoạt động
+    const { data: dashboardData, isLoading: isDashboardLoading, error, refetch } = useDashboardData()
 
-    const now = new Date()
-    const currentYear = now.getFullYear()
-    const currentMonth = now.getMonth() + 1
+    // Always call useMemo hooks at the top level
+    const now = useMemo(() => new Date(), [])
+    const currentYear = useMemo(() => now.getFullYear(), [now])
+    const currentMonth = useMemo(() => now.getMonth() + 1, [now])
 
+    // Destructure data properly from the new structure
+    const { dashboardStats, activities, weeklyTaskStats, monthlyTaskStats, yearlyTaskStats } = dashboardData || {}
+
+    // Calculate overall dashboard stats - always call this hook
+    const overallStats = useMemo(() => {
+        const totalReports = dashboardStats?.totals?.totalReports || 0
+        const completedReports = dashboardStats?.totals?.completedReports || 0
+        const completionRate = dashboardStats?.totals?.completionRate || 0
+        
+        return {
+            totalReports,
+            completedReports,
+            completionRate,
+            isExcellent: completionRate >= 90,
+            isGood: completionRate >= 70
+        }
+    }, [dashboardStats])
+
+    // Utility functions - properly memoized with useCallback
+    const getActivityColor = useCallback((activity: RecentActivity) => {
+        switch (activity.status) {
+            case 'completed':
+                return 'bg-green-500'
+            case 'pending':
+                return 'bg-orange-500'
+            default:
+                return 'bg-blue-500'
+        }
+    }, [])
+
+    const getActivityIcon = useCallback((activity: RecentActivity) => {
+        switch (activity.status) {
+            case 'completed':
+                return <CheckCircle2 className="text-green-500 w-5 h-5" />
+            case 'pending':
+                return <Hourglass className="text-orange-500 w-5 h-5" />
+            default:
+                return <FileText className="text-blue-500 w-5 h-5" />
+        }
+    }, [])
+
+    // Get month and year stats - always calculate these
+    const monthStat = useMemo(() => 
+        monthlyTaskStats?.stats?.find((item: any) => item.month === currentMonth),
+        [monthlyTaskStats, currentMonth]
+    )
+    
+    const yearStat = useMemo(() => 
+        yearlyTaskStats?.stats?.find((item: any) => item.year === currentYear),
+        [yearlyTaskStats, currentYear]
+    )
+
+    // Effect để handle manual refetch nếu cần thiết (optional)
+    // Thường không cần vì cache invalidation tự động hoạt động
+    useEffect(() => {
+        // Có thể thêm logic để refetch khi cần thiết
+        // Nhưng với invalidation đúng cách thì không cần
+    }, [])
+
+    // Now handle conditional rendering after all hooks
     if (!user) {
         return <AppLoading text="Đang xác thực..." />
     }
@@ -177,7 +93,7 @@ export default function DashboardPage() {
         return (
             <MainLayout>
                 <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                    <div className="px-2 sm:px-4 py-6">
+                    <div className="px-4 sm:px-6 py-6">
                         <AppLoading text="Đang tải dữ liệu dashboard..." minimal={false} />
                     </div>
                 </div>
@@ -189,7 +105,7 @@ export default function DashboardPage() {
         return (
             <MainLayout>
                 <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                    <div className="px-2 sm:px-4 py-6">
+                    <div className="px-4 sm:px-6 py-6">
                         <Card className="border-red-200 bg-red-50 dark:border-red-800 dark:bg-red-950/50">
                             <CardContent className="pt-6">
                                 <div className="text-center">
@@ -211,139 +127,190 @@ export default function DashboardPage() {
         )
     }
 
-    // Destructure data properly from the new structure
-    const { activities, weeklyTaskStats, monthlyTaskStats, yearlyTaskStats } = dashboardData || {}
-
-    // Utility functions
-    const getActivityColor = (activity: RecentActivity) => {
-        switch (activity.status) {
-            case 'completed':
-                return 'bg-green-500'
-            case 'pending':
-                return 'bg-orange-500'
-            default:
-                return 'bg-blue-500'
-        }
-    }
-
-    const getActivityIcon = (activity: RecentActivity) => {
-        switch (activity.status) {
-            case 'completed':
-                return <CheckCircle2 className="text-green-500 w-5 h-5" />
-            case 'pending':
-                return <Hourglass className="text-orange-500 w-5 h-5" />
-            default:
-                return <FileText className="text-blue-500 w-5 h-5" />
-        }
-    }
-
-    // Pie chart data for each section - fix null handling
-    const weeklyTaskPieData = buildTaskPieData(weeklyTaskStats)
-    const monthStat = monthlyTaskStats?.stats?.find((item: any) => item.month === currentMonth)
-    const monthlyTaskPieData = buildTaskPieData(monthStat)
-    const yearStat = yearlyTaskStats?.stats?.find((item: any) => item.year === currentYear)
-    const yearlyTaskPieData = buildTaskPieData(yearStat)
-
-    // Icon classes
-    const iconClass = "w-6 h-6 text-green-600 dark:text-white"
-    const iconMonthClass = "w-6 h-6 text-blue-600 dark:text-white"
-    const iconYearClass = "w-6 h-6 text-purple-600 dark:text-white"
-
-    // Filter params
-    const weekFilter = 'week'
-    const monthFilter = `month&month=${currentMonth}&year=${currentYear}`
-    const yearFilter = `year&year=${currentYear}`
-
     return (
         <MainLayout>
             <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                <div className="px-2 sm:px-4 py-6">
-                    {/* Pie Chart Cards Column */}
+                <div className="px-4 sm:px-6 py-6 space-y-8">
+
+                    {/* Current Week Alert */}
+                    {dashboardStats?.currentWeek?.incompleteTasksAnalysis && 
+                     dashboardStats.currentWeek.incompleteTasksAnalysis.totalIncompleteTasks > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, scale: 0.95 }}
+                            animate={{ opacity: 1, scale: 1 }}
+                            transition={{ duration: 0.5, delay: 0.1 }}
+                        >
+                            <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
+                                <CardContent className="p-6">
+                                    <div className="flex items-start gap-4">
+                                        <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-xl flex items-center justify-center flex-shrink-0">
+                                            <Info className="w-6 h-6 text-amber-600" />
+                                        </div>
+                                        <div className="flex-1">
+                                            <div className="flex items-center justify-between mb-3">
+                                                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-200">
+                                                    📋 Thông báo tuần hiện tại
+                                                </h3>
+                                                <Badge className="bg-amber-100 text-amber-700 border-amber-200">
+                                                    Tuần {dashboardStats.currentWeek.weekNumber}/{dashboardStats.currentWeek.year}
+                                                </Badge>
+                                            </div>
+                                            <p className="text-amber-700 dark:text-amber-300 mb-3">
+                                                Bạn có <strong>{dashboardStats.currentWeek.incompleteTasksAnalysis.totalIncompleteTasks}</strong> công việc 
+                                                chưa hoàn thành trong tổng số <strong>{dashboardStats.currentWeek.incompleteTasksAnalysis.totalTasks}</strong> công việc tuần này.
+                                            </p>
+                                            {dashboardStats.currentWeek.incompleteTasksAnalysis.reasons.length > 0 && (
+                                                <div className="text-sm text-amber-600 dark:text-amber-400">
+                                                    <strong>Lý do chính:</strong> &quot;{dashboardStats.currentWeek.incompleteTasksAnalysis.reasons[0].reason}&quot;
+                                                    {dashboardStats.currentWeek.incompleteTasksAnalysis.reasons.length > 1 && 
+                                                        ` và ${dashboardStats.currentWeek.incompleteTasksAnalysis.reasons.length - 1} lý do khác`
+                                                    }
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        </motion.div>
+                    )}
+
+                    {/* Stats Cards Grid */}
                     <motion.div
-                        className="flex flex-col gap-6"
+                        className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
                     >
-                        <TaskPieChartCard
+                        {/* Weekly Stats */}
+                        <StatsCard
                             title="Công việc tuần này"
-                            data={weeklyTaskPieData}
-                            total={weeklyTaskStats?.total ?? 0}
-                            completed={weeklyTaskStats?.completed ?? 0}
+                            total={weeklyTaskStats?.total || 0}
+                            completed={weeklyTaskStats?.completed || 0}
+                            uncompleted={weeklyTaskStats?.uncompleted || 0}
+                            period={`Tuần ${weeklyTaskStats?.weekNumber}/${weeklyTaskStats?.year}`}
+                            link="/reports"
+                            linkFilter="week"
+                            icon={<CalendarDays className="w-6 h-6 text-green-600 dark:text-green-400" />}
                             color="text-green-600"
-                            link="/reports"
-                            icon={<CalendarDays className={iconClass} />}
-                            filter={weekFilter}
+                            bgColor="bg-green-50 dark:bg-green-950/20"
+                            incompleteReasons={weeklyTaskStats?.incompleteReasonsAnalysis || []}
+                            isLoading={!weeklyTaskStats}
                         />
-                        <TaskPieChartCard
+
+                        {/* Monthly Stats */}
+                        <StatsCard
                             title="Công việc tháng này"
-                            subtitle={`(${currentMonth}/${currentYear})`}
-                            data={monthlyTaskPieData}
-                            total={monthStat?.total ?? 0}
-                            completed={monthStat?.completed ?? 0}
+                            subtitle={`Tháng ${currentMonth}/${currentYear}`}
+                            total={monthStat?.total || 0}
+                            completed={monthStat?.completed || 0}
+                            uncompleted={monthStat?.uncompleted || 0}
+                            period={`Tháng ${currentMonth}/${currentYear}`}
+                            link="/reports"
+                            linkFilter={`month&month=${currentMonth}&year=${currentYear}`}
+                            icon={<CalendarCheck2 className="w-6 h-6 text-blue-600 dark:text-blue-400" />}
                             color="text-blue-600"
-                            link="/reports"
-                            icon={<CalendarCheck2 className={iconMonthClass} />}
-                            filter={monthFilter}
+                            bgColor="bg-blue-50 dark:bg-blue-950/20"
+                            incompleteReasons={monthStat?.topIncompleteReasons || []}
+                            isLoading={!monthlyTaskStats}
                         />
-                        <TaskPieChartCard
+
+                        {/* Yearly Stats */}
+                        <StatsCard
                             title="Công việc năm nay"
-                            subtitle={`(${currentYear})`}
-                            data={yearlyTaskPieData}
-                            total={yearStat?.total ?? 0}
-                            completed={yearStat?.completed ?? 0}
-                            color="text-purple-600"
+                            subtitle={`Năm ${currentYear}`}
+                            total={yearStat?.total || 0}
+                            completed={yearStat?.completed || 0}
+                            uncompleted={yearStat?.uncompleted || 0}
+                            period={`Năm ${currentYear}`}
                             link="/reports"
-                            icon={<BarChart3 className={iconYearClass} />}
-                            filter={yearFilter}
+                            linkFilter={`year&year=${currentYear}`}
+                            icon={<BarChart3 className="w-6 h-6 text-purple-600 dark:text-purple-400" />}
+                            color="text-purple-600"
+                            bgColor="bg-purple-50 dark:bg-purple-950/20"
+                            incompleteReasons={yearStat?.topIncompleteReasons || []}
+                            isLoading={!yearlyTaskStats}
                         />
                     </motion.div>
 
                     {/* Recent Activity Section */}
                     <motion.div
-                        className="mt-8"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
+                        transition={{ duration: 0.5, delay: 0.3 }}
                     >
-                        <Card>
-                            <CardHeader>
+                        <Card className="shadow-lg">
+                            <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20">
                                 <div className="flex items-center space-x-3">
-                                    <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center">
+                                    <div className="w-12 h-12 bg-gradient-to-br from-cyan-500 to-blue-600 rounded-xl flex items-center justify-center shadow-lg">
                                         <Clock3 className="text-white w-6 h-6" />
                                     </div>
-                                    <CardTitle className="text-xl">Hoạt động gần đây</CardTitle>
+                                    <div>
+                                        <CardTitle className="text-xl text-foreground">Hoạt động gần đây</CardTitle>
+                                        <p className="text-sm text-muted-foreground">5 báo cáo được cập nhật gần nhất</p>
+                                    </div>
                                 </div>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="p-0">
                                 {activities && activities.length > 0 ? (
-                                    <div className="space-y-4">
-                                        {activities.map((activity: RecentActivity) => (
+                                    <div className="divide-y divide-border">
+                                        {activities.map((activity: RecentActivity, index) => (
                                             <motion.div
                                                 key={activity.id}
-                                                className="flex items-center space-x-4 p-4 bg-muted/50 rounded-lg"
+                                                className="flex items-start space-x-4 p-6 hover:bg-muted/30 transition-colors"
                                                 initial={{ opacity: 0, x: -20 }}
                                                 animate={{ opacity: 1, x: 0 }}
-                                                transition={{ duration: 0.3 }}
+                                                transition={{ duration: 0.3, delay: index * 0.1 }}
                                             >
-                                                <div className={`w-2 h-2 ${getActivityColor(activity)} rounded-full`}></div>
-                                                <div className="flex-1">
-                                                    <p className="text-card-foreground font-medium">{activity.title}</p>
+                                                <div className={`w-3 h-3 ${getActivityColor(activity)} rounded-full mt-2 flex-shrink-0`} />
+                                                <div className="flex-1 min-w-0">
+                                                    <p className="text-foreground font-medium">{activity.title}</p>
                                                     <p className="text-muted-foreground text-sm">{activity.description}</p>
-                                                    <p className="text-muted-foreground text-xs">
+                                                    
+                                                    {activity.incompleteTasksCount > 0 && activity.mostCommonIncompleteReason && (
+                                                        <div className="mt-2 p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-100 dark:border-orange-800">
+                                                            <div className="flex items-center gap-2 mb-2">
+                                                                <Zap className="w-4 h-4 text-orange-500" />
+                                                                <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
+                                                                    {activity.incompleteTasksCount} công việc chưa xong
+                                                                </span>
+                                                                <span className="text-orange-400">•</span>
+                                                                <span className="text-xs text-orange-600 dark:text-orange-400">
+                                                                    &quot;{activity.mostCommonIncompleteReason}&quot;
+                                                                </span>
+                                                            </div>
+                                                            {/* Display sample tasks if available */}
+                                                            {activity.incompleteTasksSample && activity.incompleteTasksSample.length > 0 && (
+                                                                <div className="text-xs text-orange-600 dark:text-orange-400">
+                                                                    <span className="font-medium">Ví dụ:</span>{' '}
+                                                                    {activity.incompleteTasksSample.map((task, idx) => (
+                                                                        <span key={idx}>
+                                                                            {task.taskName}
+                                                                            {idx < activity.incompleteTasksSample!.length - 1 ? ', ' : ''}
+                                                                        </span>
+                                                                    ))}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                    
+                                                    <p className="text-muted-foreground text-xs mt-2">
                                                         {formatDistanceToNow(new Date(activity.updatedAt), {
                                                             addSuffix: true,
                                                             locale: vi
                                                         })}
                                                     </p>
                                                 </div>
-                                                <span className="text-lg">{getActivityIcon(activity)}</span>
+                                                <div className="text-lg flex-shrink-0">{getActivityIcon(activity)}</div>
                                             </motion.div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="text-center py-8">
-                                        <p className="text-muted-foreground">Chưa có hoạt động nào gần đây</p>
+                                    <div className="text-center py-12">
+                                        <div className="w-16 h-16 bg-muted rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <Clock3 className="w-8 h-8 text-muted-foreground" />
+                                        </div>
+                                        <h3 className="text-lg font-medium text-muted-foreground mb-2">Chưa có hoạt động nào</h3>
+                                        <p className="text-muted-foreground">Bắt đầu tạo báo cáo để theo dõi hoạt động của bạn</p>
                                     </div>
                                 )}
                             </CardContent>
@@ -354,3 +321,7 @@ export default function DashboardPage() {
         </MainLayout>
     )
 }
+
+DashboardPage.displayName = 'DashboardPage'
+
+export default DashboardPage

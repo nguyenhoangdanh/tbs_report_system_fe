@@ -32,36 +32,99 @@ export function getCurrentWeek(): { weekNumber: number; year: number } {
   }
 }
 
-export function getNextWeek(): { weekNumber: number; year: number } {
+// Helper function to get previous week
+export function getPreviousWeek(): { weekNumber: number; year: number } {
   const current = getCurrentWeek()
+  let prevWeek = current.weekNumber - 1
+  let prevYear = current.year
   
-  if (current.weekNumber >= 52) {
-    return {
-      weekNumber: 1,
-      year: current.year + 1
-    }
+  if (prevWeek < 1) {
+    prevWeek = 52
+    prevYear = current.year - 1
   }
   
-  return {
-    weekNumber: current.weekNumber + 1,
-    year: current.year
+  return { weekNumber: prevWeek, year: prevYear }
+}
+
+// Helper function to get next week
+export function getNextWeek(): { weekNumber: number; year: number } {
+  const current = getCurrentWeek()
+  let nextWeek = current.weekNumber + 1
+  let nextYear = current.year
+  
+  if (nextWeek > 52) {
+    nextWeek = 1
+    nextYear = current.year + 1
+  }
+  
+  return { weekNumber: nextWeek, year: nextYear }
+}
+
+// Updated validation to allow creation for previous week
+export function isValidWeekForCreation(weekNumber: number, year: number): { isValid: boolean; reason?: string } {
+  const current = getCurrentWeek()
+  const previous = getPreviousWeek()
+  const next = getNextWeek()
+  
+  // Allow creation for previous week, current week, and next week
+  if (weekNumber === previous.weekNumber && year === previous.year) {
+    return { isValid: true }
+  }
+  
+  if (weekNumber === current.weekNumber && year === current.year) {
+    return { isValid: true }
+  }
+  
+  if (weekNumber === next.weekNumber && year === next.year) {
+    return { isValid: true }
+  }
+  
+  return { 
+    isValid: false, 
+    reason: 'Chỉ có thể tạo báo cáo cho tuần trước, tuần hiện tại hoặc tuần tiếp theo' 
   }
 }
 
-export function getPreviousWeek(): { weekNumber: number; year: number } {
+// Updated validation to allow editing for more weeks
+export function isValidWeekForEdit(weekNumber: number, year: number): { isValid: boolean; reason?: string } {
   const current = getCurrentWeek()
+  const previous = getPreviousWeek()
+  const next = getNextWeek()
   
-  if (current.weekNumber <= 1) {
-    return {
-      weekNumber: 52,
-      year: current.year - 1
-    }
+  // Allow editing for previous week, current week, and next week
+  if (weekNumber === previous.weekNumber && year === previous.year) {
+    return { isValid: true }
   }
   
-  return {
-    weekNumber: current.weekNumber - 1,
-    year: current.year
+  if (weekNumber === current.weekNumber && year === current.year) {
+    return { isValid: true }
   }
+  
+  if (weekNumber === next.weekNumber && year === next.year) {
+    return { isValid: true }
+  }
+  
+  return { 
+    isValid: false, 
+    reason: 'Chỉ có thể chỉnh sửa báo cáo của tuần trước, tuần hiện tại và tuần tiếp theo' 
+  }
+}
+
+export function validateWeekYear(weekNumber: number, year: number): { isValid: boolean; error?: string } {
+  // Basic validation
+  if (!weekNumber || !year) {
+    return { isValid: false, error: 'Vui lòng nhập số tuần và năm' }
+  }
+  
+  if (weekNumber < 1 || weekNumber > 52) {
+    return { isValid: false, error: 'Số tuần phải từ 1 đến 52' }
+  }
+  
+  if (year < 2020 || year > 2030) {
+    return { isValid: false, error: 'Năm phải từ 2020 đến 2030' }
+  }
+  
+  return { isValid: true }
 }
 
 export function getWeekDateRange(weekNumber: number, year: number): { start: Date; end: Date } {
@@ -203,151 +266,4 @@ function calculateWeekDifference(week1: number, year1: number, week2: number, ye
   const absWeek2 = year2 * 52 + week2
   
   return absWeek1 - absWeek2
-}
-
-export function isValidWeekForCreation(weekNumber: number, year: number): { 
-  isValid: boolean; 
-  reason?: string;
-  type?: 'current' | 'next' | 'past' | 'future'
-} {
-  const current = getCurrentWeek()
-  const next = getNextWeek()
-  
-  // Check if it's current week
-  if (weekNumber === current.weekNumber && year === current.year) {
-    return { isValid: true, type: 'current' }
-  }
-  
-  // Check if it's next week
-  if (weekNumber === next.weekNumber && year === next.year) {
-    return { isValid: true, type: 'next' }
-  }
-  
-  return { 
-    isValid: false, 
-    reason: 'Chỉ có thể tạo báo cáo cho tuần hiện tại hoặc tuần tiếp theo',
-    type: 'future'
-  }
-}
-
-export function isValidWeekForEdit(weekNumber: number, year: number): { 
-  isValid: boolean; 
-  reason?: string;
-  type?: 'current' | 'next' | 'past' | 'future'
-} {
-  const current = getCurrentWeek()
-  const next = getNextWeek()
-  const previous = getPreviousWeek()
-  
-  // Check if it's current week
-  if (weekNumber === current.weekNumber && year === current.year) {
-    return { isValid: true, type: 'current' }
-  }
-  
-  // Check if it's next week
-  if (weekNumber === next.weekNumber && year === next.year) {
-    return { isValid: true, type: 'next' }
-  }
-  
-  // Check if it's previous week
-  if (weekNumber === previous.weekNumber && year === previous.year) {
-    return { isValid: true, type: 'past' }
-  }
-  
-  return { 
-    isValid: false, 
-    reason: 'Chỉ có thể chỉnh sửa báo cáo của tuần hiện tại, tuần trước và tuần sau',
-    type: 'future'
-  }
-}
-
-export function validateWeekYear(weekNumber: number, year: number): { isValid: boolean; error?: string } {
-  const numWeek = Number(weekNumber)
-  const numYear = Number(year)
-  
-  if (isNaN(numWeek) || numWeek < 1 || numWeek > 53) {
-    return { isValid: false, error: 'Số tuần phải từ 1 đến 53' }
-  }
-  
-  if (isNaN(numYear)) {
-    return { isValid: false, error: 'Năm không hợp lệ' }
-  }
-  
-  // Check if week is valid for creation
-  const creationValidation = isValidWeekForCreation(numWeek, numYear)
-  if (!creationValidation.isValid) {
-    return { isValid: false, error: creationValidation.reason }
-  }
-  
-  return { isValid: true }
-}
-
-export function getFirstWeekOfYear(year: number): { weekNumber: number; year: number } {
-  return {
-    weekNumber: 1,
-    year: Math.max(2020, Math.min(2030, year))
-  }
-}
-
-export function getLastWeekOfYear(year: number): { weekNumber: number; year: number } {
-  // Most years have 52 weeks, some have 53
-  const dec31 = new Date(year, 11, 31)
-  const jan1 = new Date(year, 0, 1)
-  const jan1DayOfWeek = jan1.getDay()
-  
-  // If January 1st is a Friday, Saturday, or Sunday, the year likely has 53 weeks
-  // But for simplicity, we'll use 52 as the standard
-  return {
-    weekNumber: 52,
-    year: Math.max(2020, Math.min(2030, year))
-  }
-}
-
-export function isValidWeekForViewing(weekNumber: number, year: number): boolean {
-  const numWeek = Number(weekNumber)
-  const numYear = Number(year)
-  
-  // Allow viewing any week from 2020-2030
-  if (isNaN(numWeek) || numWeek < 1 || numWeek > 53) {
-    return false
-  }
-  
-  if (isNaN(numYear) || numYear < 2020 || numYear > 2030) {
-    return false
-  }
-  
-  return true
-}
-
-// Enhanced navigation functions
-export function canNavigateToPreviousWeek(weekNumber: number, year: number): boolean {
-  if (weekNumber > 1) return true
-  if (year > 2020) return true
-  return false
-}
-
-export function canNavigateToNextWeek(weekNumber: number, year: number): boolean {
-  if (weekNumber < 52) return true
-  if (year < 2030) return true
-  return false
-}
-
-export function getNavigationPreviousWeek(weekNumber: number, year: number): { weekNumber: number; year: number } {
-  if (weekNumber > 1) {
-    return { weekNumber: weekNumber - 1, year }
-  }
-  if (year > 2020) {
-    return { weekNumber: 52, year: year - 1 }
-  }
-  return { weekNumber, year } // Can't go further back
-}
-
-export function getNavigationNextWeek(weekNumber: number, year: number): { weekNumber: number; year: number } {
-  if (weekNumber < 52) {
-    return { weekNumber: weekNumber + 1, year }
-  }
-  if (year < 2030) {
-    return { weekNumber: 1, year: year + 1 }
-  }
-  return { weekNumber, year } // Can't go further forward
 }

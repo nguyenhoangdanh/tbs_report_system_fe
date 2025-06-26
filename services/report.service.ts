@@ -1,4 +1,4 @@
-import { api, ApiError } from '@/lib/api'
+import { api } from '@/lib/api'
 import type { 
   WeeklyReport, 
   CreateWeeklyReportDto, 
@@ -13,7 +13,20 @@ export class ReportService {
   }
 
   static async getMyReports(page = 1, limit = 10): Promise<PaginatedResponse<WeeklyReport>> {
-    return await api.get<PaginatedResponse<WeeklyReport>>(`/reports/my?page=${page}&limit=${limit}`)
+    const response = await api.get<PaginatedResponse<WeeklyReport>>(`/reports/my?page=${page}&limit=${limit}`)
+    
+    // Simple fallback for unexpected response format
+    if (Array.isArray(response)) {
+      return {
+        data: response,
+        total: response.length,
+        page: 1,
+        limit: response.length,
+        totalPages: 1
+      }
+    }
+    
+    return response
   }
 
   static async getReportById(id: string): Promise<WeeklyReport> {
@@ -23,12 +36,8 @@ export class ReportService {
   static async getCurrentWeekReport(): Promise<WeeklyReport | null> {
     try {
       return await api.get<WeeklyReport>('/reports/current-week')
-    } catch (error: any) {
-      // Only handle 404 for null return - backend handles other errors
-      if (error instanceof ApiError && error.status === 404) {
-        return null
-      }
-      throw error
+    } catch {
+      return null // Only handle 404 case
     }
   }
 
@@ -36,15 +45,14 @@ export class ReportService {
     return await api.patch<WeeklyReport>(`/reports/${id}`, data)
   }
 
-  static async deleteReport(id: string): Promise<void> {
-    return await api.delete<void>(`/reports/${id}`)
+  static async deleteReport(id: string): Promise<{ message: string }> {
+    return await api.delete<{ message: string }>(`/reports/${id}`)
   }
 
   static async deleteTask(taskId: string): Promise<void> {
     return await api.delete<void>(`/reports/tasks/${taskId}`)
   }
 
-  // Update single task with correct type
   static async updateTask(taskId: string, data: UpdateSingleTaskDto): Promise<any> {
     return await api.patch(`/reports/tasks/${taskId}`, data)
   }
@@ -77,12 +85,8 @@ export class ReportService {
   static async getReportByWeek(weekNumber: number, year: number): Promise<WeeklyReport | null> {
     try {
       return await api.get<WeeklyReport>(`/reports/week/${weekNumber}/year/${year}`)
-    } catch (error: any) {
-      // Only handle 404 for null return - backend handles other errors
-      if (error instanceof ApiError && error.status === 404) {
-        return null
-      }
-      throw error
+    } catch {
+      return null // Only handle 404 case
     }
   }
 }

@@ -22,8 +22,8 @@ export function useAuth() {
   } = useQuery({
     queryKey: ['auth', 'profile'],
     queryFn: () => AuthService.getProfile(),
-    staleTime: 10 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
+    staleTime: 5 * 60 * 1000, // Giảm stale time cho production
+    gcTime: 10 * 60 * 1000,
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.status === 403) return false
       return failureCount < 1
@@ -33,7 +33,7 @@ export function useAuth() {
     refetchOnReconnect: false,
   })
 
-  // Login mutation - đơn giản hóa redirect
+  // Login mutation - production optimized redirect
   const loginMutation = useMutation({
     mutationFn: async ({ employeeCode, password }: { employeeCode: string; password: string }) => {
       return await AuthService.login({ employeeCode, password })
@@ -42,12 +42,15 @@ export function useAuth() {
       queryClient.setQueryData(['auth', 'profile'], data.user)
       toast.success(data.message || 'Đăng nhập thành công!')
 
-      // Simple redirect
+      // Production-safe redirect
       setTimeout(() => {
         const urlParams = new URLSearchParams(window.location.search)
         const returnUrl = urlParams.get('returnUrl')
-        window.location.href = returnUrl || '/dashboard'
-      }, 1000)
+        const targetUrl = returnUrl && returnUrl !== '/login' ? returnUrl : '/dashboard'
+        
+        // Use window.location.replace instead of href for better redirect
+        window.location.replace(targetUrl)
+      }, 800)
     },
     onError: (error: any) => {
       toast.error(error.message || 'Đăng nhập thất bại!')
@@ -55,7 +58,7 @@ export function useAuth() {
     retry: false,
   })
 
-  // Register mutation
+  // Register mutation - production optimized
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterDto) => {
       return await AuthService.register(data)
@@ -65,9 +68,9 @@ export function useAuth() {
 
       if (data.user) {
         queryClient.setQueryData(['auth', 'profile'], data.user)
-        setTimeout(() => window.location.href = '/dashboard', 1500)
+        setTimeout(() => window.location.replace('/dashboard'), 1200)
       } else {
-        setTimeout(() => window.location.href = '/login', 1500)
+        setTimeout(() => window.location.replace('/login'), 1200)
       }
     },
     onError: (error: any) => {
@@ -76,7 +79,7 @@ export function useAuth() {
     retry: false,
   })
 
-  // Logout mutation
+  // Logout mutation - production optimized
   const logoutMutation = useMutation({
     mutationFn: async () => {
       return await AuthService.logout()
@@ -84,12 +87,12 @@ export function useAuth() {
     onSuccess: () => {
       queryClient.clear()
       toast.success('Đăng xuất thành công!')
-      setTimeout(() => window.location.href = '/login', 500)
+      setTimeout(() => window.location.replace('/login'), 300)
     },
     onError: (error: any) => {
       queryClient.clear()
       toast.error(error.message || 'Đã đăng xuất')
-      setTimeout(() => window.location.href = '/login', 500)
+      setTimeout(() => window.location.replace('/login'), 300)
     },
     retry: false,
   })

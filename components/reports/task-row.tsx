@@ -14,7 +14,6 @@ import { toast } from 'react-hot-toast'
 import { useUpdateTask, useDeleteTask } from '@/hooks/use-reports'
 import type { TaskReport } from '@/types'
 import { Checkbox } from '../ui/checkbox'
-import { useQueryClient } from '@tanstack/react-query'
 
 interface TaskRowProps {
   task: TaskReport
@@ -24,10 +23,10 @@ interface TaskRowProps {
   isEditable: boolean
   onTaskChange: (taskId: string, field: string, value: any) => void
   onRemoveTask: (taskId: string) => void
-  onTaskSaved?: () => void // <--- thêm prop này
+  onTaskSaved?: () => void
 }
 
-export const TaskRow = memo(function TaskRow({
+const TaskRow = memo(function TaskRow({
   task,
   weekNumber,
   year,
@@ -35,12 +34,9 @@ export const TaskRow = memo(function TaskRow({
   isEditable,
   onTaskChange,
   onRemoveTask,
-  onTaskSaved, // <--- nhận prop này
+  onTaskSaved,
 }: TaskRowProps) {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
-  const [isDeleting, setIsDeleting] = useState(false)
-  const [isSaving, setIsSaving] = useState(false)
-  const queryClient = useQueryClient()
   const updateTaskMutation = useUpdateTask()
   const deleteTaskMutation = useDeleteTask()
 
@@ -57,15 +53,11 @@ export const TaskRow = memo(function TaskRow({
   const handleDeleteConfirm = async () => {
     // If task has a real ID (saved to server), delete from server
     if (task.id && !task.id.startsWith('temp-')) {
-      setIsDeleting(true)
       try {
         await deleteTaskMutation.mutateAsync(task.id)
-        toast.success('Xóa công việc thành công!')
         onRemoveTask(task.id)
-      } catch (error: any) {
-        toast.error(error.message || 'Không thể xóa công việc')
-      } finally {
-        setIsDeleting(false)
+      } catch {
+        // Error already handled in hook with toast
       }
     } else {
       // If it's a temporary task (not saved yet), just remove from local state
@@ -77,14 +69,14 @@ export const TaskRow = memo(function TaskRow({
 
   const handleQuickSave = async () => {
     if (!task.id || task.id.startsWith('temp-')) return
-    // Validate: require reasonNotDone if not completed
-    if (!task.isCompleted && (!task.reasonNotDone || !task.reasonNotDone.trim())) {
+    
+    // Simple validation
+    if (!task.isCompleted && !task.reasonNotDone?.trim()) {
       toast.error('Vui lòng nhập lý do cho công việc chưa hoàn thành')
       return
     }
-    setIsSaving(true)
+
     try {
-      // Only send allowed fields
       const updateData = {
         taskName: task.taskName,
         monday: task.monday,
@@ -97,26 +89,23 @@ export const TaskRow = memo(function TaskRow({
         isCompleted: task.isCompleted,
         reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone || undefined)
       }
+      
       const updatedTask = await updateTaskMutation.mutateAsync({ taskId: task.id, data: updateData })
-      // Cập nhật lại state cha với dữ liệu mới nhất từ backend
-      if (updatedTask && typeof onTaskChange === 'function') {
+      
+      // Update parent state with new data
+      if (updatedTask && onTaskChange) {
         Object.entries(updatedTask).forEach(([key, value]) => {
           if (key !== 'id') {
             onTaskChange(task.id, key, value)
           }
         })
       }
-      // Trigger refetch for dashboard or parent if needed
+      
       if (onTaskSaved) {
         onTaskSaved()
       }
-      // Nếu dùng react-query cho dashboard:
-      // queryClient.invalidateQueries(['reports', 'my']) // hoặc key phù hợp với dashboard
-      toast.success('Lưu công việc thành công!')
-    } catch (error: any) {
-      toast.error(error.message || 'Không thể lưu công việc')
-    } finally {
-      setIsSaving(false)
+    } catch {
+      // Error already handled in hook with toast
     }
   }
 
@@ -132,7 +121,7 @@ export const TaskRow = memo(function TaskRow({
         <Card className="border-2 border-border hover:border-green-200 transition-colors duration-200">
           <CardContent className="p-6">
             <div className="space-y-4">
-              {/* Header with smaller task number and remove button */}
+              {/* Header with task number and action buttons */}
               <div className="flex items-center justify-between">
                 <Badge 
                   variant="default" 
@@ -151,17 +140,16 @@ export const TaskRow = memo(function TaskRow({
                       variant="outline"
                       size="sm"
                       className="text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-950/20"
-                      disabled={isSaving || isDeleting}
+                      disabled={updateTaskMutation.isPending}
                     >
-                      {isSaving ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-green-400/30 border-t-green-600 rounded-full animate-spin mr-2" />
-                        </>
+                      {updateTaskMutation.isPending ? (
+                        <div className="w-4 h-4 border-2 border-green-400/30 border-t-green-600 rounded-full animate-spin" />
                       ) : (
-                          <Save className="w-4 h-4" />
+                        <Save className="w-4 h-4" />
                       )}
                     </Button>
                   )}
+                  
                   {/* Delete Button */}
                   {isEditable && (
                     <Button
@@ -169,7 +157,7 @@ export const TaskRow = memo(function TaskRow({
                       variant="outline"
                       size="sm"
                       className='text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20'
-                      disabled={isDeleting || isSaving}
+                      disabled={deleteTaskMutation.isPending}
                     >
                       <Trash2 className="w-4 h-4" />
                     </Button>
@@ -223,7 +211,6 @@ export const TaskRow = memo(function TaskRow({
                     <Switch
                       checked={task.isCompleted}
                       onCheckedChange={(checked) => {
-                        // Nếu chuyển sang hoàn thành, clear reasonNotDone
                         onTaskChange(task.id, 'isCompleted', checked)
                         if (checked) {
                           onTaskChange(task.id, 'reasonNotDone', '')
@@ -240,7 +227,7 @@ export const TaskRow = memo(function TaskRow({
                   </div>
                 </div>
 
-                {/* Reason for not completion - only show if not completed */}
+                {/* Reason for not completion */}
                 {!task.isCompleted && (
                   <div className="space-y-2">
                     <Label htmlFor={`reason-${task.id}`} className="text-sm font-medium text-card-foreground">
@@ -254,9 +241,7 @@ export const TaskRow = memo(function TaskRow({
                       disabled={!isEditable}
                       className={`min-h-[60px] resize-none ${!task.reasonNotDone?.trim() && isEditable ? 'border-red-500' : ''}`}
                       rows={2}
-                      required
                     />
-                    {/* Hiển thị cảnh báo nếu thiếu lý do khi chưa hoàn thành */}
                     {!task.reasonNotDone?.trim() && isEditable && (
                       <div className="text-xs text-red-600">Vui lòng nhập lý do nếu công việc chưa hoàn thành.</div>
                     )}
@@ -285,17 +270,17 @@ export const TaskRow = memo(function TaskRow({
             <Button
               variant="outline"
               onClick={() => setShowDeleteDialog(false)}
-              disabled={isDeleting}
+              disabled={deleteTaskMutation.isPending}
             >
               Hủy
             </Button>
             <Button
               variant="destructive"
               onClick={handleDeleteConfirm}
-              disabled={isDeleting}
+              disabled={deleteTaskMutation.isPending}
               className="flex items-center gap-2"
             >
-              {isDeleting ? (
+              {deleteTaskMutation.isPending ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                   Đang xóa...
@@ -313,3 +298,7 @@ export const TaskRow = memo(function TaskRow({
     </>
   )
 })
+
+TaskRow.displayName = 'TaskRow'
+
+export { TaskRow }

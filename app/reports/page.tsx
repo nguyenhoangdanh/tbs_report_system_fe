@@ -1,5 +1,5 @@
-import ReportsPage from '@/components/pages/reports-page'
-import type { Metadata } from 'next'
+import type { Metadata } from 'next';
+import ReportsPage from '@/components/pages/reports-page';
 
 export const metadata: Metadata = {
   title: 'Báo cáo của tôi - Weekly Work Report System',
