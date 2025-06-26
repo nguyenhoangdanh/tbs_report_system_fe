@@ -20,7 +20,7 @@ export class AuthService {
   }
 
   static async logout(): Promise<void> {
-    return await api.post<void>('/auth/logout')
+      await api.post<void>('/auth/logout')
   }
 
   static async getProfile(): Promise<User> {

@@ -73,8 +73,9 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
   const url = `${API_BASE_URL}${endpoint}`
   const method = options.method || 'GET'
   
-  // Increase timeout for production calls
-  const timeout = 20000 // 20 seconds for better reliability
+  // Reduce timeout significantly - 10s is too high for production UX
+  const isAuthRequest = endpoint.includes('/auth/')
+  const timeout = isAuthRequest ? 5000 : 8000 // 5s for auth, 8s for others
   
   // Chỉ cache GET requests và không cache auth endpoints
   const shouldCache = method === 'GET' && !endpoint.includes('/auth/') && !endpoint.includes('/users/profile')
@@ -89,11 +90,12 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     requestCache.delete(cacheKey)
   }
   
-  // Request deduplication - chỉ cho non-auth requests
-  const shouldDedupe = !endpoint.includes('/auth/')
-  const dedupeKey = shouldDedupe ? `${method}:${url}:${JSON.stringify(options.body || {})}` : null
+  // Enhanced request deduplication - include more endpoints
+  const shouldDedupe = !endpoint.includes('/auth/') || method === 'GET'
+  const dedupeKey = shouldDedupe ? `${method}:${url}:${JSON.stringify(options.body || {})}:${JSON.stringify(options.headers || {})}` : null
   
   if (dedupeKey && pendingRequests.has(dedupeKey)) {
+    console.log(`[API] Deduplicating request: ${dedupeKey}`)
     return pendingRequests.get(dedupeKey)!
   }
   
@@ -104,12 +106,16 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
     headers: {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
+      // Add connection optimization headers
+      'Connection': 'keep-alive',
+      'Keep-Alive': 'timeout=5, max=100',
       ...options.headers,
     },
-    // Always use 'include' for credentials to send cookies
     credentials: 'include',
     mode: 'cors',
     signal: controller.signal,
+    // Add priority hint for critical requests
+    priority: isAuthRequest || endpoint.includes('/statistics/dashboard') ? 'high' : 'auto',
     ...options,
   }
 
@@ -212,31 +218,41 @@ export const api = {
 // Đơn giản hóa health check
 export const checkApiHealth = async (): Promise<boolean> => {
   try {
-    console.log(`Checking API health at: ${API_BASE_URL}/health`)
-    
     const response = await fetch(`${API_BASE_URL}/health`, {
       method: 'GET',
-      signal: AbortSignal.timeout(5000),
+      signal: AbortSignal.timeout(3000), // Reduce to 3s
       mode: 'cors',
       credentials: 'include',
+      headers: {
+        'Connection': 'keep-alive',
+        'Keep-Alive': 'timeout=5, max=50',
+      },
     })
     
-    console.log(`Health check response: ${response.status}`)
-    
-    if (response.ok) {
-      const data = await response.json()
-      console.log('Health check data:', data)
-      return true
-    }
-    
-    return false
+    return response.ok
   } catch (error) {
     console.error('Health check failed:', error)
     return false
   }
 }
 
-// Warm up connection
+// Pre-warm connection with exponential backoff
+let connectionWarmed = false
+const warmUpConnection = async () => {
+  if (connectionWarmed) return
+  
+  try {
+    await checkApiHealth()
+    connectionWarmed = true
+  } catch {
+    setTimeout(() => {
+      connectionWarmed = false
+      warmUpConnection()
+    }, 2000)
+  }
+}
+
+// Warm up connection immediately
 if (typeof window !== 'undefined') {
-  setTimeout(() => checkApiHealth(), 1000)
+  warmUpConnection()
 }

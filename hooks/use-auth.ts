@@ -14,7 +14,7 @@ export function useAuth() {
     setIsMounted(true)
   }, [])
 
-  // User profile query
+  // Optimized user profile query - reduce redundant calls
   const {
     data: user,
     isLoading,
@@ -22,38 +22,81 @@ export function useAuth() {
   } = useQuery({
     queryKey: ['auth', 'profile'],
     queryFn: () => AuthService.getProfile(),
-    staleTime: 5 * 60 * 1000, // Giảm stale time cho production
-    gcTime: 10 * 60 * 1000,
+    staleTime: process.env.NODE_ENV === 'production' ? 5 * 60 * 1000 : 2 * 60 * 1000, // Longer stale time
+    gcTime: process.env.NODE_ENV === 'production' ? 15 * 60 * 1000 : 5 * 60 * 1000,
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.status === 403) return false
       return failureCount < 1
     },
     refetchOnWindowFocus: false,
-    refetchOnMount: false,
-    refetchOnReconnect: false,
+    refetchOnMount: false, // Prevent redundant mount calls
+    refetchOnReconnect: true,
+    networkMode: 'online',
   })
 
-  // Login mutation - production optimized redirect
+  // Optimized login with immediate cache update and prefetching
   const loginMutation = useMutation({
     mutationFn: async ({ employeeCode, password }: { employeeCode: string; password: string }) => {
       return await AuthService.login({ employeeCode, password })
     },
     onSuccess: (data: AuthResponse) => {
+      // Immediately update cache to prevent redundant calls
       queryClient.setQueryData(['auth', 'profile'], data.user)
+      
+      // Prefetch critical dashboard data to reduce loading time
+      Promise.all([
+        queryClient.prefetchQuery({
+          queryKey: ['statistics', 'dashboard-combined'],
+          queryFn: async () => {
+            // Pre-load dashboard data
+            const { StatisticsService } = await import('@/services/statistics.service')
+            return Promise.allSettled([
+              StatisticsService.getDashboardStats(),
+              StatisticsService.getWeeklyTaskStats(),
+            ])
+          },
+          staleTime: 2 * 60 * 1000,
+        }),
+        queryClient.prefetchQuery({
+          queryKey: ['reports', 'current-week'],
+          queryFn: async () => {
+            const { ReportService } = await import('@/services/report.service')
+            return ReportService.getCurrentWeekReport()
+          },
+          staleTime: 30 * 1000,
+        })
+      ]).catch(console.warn) // Don't block on prefetch failures
+
       toast.success(data.message || 'Đăng nhập thành công!')
 
-      // Production-safe redirect
+      // Faster redirect
       setTimeout(() => {
         const urlParams = new URLSearchParams(window.location.search)
         const returnUrl = urlParams.get('returnUrl')
         const targetUrl = returnUrl && returnUrl !== '/login' ? returnUrl : '/dashboard'
-        
-        // Use window.location.replace instead of href for better redirect
         window.location.replace(targetUrl)
-      }, 800)
+      }, 300) // Reduced from 800ms
     },
     onError: (error: any) => {
       toast.error(error.message || 'Đăng nhập thất bại!')
+    },
+    retry: false,
+  })
+
+  // Optimized logout
+  const logoutMutation = useMutation({
+    mutationFn: async () => {
+      return await AuthService.logout()
+    },
+    onSuccess: () => {
+      queryClient.clear()
+      toast.success('Đăng xuất thành công!')
+      setTimeout(() => window.location.replace('/login'), 100) // Much faster
+    },
+    onError: (error: any) => {
+      queryClient.clear()
+      toast.error(error.message || 'Đã đăng xuất')
+      setTimeout(() => window.location.replace('/login'), 100)
     },
     retry: false,
   })
@@ -75,24 +118,6 @@ export function useAuth() {
     },
     onError: (error: any) => {
       toast.error(error.message || 'Đăng ký thất bại!')
-    },
-    retry: false,
-  })
-
-  // Logout mutation - production optimized
-  const logoutMutation = useMutation({
-    mutationFn: async () => {
-      return await AuthService.logout()
-    },
-    onSuccess: () => {
-      queryClient.clear()
-      toast.success('Đăng xuất thành công!')
-      setTimeout(() => window.location.replace('/login'), 300)
-    },
-    onError: (error: any) => {
-      queryClient.clear()
-      toast.error(error.message || 'Đã đăng xuất')
-      setTimeout(() => window.location.replace('/login'), 300)
     },
     retry: false,
   })
