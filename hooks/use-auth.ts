@@ -131,11 +131,18 @@ export function useAuth() {
     user: user || null,
     isLoading,
     isAuthenticated,
-    login: (employeeCode: string, password: string) => 
-      loginMutation.mutateAsync({ employeeCode, password }),
-    register: registerMutation.mutateAsync,
-    logout: logoutMutation.mutateAsync,
-    changePassword: changePasswordMutation.mutateAsync,
+    login: async (employeeCode: string, password: string): Promise<void> => {
+      await loginMutation.mutateAsync({ employeeCode, password })
+    },
+    register: async (data: RegisterDto): Promise<void> => {
+      await registerMutation.mutateAsync(data)
+    },
+    logout: async (): Promise<void> => {
+      await logoutMutation.mutateAsync()
+    },
+    changePassword: async (data: ChangePasswordDto): Promise<void> => {
+      await changePasswordMutation.mutateAsync(data)
+    },
     isLoginLoading: loginMutation.isPending,
     isRegisterLoading: registerMutation.isPending,
     isLogoutLoading: logoutMutation.isPending,

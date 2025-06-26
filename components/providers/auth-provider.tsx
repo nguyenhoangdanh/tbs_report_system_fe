@@ -23,17 +23,23 @@ const AuthContext = createContext<AuthContextType | null>(null)
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const auth = useAuthQuery()
 
-  // Transform undefined to null for consistency and wrap functions to return Promise<void>
-  const authWithNullUser: AuthContextType = {
+  // Wrap functions to return Promise<void> instead of Promise<AuthResponse>
+  const authWithVoidPromises: AuthContextType = {
     user: auth.user ?? null,
     isLoading: auth.isLoading,
     isAuthenticated: auth.isAuthenticated,
-    login: auth.login,
+    login: async (employeeCode: string, password: string) => {
+      await auth.login(employeeCode, password)
+    },
     register: async (data: RegisterDto) => {
       await auth.register(data)
     },
-    logout: auth.logout,
-    changePassword: auth.changePassword,
+    logout: async () => {
+      await auth.logout()
+    },
+    changePassword: async (data: ChangePasswordDto) => {
+      await auth.changePassword(data)
+    },
     isLoginLoading: auth.isLoginLoading,
     isRegisterLoading: auth.isRegisterLoading,
     isLogoutLoading: auth.isLogoutLoading,
@@ -41,7 +47,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <AuthContext.Provider value={authWithNullUser}>
+    <AuthContext.Provider value={authWithVoidPromises}>
       {children}
     </AuthContext.Provider>
   )
