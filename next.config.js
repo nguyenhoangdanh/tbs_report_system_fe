@@ -46,20 +46,31 @@ const nextConfig = {
     ]
   },
 
-  // Experimental features cho performance
-  experimental: {
-    optimizeCss: true,
-    optimizePackageImports: ['@tanstack/react-query', 'framer-motion'],
-  },
+  // Loại bỏ experimental features gây conflict
+  // experimental: {
+  //   optimizeCss: true,
+  //   optimizePackageImports: ['@tanstack/react-query', 'framer-motion'],
+  // },
 
-  // Compiler options
+  // Compiler options - đơn giản hóa
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
   },
 
-  // Environment variables
-  env: {
-    CUSTOM_KEY: process.env.CUSTOM_KEY,
+  // Output config cho static export nếu cần
+  output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
+  
+  // Webpack config để tránh module resolution issues
+  webpack: (config, { isServer }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      }
+    }
+    return config
   },
 }
 

@@ -10,29 +10,23 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            // Aggressive caching cho production
-            staleTime: process.env.NODE_ENV === 'production' ? 5 * 60 * 1000 : 2 * 60 * 1000,
-            gcTime: process.env.NODE_ENV === 'production' ? 15 * 60 * 1000 : 5 * 60 * 1000,
+            // Đơn giản hóa caching cho production
+            staleTime: 2 * 60 * 1000, // 2 minutes
+            gcTime: 5 * 60 * 1000, // 5 minutes  
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
             
             // Đơn giản hóa retry strategy
             retry: (failureCount, error: any) => {
-              // Không retry với 4xx errors
-              if (error?.status >= 400 && error?.status < 500) return false
-              // Chỉ retry tối đa 2 lần
-              return failureCount < 2
-            },
-            
-            retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 10000),
-            networkMode: 'online',
-          },
-          mutations: {
-            retry: (failureCount, error: any) => {
               if (error?.status >= 400 && error?.status < 500) return false
               return failureCount < 1
             },
-            retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 5000),
+            
+            retryDelay: 1000,
+            networkMode: 'online',
+          },
+          mutations: {
+            retry: false,
             networkMode: 'online',
           },
         },

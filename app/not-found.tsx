@@ -1,5 +1,4 @@
 import Link from 'next/link'
-import { Button } from '@/components/ui/button'
 
 export default function NotFound() {
   return (
@@ -12,11 +11,12 @@ export default function NotFound() {
         <p className="text-muted-foreground mb-8">
           Trang bạn đang tìm kiếm không tồn tại hoặc đã bị di chuyển.
         </p>
-        <Button asChild>
-          <Link href="/dashboard">
-            Về trang chủ
-          </Link>
-        </Button>
+        <Link 
+          href="/dashboard"
+          className="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors"
+        >
+          Về trang chủ
+        </Link>
       </div>
     </div>
   )
