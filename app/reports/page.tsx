@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Button } from '@/components/ui/button'
@@ -14,9 +14,8 @@ import { getCurrentWeek } from '@/lib/date-utils'
 import type { UpdateTaskReportDto, WeeklyReport } from '@/types'
 import { useSearchParams, usePathname, useRouter as useNextRouter } from 'next/navigation'
 
-export default function ReportsPage() {
+function ReportsContent() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
-
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const nextRouter = useNextRouter()
@@ -328,56 +327,37 @@ export default function ReportsPage() {
   })
 
   return (
-    <MainLayout
-      showBreadcrumb
-      breadcrumbItems={[
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Báo cáo của tôi' }
-      ]}
-    >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <Tabs
-          value={activeTab}
-          onValueChange={(value) => setActiveTab(value as 'create' | 'list')}
-          key={filterKey}
-        >
-          {/* Filter tabs for list view */}
-          {activeTab === 'list' && (
-            <div className="flex items-center justify-between mb-6 flex-wrap">
-              <div className="mb-4 flex flex-wrap items-center gap-4">
-                <Tabs value={filterTab} onValueChange={handleFilterTabChange}>
-                  <TabsList>
-                    <TabsTrigger value="week">Theo tuần</TabsTrigger>
-                    <TabsTrigger value="month">Theo tháng</TabsTrigger>
-                    <TabsTrigger value="year">Theo năm</TabsTrigger>
-                  </TabsList>
-                </Tabs>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => setActiveTab(value as 'create' | 'list')}
+        key={filterKey}
+      >
+        {/* Filter tabs for list view */}
+        {activeTab === 'list' && (
+          <div className="flex items-center justify-between mb-6 flex-wrap">
+            <div className="mb-4 flex flex-wrap items-center gap-4">
+              <Tabs value={filterTab} onValueChange={handleFilterTabChange}>
+                <TabsList>
+                  <TabsTrigger value="week">Theo tuần</TabsTrigger>
+                  <TabsTrigger value="month">Theo tháng</TabsTrigger>
+                  <TabsTrigger value="year">Theo năm</TabsTrigger>
+                </TabsList>
+              </Tabs>
 
-                {filterTab === 'month' && (
-                  <>
-                    <select
-                      className="border rounded px-2 py-1 text-sm"
-                      value={selectedMonth}
-                      onChange={e => handleMonthChange(Number(e.target.value))}
-                    >
-                      {[...Array(12)].map((_, i) => (
-                        <option key={i + 1} value={i + 1}>
-                          Tháng {i + 1}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="border rounded px-2 py-1 text-sm"
-                      value={selectedYear}
-                      onChange={e => handleYearChange(Number(e.target.value))}
-                    >
-                      {Array.from(new Set(reports.map(r => new Date(r.createdAt).getFullYear()))).map(y => (
-                        <option key={y} value={y}>{y}</option>
-                      ))}
-                    </select>
-                  </>
-                )}
-                {filterTab === 'year' && (
+              {filterTab === 'month' && (
+                <>
+                  <select
+                    className="border rounded px-2 py-1 text-sm"
+                    value={selectedMonth}
+                    onChange={e => handleMonthChange(Number(e.target.value))}
+                  >
+                    {[...Array(12)].map((_, i) => (
+                      <option key={i + 1} value={i + 1}>
+                        Tháng {i + 1}
+                      </option>
+                    ))}
+                  </select>
                   <select
                     className="border rounded px-2 py-1 text-sm"
                     value={selectedYear}
@@ -387,53 +367,87 @@ export default function ReportsPage() {
                       <option key={y} value={y}>{y}</option>
                     ))}
                   </select>
-                )}
-              </div>
-              <Button
-                onClick={handleCreateNew}
-                className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
-              >
-                <Plus className="w-4 h-4" />
-                {hasCurrentWeekReport
-                  ? 'Tạo báo cáo mới'
-                  : `Tạo báo cáo tuần ${currentWeek.weekNumber}`}
-              </Button>
+                </>
+              )}
+              {filterTab === 'year' && (
+                <select
+                  className="border rounded px-2 py-1 text-sm"
+                  value={selectedYear}
+                  onChange={e => handleYearChange(Number(e.target.value))}
+                >
+                  {Array.from(new Set(reports.map(r => new Date(r.createdAt).getFullYear()))).map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              )}
             </div>
-          )}
+            <Button
+              onClick={handleCreateNew}
+              className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+            >
+              <Plus className="w-4 h-4" />
+              {hasCurrentWeekReport
+                ? 'Tạo báo cáo mới'
+                : `Tạo báo cáo tuần ${currentWeek.weekNumber}`}
+            </Button>
+          </div>
+        )}
 
-          <TabsContent value="list" className="space-y-6" key={filterKey}>
-            <ReportsList
-              reports={filteredReports}
-              onViewReport={handleViewReport}
-              onDeleteReport={handleDeleteReport}
-              isLoading={isLoading}
-            />
-          </TabsContent>
+        <TabsContent value="list" className="space-y-6" key={filterKey}>
+          <ReportsList
+            reports={filteredReports}
+            onViewReport={handleViewReport}
+            onDeleteReport={handleDeleteReport}
+            isLoading={isLoading}
+          />
+        </TabsContent>
 
-          <TabsContent value="create" className="space-y-6">
-            {isLoadingWeekReport ? (
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <div className="w-8 h-8 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-muted-foreground">
-                    Đang tải báo cáo tuần {currentWeekNumber}/{currentYear}...
-                  </p>
-                </div>
+        <TabsContent value="create" className="space-y-6">
+          {isLoadingWeekReport ? (
+            <div className="flex items-center justify-center py-12">
+              <div className="text-center">
+                <div className="w-8 h-8 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-muted-foreground">
+                  Đang tải báo cáo tuần {currentWeekNumber}/{currentYear}...
+                </p>
               </div>
-            ) : (
-              <ReportForm
-                report={selectedReport}
-                onSave={handleCreateOrUpdateReport}
-                onDelete={handleDeleteReport}
-                onWeekChange={handleWeekChange}
-                weekNumber={currentWeekNumber}
-                year={currentYear}
-                isLoading={isSaving}
-              />
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
+            </div>
+          ) : (
+            <ReportForm
+              report={selectedReport}
+              onSave={handleCreateOrUpdateReport}
+              onDelete={handleDeleteReport}
+              onWeekChange={handleWeekChange}
+              weekNumber={currentWeekNumber}
+              year={currentYear}
+              isLoading={isSaving}
+            />
+          )}
+        </TabsContent>
+      </Tabs>
+    </div>
+  )
+}
+
+export default function ReportsPage() {
+  return (
+    <MainLayout
+      showBreadcrumb
+      breadcrumbItems={[
+        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Báo cáo của tôi' }
+      ]}
+    >
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Đang tải...</p>
+          </div>
+        </div>
+      }>
+        <ReportsContent />
+      </Suspense>
     </MainLayout>
   )
 }

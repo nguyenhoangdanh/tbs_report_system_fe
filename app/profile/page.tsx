@@ -2,7 +2,7 @@
 
 import { useAuth } from '@/components/providers/auth-provider'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState } from 'react'
+import { useEffect, useState, Suspense } from 'react'
 import { motion } from 'framer-motion'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -15,7 +15,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { toast } from 'react-hot-toast'
 import type { JobPosition, Office } from '@/types'
 
-export default function ProfilePage() {
+function ProfileContent() {
   const { user, isAuthenticated, isLoading } = useAuth()
   const { updateProfile, changePassword, isUpdating, isChangingPassword } = useProfile()
   const router = useRouter()
@@ -495,5 +495,20 @@ export default function ProfilePage() {
         </div>
       </div>
     </MainLayout>
+  )
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Đang tải...</p>
+        </div>
+      </div>
+    }>
+      <ProfileContent />
+    </Suspense>
   )
 }

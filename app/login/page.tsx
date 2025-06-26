@@ -11,8 +11,9 @@ import { loginSchema, type LoginFormData } from '@/lib/validations/auth'
 import Link from 'next/link'
 import { UserLock } from 'lucide-react'
 import { useSearchParams } from 'next/navigation'
+import { Suspense } from 'react'
 
-export default function LoginPage() {
+function LoginForm() {
   const { login, isLoginLoading } = useAuth()
   const searchParams = useSearchParams()
 
@@ -41,55 +42,63 @@ export default function LoginPage() {
   }
 
   return (
+    <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.3 }}
+      >
+        <FormField
+          id="employeeCode"
+          label="Mã nhân viên"
+          placeholder="CEO001, EMP001..."
+          required
+          {...register('employeeCode')}
+          error={errors.employeeCode?.message}
+        />
+      </motion.div>
+      
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.4 }}
+      >
+        <FormField
+          id="password"
+          type="password"
+          label="Mật khẩu"
+          required
+          {...register('password')}
+          error={errors.password?.message}
+        />
+      </motion.div>
+      
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+      >
+        <SubmitButton
+          loading={isLoginLoading}
+          text={isLoginLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+          size="lg"
+          className="w-full"
+        />
+      </motion.div>
+    </form>
+  )
+}
+
+export default function LoginPage() {
+  return (
     <AuthLayout
       title="Đăng nhập"
       description="Hệ thống báo cáo công việc hàng tuần"
       icon={<UserLock className="w-8 h-8" />}
     >
-      <form onSubmit={handleSubmit(onSubmit)} className="space-y-6">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <FormField
-            id="employeeCode"
-            label="Mã nhân viên"
-            placeholder="CEO001, EMP001..."
-            required
-            {...register('employeeCode')}
-            error={errors.employeeCode?.message}
-          />
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-        >
-          <FormField
-            id="password"
-            type="password"
-            label="Mật khẩu"
-            required
-            {...register('password')}
-            error={errors.password?.message}
-          />
-        </motion.div>
-        
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <SubmitButton
-            loading={isLoginLoading}
-            text={isLoginLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
-            size="lg"
-            className="w-full"
-          />
-        </motion.div>
-      </form>
+      <Suspense fallback={<div>Loading...</div>}>
+        <LoginForm />
+      </Suspense>
       
       <motion.div
         className="mt-6 text-center text-sm space-y-2"
