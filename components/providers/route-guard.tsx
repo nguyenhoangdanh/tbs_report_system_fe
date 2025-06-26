@@ -1,8 +1,8 @@
 'use client'
 
 import { useAuth } from './auth-provider'
-import { useEffect, useState, useRef } from 'react'
-import { usePathname } from 'next/navigation'
+import { useEffect, useState } from 'react'
+import { usePathname, useRouter } from 'next/navigation'
 
 const PUBLIC_ROUTES = [
   '/',
@@ -19,62 +19,57 @@ interface RouteGuardProps {
 export function RouteGuard({ children }: RouteGuardProps) {
   const { isAuthenticated, isLoading } = useAuth()
   const pathname = usePathname()
-  const [isChecking, setIsChecking] = useState(true)
-  const hasRedirectedRef = useRef(false)
-  const lastPathnameRef = useRef(pathname)
-  const lastAuthStateRef = useRef<boolean | null>(null)
+  const router = useRouter()
+  const [checking, setChecking] = useState(true)
 
   useEffect(() => {
-    // Skip if already redirected or if auth state and path haven't changed
-    if (hasRedirectedRef.current || 
-        (lastPathnameRef.current === pathname && lastAuthStateRef.current === isAuthenticated)) {
-      return
-    }
+    // Force stop checking after 5 seconds
+    const timeout = setTimeout(() => {
+      console.log('[RouteGuard] Force stop checking after 5 seconds')
+      setChecking(false)
+    }, 5000)
 
-    const checkAuth = async () => {
-      if (!isLoading) {
-        const isPublicRoute = PUBLIC_ROUTES.includes(pathname)
-        
-        // Update refs
-        lastPathnameRef.current = pathname
-        lastAuthStateRef.current = isAuthenticated
-        
-        // Case 1: Authenticated user on auth pages -> redirect once
-        if (isAuthenticated && (pathname === '/login' || pathname === '/register')) {
-          hasRedirectedRef.current = true
-          window.location.replace('/dashboard')
-          return
-        }
+    return () => clearTimeout(timeout)
+  }, [])
 
-        // Case 2: Unauthenticated user on protected route -> redirect once
-        if (!isAuthenticated && !isPublicRoute) {
-          hasRedirectedRef.current = true
-          const loginUrl = `/login?returnUrl=${encodeURIComponent(pathname)}`
-          window.location.replace(loginUrl)
-          return
-        }
-
-        setIsChecking(false)
+  useEffect(() => {
+    if (!isLoading && checking) {
+      console.log('[RouteGuard] Auth check:', { isAuthenticated, pathname })
+      
+      const isPublicRoute = PUBLIC_ROUTES.includes(pathname)
+      
+      if (isAuthenticated && (pathname === '/login' || pathname === '/register')) {
+        console.log('[RouteGuard] Redirecting to dashboard')
+        router.replace('/dashboard')
+        return
       }
+      
+      if (!isAuthenticated && !isPublicRoute) {
+        console.log('[RouteGuard] Redirecting to login')
+        router.replace(`/login?returnUrl=${encodeURIComponent(pathname)}`)
+        return
+      }
+      
+      setChecking(false)
     }
+  }, [isLoading, isAuthenticated, pathname, router, checking])
 
-    checkAuth()
-  }, [isAuthenticated, isLoading, pathname])
-
-  // Reset redirect flag when pathname changes significantly
-  useEffect(() => {
-    if (pathname !== lastPathnameRef.current) {
-      hasRedirectedRef.current = false
-    }
-  }, [pathname])
-
-  // Show loading only when necessary
-  if (isLoading || (isChecking && !hasRedirectedRef.current)) {
+  // Show loading only when actually needed
+  if (isLoading || checking) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Đang kiểm tra quyền truy cập...</p>
+          <p className="text-muted-foreground">Đang kiểm tra đăng nhập...</p>
+          <button 
+            onClick={() => {
+              setChecking(false)
+              window.location.reload()
+            }}
+            className="mt-4 text-sm text-green-600 hover:underline"
+          >
+            Bấm vào đây nếu tải quá lâu
+          </button>
         </div>
       </div>
     )

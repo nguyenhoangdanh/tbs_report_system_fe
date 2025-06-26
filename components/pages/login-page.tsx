@@ -23,10 +23,12 @@ export function LoginPage() {
   })
 
   const onSubmit = async (data: LoginFormData) => {
+    console.log('[LoginPage] Form data:', data)
     try {
       await login(data.employeeCode, data.password)
       // Redirect handled in useAuth hook
     } catch (error) {
+      console.error('[LoginPage] Login error:', error)
       // Error handled in useAuth hook
     }
   }
@@ -46,7 +48,8 @@ export function LoginPage() {
           <FormField
             id="employeeCode"
             label="Mã nhân viên"
-            placeholder="CEO001, EMP001..."
+            type="text"
+            placeholder="OOP001"
             required
             {...register('employeeCode')}
             error={errors.employeeCode?.message}
@@ -62,6 +65,7 @@ export function LoginPage() {
             id="password"
             type="password"
             label="Mật khẩu"
+            placeholder="••••••"
             required
             {...register('password')}
             error={errors.password?.message}
