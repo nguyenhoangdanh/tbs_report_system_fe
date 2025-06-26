@@ -2,7 +2,6 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
-import { useRouter } from 'next/navigation'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Button } from '@/components/ui/button'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -17,7 +16,7 @@ import { useSearchParams, usePathname, useRouter as useNextRouter } from 'next/n
 
 export default function ReportsPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
-  const router = useRouter()
+
   const searchParams = useSearchParams()
   const pathname = usePathname()
   const nextRouter = useNextRouter()
@@ -37,12 +36,6 @@ export default function ReportsPage() {
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
   const [filterKey, setFilterKey] = useState(0)
-
-  useEffect(() => {
-    if (!authLoading && !isAuthenticated) {
-      router.push('/login')
-    }
-  }, [isAuthenticated, authLoading, router])
 
   useEffect(() => {
     if (isAuthenticated && user) {
@@ -294,7 +287,8 @@ export default function ReportsPage() {
     }
   }
 
-  if (authLoading || !user) {
+  // Đơn giản hóa auth check
+  if (authLoading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
@@ -303,6 +297,11 @@ export default function ReportsPage() {
         </div>
       </div>
     )
+  }
+
+  // Middleware sẽ handle redirect nếu chưa authenticated
+  if (!isAuthenticated || !user) {
+    return null
   }
 
   const currentWeek = getCurrentWeek()

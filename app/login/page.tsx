@@ -10,14 +10,11 @@ import { SubmitButton } from '@/components/ui/submit-button'
 import { loginSchema, type LoginFormData } from '@/lib/validations/auth'
 import Link from 'next/link'
 import { UserLock } from 'lucide-react'
-import { useEffect, useRef } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 
 export default function LoginPage() {
-  const { login, isLoginLoading, isLoading, isAuthenticated } = useAuth()
-  const router = useRouter()
+  const { login, isLoginLoading } = useAuth()
   const searchParams = useSearchParams()
-  const hasRedirectedRef = useRef(false)
 
   const {
     register,
@@ -27,44 +24,23 @@ export default function LoginPage() {
     resolver: zodResolver(loginSchema)
   })
 
-  // Handle redirect for authenticated users - only once
-  useEffect(() => {
-    if (isAuthenticated && !isLoading && !hasRedirectedRef.current) {
-      hasRedirectedRef.current = true
-      
-      const returnUrl = searchParams.get('returnUrl')
-      const targetUrl = returnUrl && returnUrl !== '/login' ? returnUrl : '/dashboard'
-      
-      console.log('[LOGIN] Authenticated user detected, redirecting to:', targetUrl)
-      router.replace(targetUrl)
-    }
-  }, [isAuthenticated, isLoading, router, searchParams])
-
   const onSubmit = async (data: LoginFormData) => {
     try {
       await login(data.employeeCode, data.password)
-      // Login hook handles redirect
+      
+      // Redirect tức thì sau khi login thành công
+      setTimeout(() => {
+        const returnUrl = searchParams.get('returnUrl')
+        const targetUrl = returnUrl && returnUrl !== '/login' ? returnUrl : '/dashboard'
+        window.location.href = targetUrl
+      }, 500) // 500ms để user thấy success message
+      
     } catch (error) {
-      // Error handled in login hook
+      // Error đã được handle trong useAuth hook
     }
   }
 
-  // Show loading during redirect to prevent flash
-  if (isAuthenticated && !isLoading) {
-    return (
-      <AuthLayout
-        title="Đang chuyển hướng..."
-        description="Vui lòng chờ"
-        icon={<UserLock className="w-8 h-8" />}
-      >
-        <div className="flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-        </div>
-      </AuthLayout>
-    )
-  }
-
-   return (
+  return (
     <AuthLayout
       title="Đăng nhập"
       description="Hệ thống báo cáo công việc hàng tuần"

@@ -127,6 +127,7 @@ export function RegisterForm() {
         officeId: data.officeId,
         role: data.role,
       })
+      // Redirect được handle trong useAuth hook
     } catch (error) {
       // Error is handled by the auth provider
     }

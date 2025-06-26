@@ -14,113 +14,113 @@ export function useAuth() {
     setIsMounted(true)
   }, [])
 
-  // Get current user profile - optimized for production
+  // Đơn giản hóa user profile query - không refetch liên tục
   const {
     data: user,
     isLoading,
     error,
   } = useQuery({
     queryKey: ['auth', 'profile'],
-    queryFn: async (): Promise<User> => {
-      return await AuthService.getProfile()
-    },
-    staleTime: process.env.NODE_ENV === 'production' ? 5 * 60 * 1000 : 3 * 60 * 1000, // Longer in production
-    gcTime: process.env.NODE_ENV === 'production' ? 10 * 60 * 1000 : 5 * 60 * 1000,
+    queryFn: () => AuthService.getProfile(),
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
     retry: (failureCount, error: any) => {
-      // Don't retry on auth errors
-      if (error?.status === 401) return false
+      if (error?.status === 401 || error?.status === 403) return false
       return failureCount < 1
     },
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    networkMode: 'online',
+    refetchOnReconnect: false, // Tắt để tránh loop
   })
 
-  // Login mutation - optimized
+  // Login mutation - KHÔNG redirect
   const loginMutation = useMutation({
     mutationFn: async ({ employeeCode, password }: { employeeCode: string; password: string }) => {
       return await AuthService.login({ employeeCode, password })
     },
     onSuccess: (data: AuthResponse) => {
       queryClient.setQueryData(['auth', 'profile'], data.user)
-      queryClient.invalidateQueries({ queryKey: ['auth'] })
-      
-      // Selective prefetch only for critical data
-      if (process.env.NODE_ENV === 'production') {
-        queryClient.prefetchQuery({
-          queryKey: ['statistics', 'weekly-task-stats'],
-          staleTime: 60000,
-        });
-      } else {
-        queryClient.prefetchQuery({
-          queryKey: ['statistics', 'dashboard-combined'],
-          staleTime: 60000,
-        });
-      }
-      
-      toast.success(data.message || 'Đăng nhập thành công!')
+      toast.success(data.message || 'Đăng nhập thành công!', {
+        icon: '🎉',
+        duration: 3000,
+      })
+      // KHÔNG redirect ở đây
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Đăng nhập thất bại!')
+      toast.error(error.message || 'Đăng nhập thất bại!', {
+        icon: '❌',
+        duration: 4000,
+      })
     },
+    retry: false,
   })
 
-  // Register mutation - simplified
+  // Register mutation - KHÔNG redirect
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterDto) => {
       return await AuthService.register(data)
     },
     onSuccess: (data: AuthResponse) => {
-      toast.success(data.message || 'Đăng ký thành công!')
+      if (data.user) {
+        queryClient.setQueryData(['auth', 'profile'], data.user)
+      }
+      toast.success(data.message || 'Đăng ký thành công!', {
+        icon: '✅',
+        duration: 3000,
+      })
+      // KHÔNG redirect ở đây
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Đăng ký thất bại!')
+      toast.error(error.message || 'Đăng ký thất bại!', {
+        icon: '❌',
+        duration: 4000,
+      })
     },
+    retry: false,
   })
 
-  // Logout mutation - optimized
+  // Logout mutation - chỉ clear cache
   const logoutMutation = useMutation({
     mutationFn: async () => {
       return await AuthService.logout()
     },
     onSuccess: () => {
       queryClient.clear()
-      queryClient.removeQueries()
-      queryClient.invalidateQueries()
-      
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login?reason=logged_out';
-        }
-      }, 100);
-      
-      toast.success('Đăng xuất thành công!')
+      toast.success('Đăng xuất thành công!', {
+        icon: '👋',
+        duration: 2000,
+      })
+      // KHÔNG redirect ở đây - để middleware handle
     },
     onError: (error: any) => {
       queryClient.clear()
-      queryClient.removeQueries()
-      
-      setTimeout(() => {
-        if (typeof window !== 'undefined') {
-          window.location.href = '/login?reason=logout_error';
-        }
-      }, 100);
-      
-      toast.error(error.message || 'Đã đăng xuất (có lỗi từ server)')
+      toast.error(error.message || 'Đã đăng xuất', {
+        icon: '⚠️',
+        duration: 3000,
+      })
+      // KHÔNG redirect ở đây
     },
+    retry: false,
   })
 
-  // Change password mutation - simplified
+  // Change password mutation
   const changePasswordMutation = useMutation({
     mutationFn: async (data: ChangePasswordDto) => {
       return await AuthService.changePassword(data)
     },
     onSuccess: () => {
-      toast.success('Đổi mật khẩu thành công!')
+      toast.success('Đổi mật khẩu thành công!', {
+        icon: '🔒',
+        duration: 3000,
+      })
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Đổi mật khẩu thất bại!')
+      toast.error(error.message || 'Đổi mật khẩu thất bại!', {
+        icon: '❌',
+        duration: 4000,
+      })
     },
+    retry: false,
   })
 
   return {

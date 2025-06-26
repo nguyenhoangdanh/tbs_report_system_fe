@@ -5,47 +5,76 @@
 @layer base {
   :root {
     --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
+    --foreground: 222.2 84% 4.9%;
+
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
+    --card-foreground: 222.2 84% 4.9%;
+
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-    --primary: 142.1 76.2% 36.3%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 142 76% 36%;
     --primary-foreground: 355.7 100% 97.3%;
-    --secondary: 240 4.8% 95.9%;
-    --secondary-foreground: 240 5.9% 10%;
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
+
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
+
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 142.1 76.2% 36.3%;
-    --radius: 0.75rem;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 355.7 100% 97.3%;
+
+    --warning: 45 93% 47%;
+    --warning-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 142 76% 36%;
+
+    --radius: 0.5rem;
   }
 
   .dark {
-    --background: 20 14.3% 4.1%;
-    --foreground: 0 0% 95%;
-    --card: 24 9.8% 10%;
-    --card-foreground: 0 0% 95%;
-    --popover: 0 0% 9%;
-    --popover-foreground: 0 0% 95%;
-    --primary: 142.1 70.6% 45.3%;
-    --primary-foreground: 144.9 80.4% 10%;
-    --secondary: 240 3.7% 15.9%;
-    --secondary-foreground: 0 0% 98%;
-    --muted: 0 0% 15%;
-    --muted-foreground: 240 5% 64.9%;
-    --accent: 12 6.5% 15.1%;
-    --accent-foreground: 0 0% 98%;
+    --background: 222.2 84% 4.9%;
+    --foreground: 210 40% 98%;
+
+    --card: 222.2 84% 4.9%;
+    --card-foreground: 210 40% 98%;
+
+    --popover: 222.2 84% 4.9%;
+    --popover-foreground: 210 40% 98%;
+
+    --primary: 142 76% 36%;
+    --primary-foreground: 355.7 100% 97.3%;
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 210 40% 98%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 215 20.2% 65.1%;
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 210 40% 98%;
+
     --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 0 85.7% 97.3%;
-    --border: 240 3.7% 15.9%;
-    --input: 240 3.7% 15.9%;
-    --ring: 142.4 71.8% 29.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --success: 142 76% 36%;
+    --success-foreground: 355.7 100% 97.3%;
+
+    --warning: 45 93% 47%;
+    --warning-foreground: 210 40% 98%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 142 76% 36%;
   }
 }
 
@@ -54,66 +83,109 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground antialiased;
+    @apply bg-background text-foreground;
   }
 }
 
-/* Custom green gradient utilities */
-@layer utilities {
-  .bg-gradient-green {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-  }
-  
-  .text-gradient-green {
-    background: linear-gradient(135deg, #10b981 0%, #047857 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  
-  .bg-gradient-blue {
-    background: linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%);
-  }
-  
-  .text-gradient-blue {
-    background: linear-gradient(135deg, #3b82f6 0%, #1e40af 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-  
-  .border-gradient-green {
-    border-image: linear-gradient(135deg, #10b981 0%, #059669 100%) 1;
-  }
-}
-
-/* Custom toast styles for responsive design */
-@layer utilities {
+/* Toast Container Styling */
+@layer components {
   .toast-container {
-    @media (max-width: 640px) {
-      padding: 0 16px;
+    z-index: 9999;
+  }
+
+  /* Custom toast animations */
+  .toast-enter {
+    animation: toast-enter 0.3s ease-out;
+  }
+
+  .toast-exit {
+    animation: toast-exit 0.2s ease-in;
+  }
+
+  @keyframes toast-enter {
+    from {
+      transform: translateX(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateX(0);
+      opacity: 1;
     }
   }
-  
-  .toast-message {
-    word-break: break-word;
-    overflow-wrap: break-word;
-    hyphens: auto;
-    max-width: 100%;
-  }
-}
 
-/* Override react-hot-toast default styles */
-@media (max-width: 640px) {
-  div[data-sonner-toaster] {
-    left: 8px !important;
-    right: 8px !important;
-    width: auto !important;
+  @keyframes toast-exit {
+    from {
+      transform: translateX(0);
+      opacity: 1;
+    }
+    to {
+      transform: translateX(100%);
+      opacity: 0;
+    }
   }
-  
-  div[data-sonner-toast] {
-    max-width: none !important;
-    width: 100% !important;
-    margin: 0 !important;
+
+  /* Custom toast styling */
+  .Toaster__toast {
+    @apply rounded-lg shadow-lg backdrop-blur-sm;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.4;
+    max-width: 420px;
+    word-wrap: break-word;
+  }
+
+  .Toaster__toast--success {
+    @apply bg-background/95 text-foreground;
+    border-left: 4px solid hsl(var(--success));
+  }
+
+  .Toaster__toast--error {
+    @apply bg-background/95 text-foreground;
+    border-left: 4px solid hsl(var(--destructive));
+  }
+
+  .Toaster__toast--loading {
+    @apply bg-background/95 text-foreground;
+    border-left: 4px solid hsl(var(--muted-foreground));
+  }
+
+  /* Dark mode specific adjustments */
+  .dark .Toaster__toast {
+    @apply bg-card/95 backdrop-blur-md;
+    box-shadow: 
+      0 10px 15px -3px rgba(0, 0, 0, 0.3),
+      0 4px 6px -2px rgba(0, 0, 0, 0.1);
+  }
+
+  /* Light mode specific adjustments */
+  .Toaster__toast {
+    @apply bg-background/95 backdrop-blur-sm;
+    box-shadow: 
+      0 10px 15px -3px rgba(0, 0, 0, 0.1),
+      0 4px 6px -2px rgba(0, 0, 0, 0.05);
+  }
+
+  /* Toast icon styling */
+  .Toaster__icon {
+    @apply flex-shrink-0;
+  }
+
+  /* Toast message styling */
+  .Toaster__message {
+    @apply flex-1 text-sm;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 640px) {
+    .toast-container {
+      left: 16px;
+      right: 16px;
+      top: 16px;
+    }
+
+    .Toaster__toast {
+      max-width: none;
+      width: 100%;
+    }
   }
 }

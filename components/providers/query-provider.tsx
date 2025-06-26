@@ -10,30 +10,30 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: process.env.NODE_ENV === 'production' ? 5 * 60 * 1000 : 2 * 60 * 1000, // 5 min in prod
-            gcTime: process.env.NODE_ENV === 'production' ? 10 * 60 * 1000 : 5 * 60 * 1000, // 10 min in prod
+            // Aggressive caching cho production
+            staleTime: process.env.NODE_ENV === 'production' ? 5 * 60 * 1000 : 2 * 60 * 1000,
+            gcTime: process.env.NODE_ENV === 'production' ? 15 * 60 * 1000 : 5 * 60 * 1000,
             refetchOnWindowFocus: false,
             refetchOnReconnect: true,
-            refetchOnMount: 'always', // Always refetch on mount for fresh data
+            
+            // Đơn giản hóa retry strategy
             retry: (failureCount, error: any) => {
-              if (error?.status >= 400 && error?.status < 500) {
-                return false
-              }
-              // More retries in production for reliability
-              return process.env.NODE_ENV === 'development' ? failureCount < 1 : failureCount < 2
+              // Không retry với 4xx errors
+              if (error?.status >= 400 && error?.status < 500) return false
+              // Chỉ retry tối đa 2 lần
+              return failureCount < 2
             },
+            
+            retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 10000),
             networkMode: 'online',
-            structuralSharing: true,
-            meta: {
-              timeout: 10000, // 10 seconds for production reliability
-            },
           },
           mutations: {
-            retry: process.env.NODE_ENV === 'development' ? 1 : 2, // More retries in production
-            networkMode: 'online',
-            meta: {
-              timeout: 8000, // 8 seconds for mutations
+            retry: (failureCount, error: any) => {
+              if (error?.status >= 400 && error?.status < 500) return false
+              return failureCount < 1
             },
+            retryDelay: attemptIndex => Math.min(1000 * 2 ** attemptIndex, 5000),
+            networkMode: 'online',
           },
         },
       }),

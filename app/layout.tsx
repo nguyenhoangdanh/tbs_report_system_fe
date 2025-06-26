@@ -5,6 +5,8 @@ import { Toaster } from 'react-hot-toast'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { AuthProvider } from '@/components/providers/auth-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
+import { AuthRedirectProvider } from '@/components/providers/auth-redirect-provider'
+import { cn } from '@/lib/utils'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -24,64 +26,67 @@ export default function RootLayout({
   children: React.ReactNode
 }) {
   return (
-    <html lang="vi" className="scroll-smooth" suppressHydrationWarning>
-      <body className={`${inter.className} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          enableSystem
-          disableTransitionOnChange={false}
-        >
-          <QueryProvider>
-            <AuthProvider>
-              {children}
-            </AuthProvider>
-          </QueryProvider>
-          <Toaster 
-            position="top-right"
-            toastOptions={{
-              duration: 3000,
-              style: {
-                background: 'hsl(var(--card))',
-                color: 'hsl(var(--card-foreground))',
-                border: '1px solid hsl(var(--border))',
-                borderRadius: '12px',
-                boxShadow: '0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1)',
-                fontWeight: '500',
-                maxWidth: '400px',
-                wordWrap: 'break-word',
-                whiteSpace: 'pre-wrap',
-                padding: '16px',
-                fontSize: '14px',
-                lineHeight: '1.4',
-              },
-              success: {
-                duration: 3000,
-                iconTheme: {
-                  primary: '#10b981',
-                  secondary: 'hsl(var(--card))',
-                },
-                style: {
-                  background: 'hsl(var(--card))',
-                  color: '#10b981',
-                  border: '1px solid #10b981',
-                }
-              },
-              error: {
-                duration: 5000,
-                iconTheme: {
-                  primary: '#ef4444',
-                  secondary: 'hsl(var(--card))',
-                },
-                style: {
-                  background: 'hsl(var(--card))',
-                  color: '#ef4444',
-                  border: '1px solid #ef4444',
-                }
-              },
-            }}
-          />
-        </ThemeProvider>
+    <html lang="vi" suppressHydrationWarning>
+      <body className={cn(inter.className, 'antialiased')}>
+        <QueryProvider>
+          <AuthProvider>
+            <AuthRedirectProvider>
+              <ThemeProvider
+                attribute="class"
+                defaultTheme="light"
+                enableSystem
+                disableTransitionOnChange
+              >
+                <Toaster
+                  position="top-right"
+                  toastOptions={{
+                    duration: 4000,
+                    className: '',
+                    style: {},
+                    success: {
+                      style: {
+                        background: 'hsl(var(--background))',
+                        color: 'hsl(var(--foreground))',
+                        border: '1px solid hsl(var(--success))',
+                        boxShadow: '0 4px 12px rgba(34, 197, 94, 0.15)',
+                      },
+                      iconTheme: {
+                        primary: 'hsl(var(--success))',
+                        secondary: 'hsl(var(--success-foreground))',
+                      },
+                    },
+                    error: {
+                      style: {
+                        background: 'hsl(var(--background))',
+                        color: 'hsl(var(--foreground))',
+                        border: '1px solid hsl(var(--destructive))',
+                        boxShadow: '0 4px 12px rgba(239, 68, 68, 0.15)',
+                      },
+                      iconTheme: {
+                        primary: 'hsl(var(--destructive))',
+                        secondary: 'hsl(var(--destructive-foreground))',
+                      },
+                    },
+                    loading: {
+                      style: {
+                        background: 'hsl(var(--background))',
+                        color: 'hsl(var(--foreground))',
+                        border: '1px solid hsl(var(--border))',
+                        boxShadow: '0 4px 12px rgba(0, 0, 0, 0.1)',
+                      },
+                    },
+                  }}
+                  containerStyle={{
+                    top: 20,
+                    right: 20,
+                  }}
+                  containerClassName="toast-container"
+                />
+                {children}
+              </ThemeProvider>
+            </AuthRedirectProvider>
+          </AuthProvider>
+        </QueryProvider>
       </body>
     </html>
   )

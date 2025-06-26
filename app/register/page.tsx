@@ -4,15 +4,24 @@ import { motion } from "framer-motion";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { RegisterForm } from "@/components/auth/register-form";
 import Link from "next/link";
-import { AppLoading } from "@/components/ui/app-loading";
 import { useAuth } from "@/components/providers/auth-provider";
-import { NotepadText } from "lucide-react";
+import { NotepadText, UserPlus } from "lucide-react";
 
 export default function RegisterPage() {
-  const { isLoading } = useAuth();
+  const { isAuthenticated } = useAuth();
 
-  if (isLoading) {
-    return <AppLoading />;
+  if (isAuthenticated) {
+    return (
+      <AuthLayout
+        title="Đăng ký thành công"
+        description="Đang chuyển hướng..."
+        icon={<UserPlus className="w-8 h-8" />}
+      >
+        <div className="flex justify-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+        </div>
+      </AuthLayout>
+    );
   }
 
   return (

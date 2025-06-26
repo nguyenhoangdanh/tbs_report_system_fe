@@ -10,13 +10,11 @@ import Link from 'next/link'
 
 export function UserNav() {
   const { user, logout } = useAuth()
-  const router = useRouter()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
   const handleLogout = async () => {
     try {
       await logout()
-      router.push('/login')
     } catch (error) {
       console.error('Logout failed:', error)
     }
