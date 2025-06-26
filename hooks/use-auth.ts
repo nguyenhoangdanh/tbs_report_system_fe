@@ -33,7 +33,7 @@ export function useAuth() {
     refetchOnReconnect: false,
   })
 
-  // Login mutation với redirect
+  // Login mutation - đơn giản hóa redirect
   const loginMutation = useMutation({
     mutationFn: async ({ employeeCode, password }: { employeeCode: string; password: string }) => {
       return await AuthService.login({ employeeCode, password })
@@ -42,12 +42,11 @@ export function useAuth() {
       queryClient.setQueryData(['auth', 'profile'], data.user)
       toast.success(data.message || 'Đăng nhập thành công!')
 
-      // Redirect với window.location để tránh client-side routing issues
+      // Simple redirect
       setTimeout(() => {
         const urlParams = new URLSearchParams(window.location.search)
         const returnUrl = urlParams.get('returnUrl')
-        const targetUrl = returnUrl && returnUrl !== '/login' ? returnUrl : '/dashboard'
-        window.location.href = targetUrl
+        window.location.href = returnUrl || '/dashboard'
       }, 1000)
     },
     onError: (error: any) => {
@@ -56,7 +55,7 @@ export function useAuth() {
     retry: false,
   })
 
-  // Register mutation với redirect
+  // Register mutation
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterDto) => {
       return await AuthService.register(data)
@@ -66,15 +65,9 @@ export function useAuth() {
 
       if (data.user) {
         queryClient.setQueryData(['auth', 'profile'], data.user)
-        // Redirect to dashboard if auto-login
-        setTimeout(() => {
-          window.location.href = '/dashboard'
-        }, 1500)
+        setTimeout(() => window.location.href = '/dashboard', 1500)
       } else {
-        // Redirect to login if manual activation required
-        setTimeout(() => {
-          window.location.href = '/login'
-        }, 1500)
+        setTimeout(() => window.location.href = '/login', 1500)
       }
     },
     onError: (error: any) => {
@@ -83,7 +76,7 @@ export function useAuth() {
     retry: false,
   })
 
-  // Logout mutation với redirect
+  // Logout mutation
   const logoutMutation = useMutation({
     mutationFn: async () => {
       return await AuthService.logout()
@@ -91,20 +84,12 @@ export function useAuth() {
     onSuccess: () => {
       queryClient.clear()
       toast.success('Đăng xuất thành công!')
-
-      // Force redirect to login
-      setTimeout(() => {
-        window.location.href = '/login'
-      }, 500)
+      setTimeout(() => window.location.href = '/login', 500)
     },
     onError: (error: any) => {
       queryClient.clear()
       toast.error(error.message || 'Đã đăng xuất')
-
-      // Force redirect even on error
-      setTimeout(() => {
-        window.location.href = '/login'
-      }, 500)
+      setTimeout(() => window.location.href = '/login', 500)
     },
     retry: false,
   })

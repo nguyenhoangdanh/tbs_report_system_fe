@@ -10,10 +10,9 @@ import { SubmitButton } from '@/components/ui/submit-button'
 import { loginSchema, type LoginFormData } from '@/lib/validations/auth'
 import Link from 'next/link'
 import { UserLock } from 'lucide-react'
-import { useEffect } from 'react'
 
 export function LoginPage() {
-  const { login, isLoginLoading, isAuthenticated } = useAuth()
+  const { login, isLoginLoading } = useAuth()
 
   const {
     register,
@@ -23,37 +22,13 @@ export function LoginPage() {
     resolver: zodResolver(loginSchema)
   })
 
-  // Redirect if already authenticated
-  useEffect(() => {
-    if (isAuthenticated) {
-      const urlParams = new URLSearchParams(window.location.search)
-      const returnUrl = urlParams.get('returnUrl')
-      const targetUrl = returnUrl && returnUrl !== '/login' ? returnUrl : '/dashboard'
-      window.location.href = targetUrl
-    }
-  }, [isAuthenticated])
-
   const onSubmit = async (data: LoginFormData) => {
     try {
       await login(data.employeeCode, data.password)
+      // Redirect handled in useAuth hook
     } catch (error) {
       // Error handled in useAuth hook
     }
-  }
-
-  // Show loading while redirecting
-  if (isAuthenticated) {
-    return (
-      <AuthLayout
-        title="Đăng nhập thành công"
-        description="Đang chuyển hướng..."
-        icon={<UserLock className="w-8 h-8" />}
-      >
-        <div className="flex justify-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
-        </div>
-      </AuthLayout>
-    )
   }
 
   return (

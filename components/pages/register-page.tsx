@@ -1,22 +1,12 @@
 'use client'
 
-import { useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { AuthLayout } from '@/components/auth/auth-layout'
 import { RegisterForm } from '@/components/auth/register-form'
 import Link from 'next/link'
-import { useAuth } from '@/components/providers/auth-provider'
 import { NotepadText } from 'lucide-react'
 
 export function RegisterPage() {
-  const { isAuthenticated } = useAuth()
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      window.location.href = '/dashboard'
-    }
-  }, [isAuthenticated])
-
   return (
     <AuthLayout
       title="Đăng ký tài khoản"

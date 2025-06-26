@@ -4,6 +4,7 @@ import './globals.css'
 import { Toaster } from 'react-hot-toast'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { AuthProvider } from '@/components/providers/auth-provider'
+import { AuthGuard } from '@/components/providers/auth-guard'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { cn } from '@/lib/utils'
 
@@ -29,6 +30,7 @@ export default function RootLayout({
       <body className={cn(inter.className, 'antialiased')}>
         <QueryProvider>
           <AuthProvider>
+            <AuthGuard>
               <ThemeProvider
                 attribute="class"
                 defaultTheme="light"
@@ -82,6 +84,7 @@ export default function RootLayout({
                 />
                 {children}
               </ThemeProvider>
+            </AuthGuard>
           </AuthProvider>
         </QueryProvider>
       </body>
