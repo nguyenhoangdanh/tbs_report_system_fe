@@ -1,56 +1,65 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  // Enable experimental features for better performance
-  experimental: {
-    optimizePackageImports: ['lucide-react'],
+  // Tối ưu cho production
+  reactStrictMode: true,
+  swcMinify: true,
+  
+  // Tối ưu images - production ready
+  images: {
+    formats: ['image/webp', 'image/avif'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    minimumCacheTTL: 60,
   },
   
-  // Optimize images
-  images: {
-    domains: [],
-    dangerouslyAllowSVG: true,
-    contentSecurityPolicy: "default-src 'self'; script-src 'none'; sandbox;",
-  },
-
-  // Performance optimizations
-  compiler: {
-    removeConsole: process.env.NODE_ENV === 'production',
-  },
-
-  // Headers for security and performance
+  // Headers bảo mật
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: '/((?!api).*)',
         headers: [
-          {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
-          },
           {
             key: 'X-Frame-Options',
             value: 'DENY',
           },
           {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
           },
         ],
       },
     ]
   },
 
-  // Reduce bundle size
-  webpack: (config, { isServer }) => {
-    if (!isServer) {
-      config.resolve.fallback = {
-        ...config.resolve.fallback,
-        fs: false,
-        net: false,
-        tls: false,
-      };
-    }
-    return config;
+  // Redirects nếu cần
+  async redirects() {
+    return [
+      {
+        source: '/home',
+        destination: '/dashboard',
+        permanent: true,
+      },
+    ]
+  },
+
+  // Experimental features cho performance
+  experimental: {
+    optimizeCss: true,
+    optimizePackageImports: ['@tanstack/react-query', 'framer-motion'],
+  },
+
+  // Compiler options
+  compiler: {
+    removeConsole: process.env.NODE_ENV === 'production',
+  },
+
+  // Environment variables
+  env: {
+    CUSTOM_KEY: process.env.CUSTOM_KEY,
   },
 }
 

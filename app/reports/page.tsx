@@ -1,4 +1,4 @@
-import { ReportsPage } from '@/components/pages/reports-page'
+import ReportsPage from '@/components/pages/reports-page'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {

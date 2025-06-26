@@ -30,7 +30,7 @@ export default function RootLayout({
       <body className={cn(inter.className, 'antialiased')}>
         <QueryProvider>
           <AuthProvider>
-            <AuthGuard>
+            {/* <AuthGuard> */}
               <ThemeProvider
                 attribute="class"
                 defaultTheme="light"
@@ -84,7 +84,7 @@ export default function RootLayout({
                 />
                 {children}
               </ThemeProvider>
-            </AuthGuard>
+            {/* </AuthGuard> */}
           </AuthProvider>
         </QueryProvider>
       </body>
