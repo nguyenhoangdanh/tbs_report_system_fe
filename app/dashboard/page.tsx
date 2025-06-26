@@ -141,17 +141,20 @@ const TaskPieChartCard = memo(function TaskPieChartCard({
   )
 })
 
-// Utility function to build pie data
-function buildTaskPieData(stat?: { completed?: number; uncompleted?: number }) {
+// Utility function to build pie data - fix type handling
+function buildTaskPieData(stat?: { completed?: number; uncompleted?: number } | null) {
+  const completed = stat?.completed || 0
+  const uncompleted = stat?.uncompleted || 0
+  
   return [
     {
       name: 'Hoàn thành',
-      value: stat?.completed || 0,
+      value: completed,
       fill: '#10b981',
     },
     {
       name: 'Chưa hoàn thành',
-      value: stat?.uncompleted || 0,
+      value: uncompleted,
       fill: '#f59e42',
     },
   ]
@@ -214,7 +217,7 @@ export default function DashboardPage() {
   }
 
   // Destructure data properly from the new structure
-  const { dashboardStats, activities, weeklyTaskStats, monthlyTaskStats, yearlyTaskStats } = dashboardData || {}
+  const { activities, weeklyTaskStats, monthlyTaskStats, yearlyTaskStats } = dashboardData || {}
 
   // Utility functions
   const getActivityColor = (activity: RecentActivity) => {
@@ -239,7 +242,7 @@ export default function DashboardPage() {
     }
   }
 
-  // Pie chart data for each section
+  // Pie chart data for each section - fix null handling
   const weeklyTaskPieData = buildTaskPieData(weeklyTaskStats)
   const monthStat = monthlyTaskStats?.stats?.find((item: any) => item.month === currentMonth)
   const monthlyTaskPieData = buildTaskPieData(monthStat)

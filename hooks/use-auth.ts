@@ -40,17 +40,11 @@ export function useAuth() {
     },
     onSuccess: (data: AuthResponse) => {
       queryClient.setQueryData(['auth', 'profile'], data.user)
-      toast.success(data.message || 'Đăng nhập thành công!', {
-        icon: '🎉',
-        duration: 3000,
-      })
+      toast.success(data.message || 'Đăng nhập thành công!')
       // KHÔNG redirect ở đây
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Đăng nhập thất bại!', {
-        icon: '❌',
-        duration: 4000,
-      })
+      toast.error(error.message || 'Đăng nhập thất bại!')
     },
     retry: false,
   })
@@ -64,17 +58,11 @@ export function useAuth() {
       if (data.user) {
         queryClient.setQueryData(['auth', 'profile'], data.user)
       }
-      toast.success(data.message || 'Đăng ký thành công!', {
-        icon: '✅',
-        duration: 3000,
-      })
+      toast.success(data.message || 'Đăng ký thành công!')
       // KHÔNG redirect ở đây
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Đăng ký thất bại!', {
-        icon: '❌',
-        duration: 4000,
-      })
+      toast.error(error.message || 'Đăng ký thất bại!')
     },
     retry: false,
   })
@@ -86,18 +74,12 @@ export function useAuth() {
     },
     onSuccess: () => {
       queryClient.clear()
-      toast.success('Đăng xuất thành công!', {
-        icon: '👋',
-        duration: 2000,
-      })
+      toast.success('Đăng xuất thành công!')
       // KHÔNG redirect ở đây - để middleware handle
     },
     onError: (error: any) => {
       queryClient.clear()
-      toast.error(error.message || 'Đã đăng xuất', {
-        icon: '⚠️',
-        duration: 3000,
-      })
+      toast.error(error.message || 'Đã đăng xuất')
       // KHÔNG redirect ở đây
     },
     retry: false,
@@ -109,16 +91,10 @@ export function useAuth() {
       return await AuthService.changePassword(data)
     },
     onSuccess: () => {
-      toast.success('Đổi mật khẩu thành công!', {
-        icon: '🔒',
-        duration: 3000,
-      })
+      toast.success('Đổi mật khẩu thành công!')
     },
     onError: (error: any) => {
-      toast.error(error.message || 'Đổi mật khẩu thất bại!', {
-        icon: '❌',
-        duration: 4000,
-      })
+      toast.error(error.message || 'Đổi mật khẩu thất bại!')
     },
     retry: false,
   })
