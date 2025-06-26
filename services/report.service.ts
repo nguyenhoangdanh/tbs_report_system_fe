@@ -3,6 +3,7 @@ import type {
   WeeklyReport, 
   CreateWeeklyReportDto, 
   UpdateTaskReportDto,
+  UpdateSingleTaskDto,
   PaginatedResponse 
 } from '@/types'
 
@@ -43,7 +44,8 @@ export class ReportService {
     return await api.delete<void>(`/reports/tasks/${taskId}`)
   }
 
-  static async updateTask(taskId: string, data: any): Promise<any> {
+  // Update single task with correct type
+  static async updateTask(taskId: string, data: UpdateSingleTaskDto): Promise<any> {
     return await api.patch(`/reports/tasks/${taskId}`, data)
   }
 

@@ -1,12 +1,10 @@
 'use client'
 
 import { AuthService } from '@/services/auth.service'
-import { api } from '@/lib/api'
 import type { RegisterDto, ChangePasswordDto, User, AuthResponse } from '@/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 import { useEffect, useState } from 'react'
-import { debugCookies, pollCookieChanges } from '@/lib/cookie-debug'
 
 export function useAuth() {
   const queryClient = useQueryClient()
@@ -16,7 +14,7 @@ export function useAuth() {
     setIsMounted(true)
   }, [])
 
-  // Get current user profile - simplified error handling
+  // Get current user profile - optimized for production
   const {
     data: user,
     isLoading,
@@ -26,8 +24,8 @@ export function useAuth() {
     queryFn: async (): Promise<User> => {
       return await AuthService.getProfile()
     },
-    staleTime: 3 * 60 * 1000, // 3 minutes
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: process.env.NODE_ENV === 'production' ? 5 * 60 * 1000 : 3 * 60 * 1000, // Longer in production
+    gcTime: process.env.NODE_ENV === 'production' ? 10 * 60 * 1000 : 5 * 60 * 1000,
     retry: (failureCount, error: any) => {
       // Don't retry on auth errors
       if (error?.status === 401) return false
@@ -38,7 +36,7 @@ export function useAuth() {
     networkMode: 'online',
   })
 
-  // Login mutation - let backend handle all error responses
+  // Login mutation - optimized
   const loginMutation = useMutation({
     mutationFn: async ({ employeeCode, password }: { employeeCode: string; password: string }) => {
       return await AuthService.login({ employeeCode, password })
@@ -47,16 +45,22 @@ export function useAuth() {
       queryClient.setQueryData(['auth', 'profile'], data.user)
       queryClient.invalidateQueries({ queryKey: ['auth'] })
       
-      // Preload dashboard data
-      queryClient.prefetchQuery({
-        queryKey: ['statistics', 'dashboard-combined'],
-        staleTime: 60000,
-      });
+      // Selective prefetch only for critical data
+      if (process.env.NODE_ENV === 'production') {
+        queryClient.prefetchQuery({
+          queryKey: ['statistics', 'weekly-task-stats'],
+          staleTime: 60000,
+        });
+      } else {
+        queryClient.prefetchQuery({
+          queryKey: ['statistics', 'dashboard-combined'],
+          staleTime: 60000,
+        });
+      }
       
       toast.success(data.message || 'Đăng nhập thành công!')
     },
     onError: (error: any) => {
-      // Backend already provides user-friendly error messages
       toast.error(error.message || 'Đăng nhập thất bại!')
     },
   })
@@ -74,14 +78,12 @@ export function useAuth() {
     },
   })
 
-  // Logout mutation - simplified
+  // Logout mutation - optimized
   const logoutMutation = useMutation({
     mutationFn: async () => {
       return await AuthService.logout()
     },
     onSuccess: () => {
-      console.log('[AUTH] Logout successful, clearing cache and redirecting...');
-      
       queryClient.clear()
       queryClient.removeQueries()
       queryClient.invalidateQueries()
@@ -95,8 +97,6 @@ export function useAuth() {
       toast.success('Đăng xuất thành công!')
     },
     onError: (error: any) => {
-      console.warn('[AUTH] Logout error, but clearing local state anyway:', error);
-      
       queryClient.clear()
       queryClient.removeQueries()
       

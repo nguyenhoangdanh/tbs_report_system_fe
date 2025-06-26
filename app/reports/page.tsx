@@ -12,7 +12,7 @@ import { ReportService } from '@/services/report.service'
 import { Plus } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getCurrentWeek } from '@/lib/date-utils'
-import type { WeeklyReport } from '@/types'
+import type { UpdateTaskReportDto, WeeklyReport } from '@/types'
 import { useSearchParams, usePathname, useRouter as useNextRouter } from 'next/navigation'
 
 export default function ReportsPage() {
@@ -32,12 +32,10 @@ export default function ReportsPage() {
   const [currentWeekNumber, setCurrentWeekNumber] = useState<number>(getCurrentWeek().weekNumber)
   const [currentYear, setCurrentYear] = useState<number>(getCurrentWeek().year)
 
-  // Thêm state cho tab filter
+  // Filter states
   const [filterTab, setFilterTab] = useState<'week' | 'month' | 'year'>('week')
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1)
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear())
-
-  // Move filterKey and useEffect to the top, before any conditional or early return
   const [filterKey, setFilterKey] = useState(0)
 
   useEffect(() => {
@@ -60,9 +58,8 @@ export default function ReportsPage() {
     }
   }, [currentWeekNumber, currentYear, activeTab, isAuthenticated, user])
 
-  // --- Filter tab logic: sync with query param ---
+  // Filter tab logic: sync with query param
   useEffect(() => {
-    // Ưu tiên lấy từ query string nếu có
     const tab = searchParams.get('filter') as 'week' | 'month' | 'year' | null
     const month = searchParams.get('month')
     const year = searchParams.get('year')
@@ -72,10 +69,9 @@ export default function ReportsPage() {
       if ((tab === 'month' || tab === 'year') && year) setSelectedYear(Number(year))
     }
     setFilterKey((k) => k + 1)
-    // eslint-disable-next-line
   }, [searchParams])
 
-  // Khi đổi filter tab, cập nhật query string để đồng bộ với DashboardPage link
+  // Filter tab handlers
   const handleFilterTabChange = (value: string) => {
     const tab = value as 'week' | 'month' | 'year'
     setFilterTab(tab)
@@ -94,7 +90,6 @@ export default function ReportsPage() {
     nextRouter.replace(`${pathname}?${params.toString()}`)
   }
 
-  // Khi đổi tháng/năm, cập nhật query string
   const handleMonthChange = (month: number) => {
     setSelectedMonth(month)
     const params = new URLSearchParams(searchParams)
@@ -103,6 +98,7 @@ export default function ReportsPage() {
     params.set('year', String(selectedYear))
     nextRouter.replace(`${pathname}?${params.toString()}`)
   }
+
   const handleYearChange = (year: number) => {
     setSelectedYear(year)
     const params = new URLSearchParams(searchParams)
@@ -112,14 +108,15 @@ export default function ReportsPage() {
     nextRouter.replace(`${pathname}?${params.toString()}`)
   }
 
+  // Simplified data loading - let backend handle all errors
   const loadReports = async () => {
     try {
       setIsLoading(true)
       const response = await ReportService.getMyReports(1, 50)
       setReports(response.data || [])
     } catch (error: any) {
-      console.error('Failed to load reports:', error)
-      toast.error('Không thể tải danh sách báo cáo')
+      // Backend provides user-friendly error messages
+      toast.error(error.message || 'Không thể tải danh sách báo cáo')
     } finally {
       setIsLoading(false)
     }
@@ -130,10 +127,9 @@ export default function ReportsPage() {
       const report = await ReportService.getCurrentWeekReport()
       setCurrentReport(report)
     } catch (error: any) {
-      console.error('Failed to load current week report:', error)
-      // Don't show error for 404 (no current report)
+      // Don't show error for 404 (no current report) - this is expected
       if (error.status !== 404) {
-        toast.error('Không thể tải báo cáo tuần hiện tại')
+        toast.error(error.message || 'Không thể tải báo cáo tuần hiện tại')
       }
     }
   }
@@ -143,25 +139,20 @@ export default function ReportsPage() {
 
     setIsLoadingWeekReport(true)
     try {
-
-      // Always fetch from server to get latest data
       const reportResponse = await ReportService.getReportByWeek(weekNumber, year)
 
       if (reportResponse) {
         setSelectedReport(reportResponse)
-
         // Update reports list if this report is not in the current list
         setReports(prevReports => {
           const existingIndex = prevReports.findIndex(
             r => r.weekNumber === weekNumber && r.year === year
           )
           if (existingIndex >= 0) {
-            // Update existing report
             const updatedReports = [...prevReports]
             updatedReports[existingIndex] = reportResponse
             return updatedReports
           } else {
-            // Add new report to list
             return [reportResponse, ...prevReports]
           }
         })
@@ -169,12 +160,11 @@ export default function ReportsPage() {
         setSelectedReport(null)
       }
     } catch (error: any) {
-      console.error('Error loading report for week:', error)
       if (error.status === 404) {
         // No report exists for this week - that's fine
         setSelectedReport(null)
       } else {
-        toast.error('Không thể tải báo cáo cho tuần này')
+        toast.error(error.message || 'Không thể tải báo cáo cho tuần này')
       }
     } finally {
       setIsLoadingWeekReport(false)
@@ -184,31 +174,25 @@ export default function ReportsPage() {
   const handleWeekChange = useCallback((newWeekNumber: number, newYear: number) => {
     setCurrentWeekNumber(newWeekNumber)
     setCurrentYear(newYear)
-    // Clear current selection immediately to show loading state
     if (activeTab === 'create') {
       setSelectedReport(null)
     }
   }, [activeTab])
 
+  // Simplified create/update handler - backend handles validation
   const handleCreateOrUpdateReport = async (reportData: any): Promise<WeeklyReport> => {
     if (!user) {
-      const error = new Error('Vui lòng đăng nhập để tạo báo cáo')
-      toast.error(error.message)
-      throw error
+      throw new Error('Vui lòng đăng nhập để tạo báo cáo')
     }
 
-    // Validate tasks
+    // Basic client-side validation only
     if (!reportData.tasks || reportData.tasks.length === 0) {
-      const error = new Error('Vui lòng thêm ít nhất một công việc')
-      toast.error(error.message)
-      throw error
+      throw new Error('Vui lòng thêm ít nhất một công việc')
     }
 
     const emptyTasks = reportData.tasks.filter((task: any) => !task.taskName || task.taskName.trim() === '')
     if (emptyTasks.length > 0) {
-      const error = new Error('Vui lòng nhập tên cho tất cả công việc')
-      toast.error(error.message)
-      throw error
+      throw new Error('Vui lòng nhập tên cho tất cả công việc')
     }
 
     setIsSaving(true)
@@ -216,8 +200,8 @@ export default function ReportsPage() {
       let result: WeeklyReport
 
       if (selectedReport) {
-        // Update existing report - only send tasks, NOT weekNumber and year
-        const updateData = {
+        // Update existing report
+        const updateData: UpdateTaskReportDto = {
           tasks: reportData.tasks.map((task: any) => ({
             taskName: task.taskName.trim(),
             monday: task.monday || false,
@@ -234,10 +218,10 @@ export default function ReportsPage() {
         result = await ReportService.updateReport(selectedReport.id, updateData)
         toast.success('Cập nhật báo cáo thành công!')
       } else {
-        // Create new report - include weekNumber and year as NUMBERS
+        // Create new report
         const createData = {
-          weekNumber: Number(reportData.weekNumber), // Ensure it's a number
-          year: Number(reportData.year), // Ensure it's a number
+          weekNumber: Number(reportData.weekNumber),
+          year: Number(reportData.year),
           tasks: reportData.tasks.map((task: any) => ({
             taskName: task.taskName.trim(),
             monday: task.monday || false,
@@ -250,14 +234,6 @@ export default function ReportsPage() {
             isCompleted: task.isCompleted || false,
             reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined)
           }))
-        }
-
-        // Additional validation
-        if (createData.weekNumber < 1 || createData.weekNumber > 53) {
-          throw new Error('Số tuần phải từ 1 đến 53')
-        }
-        if (createData.year < 2020 || createData.year > 2030) {
-          throw new Error('Năm phải từ 2020 đến 2030')
         }
 
         result = await ReportService.createWeeklyReport(createData)
@@ -274,23 +250,8 @@ export default function ReportsPage() {
 
       return result
     } catch (error: any) {
-      console.error('Error saving report:', error)
-
-      if (error.status === 400) {
-        // Check if it's a validation error
-        if (error.message.includes('weekNumber') || error.message.includes('year')) {
-          toast.error('Dữ liệu tuần/năm không hợp lệ. Vui lòng kiểm tra lại.')
-        } else {
-          toast.error(error.message || 'Dữ liệu báo cáo không hợp lệ')
-        }
-      } else if (error.status === 403) {
-        toast.error('Báo cáo đã bị khóa hoặc quá hạn')
-      } else if (error.status === 409) {
-        toast.error('Báo cáo cho tuần này đã tồn tại')
-      } else {
-        toast.error(error.message || 'Không thể lưu báo cáo. Vui lòng thử lại.')
-      }
-
+      // Backend provides user-friendly error messages
+      toast.error(error.message || 'Không thể lưu báo cáo. Vui lòng thử lại.')
       throw error
     } finally {
       setIsSaving(false)
@@ -312,6 +273,7 @@ export default function ReportsPage() {
     setActiveTab('create')
   }
 
+  // Simplified delete handler
   const handleDeleteReport = async (reportId: string): Promise<void> => {
     try {
       await ReportService.deleteReport(reportId)
@@ -326,16 +288,8 @@ export default function ReportsPage() {
 
       toast.success('Xóa báo cáo thành công!')
     } catch (error: any) {
-      console.error('Error deleting report:', error)
-
-      if (error.status === 403) {
-        toast.error('Không thể xóa báo cáo này. Báo cáo có thể đã bị khóa hoặc không phải của tuần hiện tại.')
-      } else if (error.status === 404) {
-        toast.error('Báo cáo không tồn tại')
-      } else {
-        toast.error(error.message || 'Không thể xóa báo cáo. Vui lòng thử lại.')
-      }
-
+      // Backend provides user-friendly error messages
+      toast.error(error.message || 'Không thể xóa báo cáo. Vui lòng thử lại.')
       throw error
     }
   }
@@ -354,10 +308,9 @@ export default function ReportsPage() {
   const currentWeek = getCurrentWeek()
   const hasCurrentWeekReport = currentReport !== null
 
-  // Lọc báo cáo theo tuần/tháng/năm
+  // Filter reports
   const filteredReports = reports.filter((report) => {
     if (filterTab === 'week') {
-      // Chỉ hiển thị báo cáo của tuần hiện tại
       const current = getCurrentWeek()
       return report.weekNumber === current.weekNumber && report.year === current.year
     }
@@ -377,8 +330,6 @@ export default function ReportsPage() {
 
   return (
     <MainLayout
-      // title="Báo cáo công việc"
-      // subtitle="Quản lý và tạo báo cáo công việc hàng tuần"
       showBreadcrumb
       breadcrumbItems={[
         { label: 'Dashboard', href: '/dashboard' },
@@ -391,7 +342,7 @@ export default function ReportsPage() {
           onValueChange={(value) => setActiveTab(value as 'create' | 'list')}
           key={filterKey}
         >
-          {/* Tabs filter theo tuần/tháng/năm */}
+          {/* Filter tabs for list view */}
           {activeTab === 'list' && (
             <div className="flex items-center justify-between mb-6 flex-wrap">
               <div className="mb-4 flex flex-wrap items-center gap-4">

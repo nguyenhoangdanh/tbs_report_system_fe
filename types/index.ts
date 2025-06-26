@@ -174,7 +174,28 @@ export interface CreateTaskReportDto {
   reasonNotDone?: string
 }
 
+// Fix: UpdateTaskReportDto should be for updating entire report with tasks array
 export interface UpdateTaskReportDto {
+  tasks: UpdateTaskDto[]
+}
+
+// Single task update DTO
+export interface UpdateTaskDto {
+  id?: string // Optional for new tasks
+  taskName: string
+  monday?: boolean
+  tuesday?: boolean
+  wednesday?: boolean
+  thursday?: boolean
+  friday?: boolean
+  saturday?: boolean
+  sunday?: boolean
+  isCompleted?: boolean
+  reasonNotDone?: string
+}
+
+// Individual task update (for single task operations)
+export interface UpdateSingleTaskDto {
   taskName?: string
   monday?: boolean
   tuesday?: boolean
