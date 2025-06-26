@@ -5,7 +5,6 @@ import { Toaster } from 'react-hot-toast'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { AuthProvider } from '@/components/providers/auth-provider'
 import { ThemeProvider } from '@/components/providers/theme-provider'
-import { AuthRedirectProvider } from '@/components/providers/auth-redirect-provider'
 import { cn } from '@/lib/utils'
 
 const inter = Inter({ subsets: ['latin'] })
@@ -30,7 +29,6 @@ export default function RootLayout({
       <body className={cn(inter.className, 'antialiased')}>
         <QueryProvider>
           <AuthProvider>
-            <AuthRedirectProvider>
               <ThemeProvider
                 attribute="class"
                 defaultTheme="light"
@@ -84,7 +82,6 @@ export default function RootLayout({
                 />
                 {children}
               </ThemeProvider>
-            </AuthRedirectProvider>
           </AuthProvider>
         </QueryProvider>
       </body>

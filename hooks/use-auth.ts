@@ -14,7 +14,7 @@ export function useAuth() {
     setIsMounted(true)
   }, [])
 
-  // Đơn giản hóa user profile query - không refetch liên tục
+  // User profile query
   const {
     data: user,
     isLoading,
@@ -22,18 +22,18 @@ export function useAuth() {
   } = useQuery({
     queryKey: ['auth', 'profile'],
     queryFn: () => AuthService.getProfile(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
     retry: (failureCount, error: any) => {
       if (error?.status === 401 || error?.status === 403) return false
       return failureCount < 1
     },
     refetchOnWindowFocus: false,
     refetchOnMount: false,
-    refetchOnReconnect: false, // Tắt để tránh loop
+    refetchOnReconnect: false,
   })
 
-  // Login mutation - KHÔNG redirect
+  // Login mutation với redirect
   const loginMutation = useMutation({
     mutationFn: async ({ employeeCode, password }: { employeeCode: string; password: string }) => {
       return await AuthService.login({ employeeCode, password })
@@ -41,7 +41,14 @@ export function useAuth() {
     onSuccess: (data: AuthResponse) => {
       queryClient.setQueryData(['auth', 'profile'], data.user)
       toast.success(data.message || 'Đăng nhập thành công!')
-      // KHÔNG redirect ở đây
+
+      // Redirect với window.location để tránh client-side routing issues
+      setTimeout(() => {
+        const urlParams = new URLSearchParams(window.location.search)
+        const returnUrl = urlParams.get('returnUrl')
+        const targetUrl = returnUrl && returnUrl !== '/login' ? returnUrl : '/dashboard'
+        window.location.href = targetUrl
+      }, 1000)
     },
     onError: (error: any) => {
       toast.error(error.message || 'Đăng nhập thất bại!')
@@ -49,17 +56,26 @@ export function useAuth() {
     retry: false,
   })
 
-  // Register mutation - KHÔNG redirect
+  // Register mutation với redirect
   const registerMutation = useMutation({
     mutationFn: async (data: RegisterDto) => {
       return await AuthService.register(data)
     },
     onSuccess: (data: AuthResponse) => {
+      toast.success(data.message || 'Đăng ký thành công!')
+
       if (data.user) {
         queryClient.setQueryData(['auth', 'profile'], data.user)
+        // Redirect to dashboard if auto-login
+        setTimeout(() => {
+          window.location.href = '/dashboard'
+        }, 1500)
+      } else {
+        // Redirect to login if manual activation required
+        setTimeout(() => {
+          window.location.href = '/login'
+        }, 1500)
       }
-      toast.success(data.message || 'Đăng ký thành công!')
-      // KHÔNG redirect ở đây
     },
     onError: (error: any) => {
       toast.error(error.message || 'Đăng ký thất bại!')
@@ -67,7 +83,7 @@ export function useAuth() {
     retry: false,
   })
 
-  // Logout mutation - chỉ clear cache
+  // Logout mutation với redirect
   const logoutMutation = useMutation({
     mutationFn: async () => {
       return await AuthService.logout()
@@ -75,12 +91,20 @@ export function useAuth() {
     onSuccess: () => {
       queryClient.clear()
       toast.success('Đăng xuất thành công!')
-      // KHÔNG redirect ở đây - để middleware handle
+
+      // Force redirect to login
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 500)
     },
     onError: (error: any) => {
       queryClient.clear()
       toast.error(error.message || 'Đã đăng xuất')
-      // KHÔNG redirect ở đây
+
+      // Force redirect even on error
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 500)
     },
     retry: false,
   })
