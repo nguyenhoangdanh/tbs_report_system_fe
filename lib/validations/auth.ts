@@ -13,7 +13,7 @@ export const registerSchema = z.object({
   confirmPassword: z.string().min(1, 'Vui lòng xác nhận mật khẩu'),
   firstName: z.string().min(1, 'Họ không được để trống'),
   lastName: z.string().min(1, 'Tên không được để trống'),
-  cardId: z.string().optional(),
+  phone: z.string().min(10, 'Số điện thoại phải có ít nhất 10 ký tự').max(12, 'Số điện thoại không được quá 12 ký tự').optional(),
   officeId: z.string().min(1, 'Vui lòng chọn văn phòng'),
   departmentId: z.string().min(1, 'Vui lòng chọn phòng ban'),
   jobPositionId: z.string().min(1, 'Vui lòng chọn vị trí công việc'),
@@ -27,7 +27,7 @@ export const registerSchema = z.object({
 
 export const forgotPasswordSchema = z.object({
   employeeCode: z.string().min(1, 'Mã nhân viên không được để trống'),
-  cardId: z.string().min(1, 'Số CCCD không được để trống'),
+  phone: z.string().min(10, 'Số điện thoại phải có ít nhất 10 ký tự').max(12, 'Số điện thoại không được quá 12 ký tự'),
 })
 
 export const resetPasswordSchema = z.object({

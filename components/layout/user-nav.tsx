@@ -2,10 +2,7 @@
 
 import { useState } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
-import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Button } from '@/components/ui/button'
-import { ThemeToggle } from '@/components/ui/theme-toggle'
 import Link from 'next/link'
 
 export function UserNav() {
@@ -25,6 +22,8 @@ export function UserNav() {
   const userInitials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`
   const userFullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
 
+  console.log('UserNav rendered for:', user)
+
   return (
     <div className="relative">
       <div className="flex items-center space-x-4">
@@ -43,8 +42,7 @@ export function UserNav() {
               {userFullName || user.employeeCode}
             </p>
             <p className="text-xs text-muted-foreground">
-              {user.role === 'SUPERADMIN' ? 'Tổng giám đốc' : 
-               user.role === 'ADMIN' ? 'Quản lý' : 'Nhân viên'}
+              {user.jobPosition.position.description || 'Chưa xác định'}
             </p>
           </div>
           <svg 
@@ -89,15 +87,14 @@ export function UserNav() {
                       {userFullName || 'Người dùng'}
                     </p>
                     <p className="text-sm text-muted-foreground truncate">
-                      {user.email || user.employeeCode}
+                      {user.employeeCode || user.phone}
                     </p>
                     <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${
                       user.role === 'SUPERADMIN' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
                       user.role === 'ADMIN' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
                       'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                     }`}>
-                      {user.role === 'SUPERADMIN' ? 'Tổng giám đốc' : 
-                       user.role === 'ADMIN' ? 'Quản lý' : 'Nhân viên'}
+                      {user.jobPosition.position.description || 'Chưa xác định'}
                     </span>
                   </div>
                 </div>

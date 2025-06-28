@@ -12,7 +12,10 @@ import type {
 
 export class AuthService {
   static async login(data: LoginDto): Promise<AuthResponse> {
-    return await api.post<AuthResponse>('/auth/login', data)
+    console.log('[AuthService] Login attempt:', data.employeeCode)
+    const response = await api.post<AuthResponse>('/auth/login', data)
+    console.log('[AuthService] Login response received')
+    return response
   }
 
   static async register(data: RegisterDto): Promise<AuthResponse> {

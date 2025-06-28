@@ -19,7 +19,7 @@ export interface User {
   email?: string
   firstName: string
   lastName: string
-  cardId?: string
+  phone?: string
   role: Role
   jobPositionId: string
   isActive: boolean
@@ -109,7 +109,7 @@ export interface RegisterDto {
   password: string
   firstName: string
   lastName: string
-  cardId?: string
+  phone?: string
   jobPositionId: string
   officeId: string
   role: Role
@@ -122,12 +122,12 @@ export interface ChangePasswordDto {
 
 export interface ForgotPasswordDto {
   employeeCode: string
-  cardId: string
+  phone: string
 }
 
 export interface ResetPasswordDto {
   employeeCode: string
-  cardId: string
+  phone: string
   newPassword: string
 }
 
@@ -137,7 +137,7 @@ export interface ForgotPasswordResponse {
     employeeCode: string
     firstName: string
     lastName: string
-    email?: string
+    phone?: string
   }
 }
 
@@ -146,7 +146,7 @@ export interface UpdateProfileDto {
   firstName?: string
   lastName?: string
   email?: string
-  cardId?: string
+  phone?: string
   jobPositionId?: string
   officeId?: string
   role?: UserRole
@@ -211,7 +211,7 @@ export interface UpdateSingleTaskDto {
 
 // Auth related types
 export interface AuthResponse {
-  success: boolean
+  access_token: string  // Changed from success: boolean
   user: User
   message: string
 }
@@ -229,3 +229,6 @@ export interface PaginatedResponse<T> {
   limit: number
   totalPages: number
 }
+
+// Add hierarchy types to main types file
+export * from './hierarchy'

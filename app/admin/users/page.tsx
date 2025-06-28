@@ -20,7 +20,7 @@ interface EditUser{
   firstName: string;
   lastName: string;
   email: string;
-  cardId: string;
+  phone: string;
   jobPositionId: string;
   officeId: string;
   role: Role;
@@ -41,7 +41,7 @@ function AdminUsersContent() {
     firstName: '',
     lastName: '',
     email: '',
-    cardId: '',
+    phone: '',
     jobPositionId: '',
     officeId: '',
     role: Role.USER, 
@@ -76,7 +76,7 @@ function AdminUsersContent() {
       firstName: user.firstName,
       lastName: user.lastName,
       email: user.email || '',
-      cardId: user.cardId || '',
+      phone: user.phone || '',
       jobPositionId: user.jobPositionId,
       officeId: user.officeId,
       role: user.role,
@@ -94,7 +94,7 @@ function AdminUsersContent() {
         firstName: editData.firstName,
         lastName: editData.lastName,
         email: editData.email || undefined,
-        cardId: editData.cardId || undefined,
+        phone: editData.phone || undefined,
         jobPositionId: editData.jobPositionId,
         officeId: editData.officeId,
         role: editData.role,
@@ -115,10 +115,47 @@ function AdminUsersContent() {
     user.email?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  if (currentUser?.role !== 'SUPERADMIN') {
+  // Remove or comment out this permission check since RouteGuard handles it
+  // if (currentUser?.role !== 'SUPERADMIN') {
+  //   return (
+  //     <MainLayout
+  //       title="Không có quyền truy cập"
+  //       showBreadcrumb
+  //       breadcrumbItems={[
+  //         { label: 'Dashboard', href: '/dashboard' },
+  //         { label: 'Admin', href: '/admin' },
+  //         { label: 'Quản lý Users' }
+  //       ]}
+  //     >
+  //       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  //         <div className="text-center">
+  //           <h1 className="text-2xl font-bold text-red-600 mb-4">Không có quyền truy cập</h1>
+  //           <p className="text-muted-foreground">Chỉ Superadmin mới có thể truy cập trang này.</p>
+  //         </div>
+  //       </div>
+  //     </MainLayout>
+  //   );
+  // }
+
+  // Add loading check for currentUser
+  if (!currentUser) {
+    return (
+      <MainLayout>
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          <div className="text-center">
+            <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Đang tải...</p>
+          </div>
+        </div>
+      </MainLayout>
+    );
+  }
+
+  // Show role-based access message but allow access since RouteGuard handles it
+  if (!['SUPERADMIN', 'ADMIN'].includes(currentUser.role)) {
     return (
       <MainLayout
-        title="Không có quyền truy cập"
+        title="Quyền truy cập hạn chế"
         showBreadcrumb
         breadcrumbItems={[
           { label: 'Dashboard', href: '/dashboard' },
@@ -128,8 +165,13 @@ function AdminUsersContent() {
       >
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
-            <h1 className="text-2xl font-bold text-red-600 mb-4">Không có quyền truy cập</h1>
-            <p className="text-muted-foreground">Chỉ Superadmin mới có thể truy cập trang này.</p>
+            <h1 className="text-2xl font-bold text-yellow-600 mb-4">Quyền truy cập hạn chế</h1>
+            <p className="text-muted-foreground">
+              Vai trò hiện tại ({currentUser.role}) có quyền truy cập hạn chế đến trang này.
+            </p>
+            <p className="text-sm text-muted-foreground mt-2">
+              Chỉ SUPERADMIN và ADMIN mới có thể quản lý tất cả người dùng.
+            </p>
           </div>
         </div>
       </MainLayout>
@@ -278,11 +320,11 @@ function AdminUsersContent() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="edit-cardId">CCCD</Label>
+                <Label htmlFor="edit-phone">Số điện thoại</Label>
                 <Input
-                  id="edit-cardId"
-                  value={editData.cardId}
-                  onChange={(e) => setEditData({ ...editData, cardId: e.target.value })}
+                  id="edit-phone"
+                  value={editData.phone}
+                  onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
                   maxLength={12}
                 />
               </div>

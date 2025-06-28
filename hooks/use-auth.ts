@@ -6,6 +6,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { toast } from 'react-hot-toast'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { is } from 'date-fns/locale'
 
 export function useAuth() {
   const queryClient = useQueryClient()
@@ -16,7 +17,7 @@ export function useAuth() {
     setIsMounted(true)
   }, [])
 
-  // Drastically simplified profile query
+  // Simplified profile query with better error handling
   const {
     data: user,
     isLoading: queryLoading,
@@ -24,53 +25,54 @@ export function useAuth() {
   } = useQuery({
     queryKey: ['auth', 'profile'],
     queryFn: async () => {
-      console.log('[Auth] Fetching profile...')
-      const result = await AuthService.getProfile()
-      console.log('[Auth] Profile success:', result?.employeeCode)
-      return result
+      try {
+        console.log('[Auth] Fetching profile...')
+        const result = await AuthService.getProfile()
+        console.log('[Auth] Profile success:', result?.employeeCode)
+        return result
+      } catch (error: any) {
+        console.log('[Auth] Profile fetch failed:', error.message)
+        // Don't throw the error, just return null for unauthenticated state
+        if (error.status === 401 || error.status === 403) {
+          return null
+        }
+        throw error
+      }
     },
     enabled: isMounted,
-    retry: false, // Never retry
+    retry: (failureCount, error: any) => {
+      // Don't retry on auth errors
+      if (error?.status === 401 || error?.status === 403) return false
+      return failureCount < 1
+    },
     refetchOnWindowFocus: false,
     refetchOnMount: false,
     refetchOnReconnect: false,
-    staleTime: Infinity, // Never refetch automatically
-    gcTime: Infinity, // Keep in cache forever
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 10 * 60 * 1000, // 10 minutes
   })
 
-  // Force loading to be false after 3 seconds or when we have data/error
-  const [forceReady, setForceReady] = useState(false)
-  
-  useEffect(() => {
-    if (isMounted) {
-      // Force ready after 3 seconds regardless of query state
-      const timeout = setTimeout(() => {
-        console.log('[Auth] Force ready after 3 seconds')
-        setForceReady(true)
-      }, 3000)
-
-      return () => clearTimeout(timeout)
-    }
-  }, [isMounted])
-
-  // Simple loading logic
-  const isLoading = isMounted && queryLoading && !user && !error && !forceReady
+  // Simple loading logic - be more permissive
+  const isLoading = isMounted && queryLoading && !user && !error
 
   // Login mutation
   const loginMutation = useMutation({
     mutationFn: (data: { employeeCode: string; password: string }) => {
-      console.log('[Auth] Login payload:', data)
       return AuthService.login(data)
     },
     onSuccess: (data: AuthResponse) => {
-      console.log('[Auth] Login success')
       queryClient.setQueryData(['auth', 'profile'], data.user)
       toast.success('Đăng nhập thành công!')
+
+      const isSuperAdmin = data.user?.role === 'SUPERADMIN'
       
+      // Short delay before redirect
       setTimeout(() => {
         const returnUrl = new URLSearchParams(window.location.search).get('returnUrl')
-        router.replace(returnUrl || '/dashboard')
-      }, 300)
+        const targetUrl = isSuperAdmin ? '/admin/hierarchy' : returnUrl || '/dashboard'
+        console.log('[Auth] Redirecting to:', targetUrl)
+        router.replace(targetUrl)
+      }, 500)
     },
     onError: (error: any) => {
       console.error('[Auth] Login error:', error)
@@ -84,10 +86,12 @@ export function useAuth() {
       try {
         await AuthService.logout()
       } catch (error) {
-        console.warn('[Auth] Logout API error, continuing...')
+        console.warn('[Auth] Logout API error, continuing...', error)
       }
     },
     onSuccess: () => {
+      console.log('[Auth] Logout success, clearing data')
+      queryClient.setQueryData(['auth', 'profile'], null)
       queryClient.clear()
       toast.success('Đăng xuất thành công!')
       router.replace('/login')
@@ -118,13 +122,13 @@ export function useAuth() {
 
   const isAuthenticated = !!user
   
-  console.log('[Auth] State:', {
+  console.log('[Auth] Current state:', {
     isMounted,
     isLoading,
     hasUser: !!user,
     hasError: !!error,
     isAuthenticated,
-    forceReady
+    userRole: user?.role
   })
 
   return {

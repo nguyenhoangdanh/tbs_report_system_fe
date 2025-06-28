@@ -12,7 +12,10 @@ import { vi } from 'date-fns/locale'
 import { CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, Hourglass, FileText, Info, Activity, Zap } from 'lucide-react'
 import { AppLoading } from '@/components/ui/app-loading'
 import { StatsCard } from '@/components/dashboard/stats-card'
-import type { RecentActivity } from '@/services/statistics.service'
+import { TaskCompletionChart } from '@/components/charts/task-completion-chart'
+import { WeeklyTrendsChart } from '@/components/charts/weekly-trends-chart'
+import { IncompleteReasonsChart } from '@/components/charts/incomplete-reasons-chart'
+import { RecentActivity } from '@/services/statistics.service'
 
 // --- Main DashboardPage ---
 function DashboardPage() {
@@ -74,6 +77,37 @@ function DashboardPage() {
             isGood: stats.completionRate >= 70
         }
     }, [dashboardStats])
+
+    // Prepare chart data
+    const monthlyChartData = useMemo(() => {
+        const stats = Array.isArray(monthlyTaskStats) ? monthlyTaskStats : monthlyTaskStats?.stats
+        if (!stats || !Array.isArray(stats)) return []
+        
+        return stats.map((item: any) => ({
+            name: `Tháng ${item.month}`,
+            completed: item.completed,
+            uncompleted: item.uncompleted,
+            completionRate: item.total > 0 ? Math.round((item.completed / item.total) * 100) : 0,
+            totalTasks: item.total,
+            completedTasks: item.completed
+        }))
+    }, [monthlyTaskStats])
+
+    const weeklyIncompleteReasons = useMemo(() => {
+        return weeklyTaskStats?.incompleteReasonsAnalysis || []
+    }, [weeklyTaskStats])
+
+    const weeklyTrendsData = useMemo(() => {
+        if (!monthlyChartData || monthlyChartData.length === 0) return []
+        
+        // Create trend data for last 8 weeks (simulated from monthly data)
+        return monthlyChartData.slice(-8).map((item, index) => ({
+            week: `T${index + 1}`,
+            completionRate: item.completionRate,
+            totalTasks: item.totalTasks,
+            completedTasks: item.completedTasks
+        }))
+    }, [monthlyChartData])
 
     // Utility functions
     const getActivityColor = useCallback((activity: RecentActivity) => {
@@ -221,11 +255,44 @@ function DashboardPage() {
                         />
                     </motion.div>
 
+                    {/* Charts Section */}
+                    {/* <motion.div
+                        className="grid grid-cols-1 xl:grid-cols-2 gap-6"
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5, delay: 0.3 }}
+                    > */}
+                        {/* Monthly Task Completion Chart */}
+                        {/* <TaskCompletionChart
+                            data={monthlyChartData}
+                            type="bar"
+                            title="Hoàn thành công việc theo tháng"
+                            height={300}
+                        /> */}
+
+                        {/* Incomplete Reasons Chart */}
+                        {/* <IncompleteReasonsChart
+                            data={weeklyIncompleteReasons}
+                            type="pie"
+                        />
+                    </motion.div> */}
+
+                    {/* Weekly Trends Chart */}
+                    {/* {weeklyTrendsData.length > 0 && (
+                        <motion.div
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ duration: 0.5, delay: 0.4 }}
+                        >
+                            <WeeklyTrendsChart data={weeklyTrendsData} />
+                        </motion.div>
+                    )} */}
+
                     {/* Recent Activity Section */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.3 }}
+                        transition={{ duration: 0.5, delay: 0.5 }}
                     >
                         <Card className="shadow-lg">
                             <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20">
@@ -301,12 +368,6 @@ function DashboardPage() {
                                         </div>
                                         <h3 className="text-lg font-medium text-muted-foreground mb-2">Chưa có hoạt động nào</h3>
                                         <p className="text-muted-foreground">Bắt đầu tạo báo cáo để theo dõi hoạt động của bạn</p>
-                                        {/* Debug info for activities */}
-                                        {process.env.NODE_ENV === 'development' && (
-                                            <pre className="text-xs mt-4 p-2 bg-gray-100 rounded">
-                                                Activities type: {typeof activities}, isArray: {Array.isArray(activities)}, length: {Array.isArray(activities) ? activities.length : 'N/A'}
-                                            </pre>
-                                        )}
                                     </div>
                                 )}
                             </CardContent>

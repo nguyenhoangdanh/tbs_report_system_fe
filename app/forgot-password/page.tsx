@@ -20,8 +20,8 @@ function ForgotPasswordContent() {
   const [step, setStep] = useState<'verify' | 'reset'>('verify');
   const [isLoading, setIsLoading] = useState(false);
   const [userInfo, setUserInfo] = useState<ForgotPasswordResponse['user'] | null>(null);
-  const [verifyData, setVerifyData] = useState<ForgotPasswordFormData>({ employeeCode: '', cardId: '' });
-  
+  const [verifyData, setVerifyData] = useState<ForgotPasswordFormData>({ employeeCode: '', phone: '' });
+
   const router = useRouter();
 
   const verifyForm = useForm<ForgotPasswordFormData>({
@@ -52,7 +52,7 @@ function ForgotPasswordContent() {
     try {
       await AuthService.resetPassword({
         employeeCode: verifyData.employeeCode,
-        cardId: verifyData.cardId,
+        phone: verifyData.phone,
         newPassword: data.newPassword,
       });
       
@@ -111,13 +111,13 @@ function ForgotPasswordContent() {
               transition={{ delay: 0.4 }}
             >
               <FormField
-                id="cardId"
-                label="Số căn cước công dân"
-                placeholder="012345678901"
-                maxLength={12}
+                id="phone"
+                label="Số điện thoại"
+                placeholder="0123456789"
+                maxLength={10}
                 required
-                {...verifyForm.register('cardId')}
-                error={verifyForm.formState.errors.cardId?.message}
+                {...verifyForm.register('phone')}
+                error={verifyForm.formState.errors.phone?.message}
               />
             </motion.div>
 
@@ -150,9 +150,9 @@ function ForgotPasswordContent() {
               <p className="text-sm text-muted-foreground">
                 <span className="font-medium">Mã NV:</span> {userInfo?.employeeCode}
               </p>
-              {userInfo?.email && (
+              {userInfo?.phone && (
                 <p className="text-sm text-muted-foreground">
-                  <span className="font-medium">Email:</span> {userInfo.email}
+                  <span className="font-medium">Số điện thoại:</span> {userInfo.phone}
                 </p>
               )}
             </motion.div>
@@ -233,11 +233,11 @@ function ForgotPasswordContent() {
 
 export default function ForgotPasswordPage() {
   return (
-    <AuthLayout
-      title="Quên mật khẩu"
-      description="Nhập email để khôi phục mật khẩu"
-      icon={<KeyRound className="w-8 h-8" />}
-    >
+    // <AuthLayout
+    //   title="Quên mật khẩu"
+    //   description="Nhập email để khôi phục mật khẩu"
+    //   icon={<KeyRound className="w-8 h-8" />}
+    // >
       <Suspense fallback={
         <div className="flex justify-center py-8">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
@@ -245,6 +245,6 @@ export default function ForgotPasswordPage() {
       }>
         <ForgotPasswordContent />
       </Suspense>
-    </AuthLayout>
+    // </AuthLayout>
   )
 }

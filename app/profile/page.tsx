@@ -30,7 +30,7 @@ function ProfileContent() {
     firstName: '',
     lastName: '',
     email: '',
-    cardId: '',
+    phone: '',
     jobPositionId: '',
     officeId: '',
     role: 'USER',
@@ -55,7 +55,7 @@ function ProfileContent() {
         firstName: user.firstName || '',
         lastName: user.lastName || '',
         email: user.email || '',
-        cardId: user.cardId || '',
+        phone: user.phone || '',
         jobPositionId: user.jobPositionId || '',
         officeId: user.officeId || '',
         role: user.role || 'USER',
@@ -100,8 +100,8 @@ function ProfileContent() {
       if (editData.email !== (user?.email || '')) {
         updateData.email = editData.email || undefined
       }
-      if (editData.cardId !== (user?.cardId || '')) {
-        updateData.cardId = editData.cardId || undefined
+      if (editData.phone !== (user?.phone || '')) {
+        updateData.phone = editData.phone || undefined
       }
       if (editData.jobPositionId !== user?.jobPositionId) {
         updateData.jobPositionId = editData.jobPositionId
@@ -197,8 +197,7 @@ function ProfileContent() {
                     user.role === 'ADMIN' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
                     'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                   }`}>
-                    {user.role === 'SUPERADMIN' ? 'Tổng giám đốc' : 
-                     user.role === 'ADMIN' ? 'Quản lý' : 'Nhân viên'}
+                    {user.jobPosition.position.description || 'Chưa phân công'}
                   </span>
                 </div>
 
@@ -295,16 +294,16 @@ function ProfileContent() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label htmlFor="cardId">
-                        Căn cước công dân 
+                      <Label htmlFor="phone">
+                        Số điện thoại
                         <span className="text-muted-foreground ml-1">(không bắt buộc)</span>
                       </Label>
                       <Input
-                        id="cardId"
-                        value={editData.cardId}
-                        onChange={(e) => setEditData({ ...editData, cardId: e.target.value })}
-                        placeholder="012345678901"
-                        maxLength={12}
+                        id="phone"
+                        value={editData.phone}
+                        onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
+                        placeholder="0123456789"
+                        maxLength={10}
                       />
                     </div>
 

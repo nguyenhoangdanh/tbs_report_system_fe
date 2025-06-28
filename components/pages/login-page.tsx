@@ -26,10 +26,8 @@ export function LoginPage() {
     console.log('[LoginPage] Form data:', data)
     try {
       await login(data.employeeCode, data.password)
-      // Redirect handled in useAuth hook
     } catch (error) {
       console.error('[LoginPage] Login error:', error)
-      // Error handled in useAuth hook
     }
   }
 

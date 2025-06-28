@@ -37,7 +37,7 @@ export function RegisterForm() {
       confirmPassword: 'Abcd@1234',
       firstName: '',
       lastName: '',
-      cardId: '',
+      phone: '',
       officeId: '',
       departmentId: '',
       jobPositionId: '',
@@ -122,7 +122,7 @@ export function RegisterForm() {
         password: data.password,
         firstName: data.firstName,
         lastName: data.lastName,
-        cardId: data.cardId || undefined,
+        phone: data.phone || undefined,
         jobPositionId: data.jobPositionId,
         officeId: data.officeId,
         role: data.role,
@@ -232,12 +232,12 @@ export function RegisterForm() {
           >
 
             <FormField
-              id="cardId"
-              label="Căn cước công dân"
-              placeholder="12345678900"
-              maxLength={12}
-              {...register('cardId')}
-              error={errors.cardId?.message}
+              id="phone"
+              label="Số điện thoại"
+              placeholder="0123456789"
+              maxLength={10}
+              {...register('phone')}
+              error={errors.phone?.message}
             />
           </motion.div>
           <motion.div
