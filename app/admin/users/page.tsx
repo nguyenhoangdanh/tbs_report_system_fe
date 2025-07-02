@@ -12,8 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'react-hot-toast';
-import type { User, Office, JobPosition } from '@/types';
-import { Role } from '@/types';
+import type { User, Office, JobPosition, UserRole } from '@/types';
 
 interface EditUser{
   employeeCode: string;
@@ -23,7 +22,7 @@ interface EditUser{
   phone: string;
   jobPositionId: string;
   officeId: string;
-  role: Role;
+  role: UserRole; // Use UserRole type for role
 }
 
 function AdminUsersContent() {
@@ -44,7 +43,7 @@ function AdminUsersContent() {
     phone: '',
     jobPositionId: '',
     officeId: '',
-    role: Role.USER, 
+    role: 'USER' as UserRole // Default to 'USER'
   });
 
   useEffect(() => {
@@ -79,7 +78,7 @@ function AdminUsersContent() {
       phone: user.phone || '',
       jobPositionId: user.jobPositionId,
       officeId: user.officeId,
-      role: user.role,
+      role: user.role as UserRole
     });
     setIsEditModalOpen(true);
   };
@@ -333,7 +332,7 @@ function AdminUsersContent() {
                 <Label>Vai trò</Label>
                 <Select
                   value={editData.role}
-                  onValueChange={(value) => setEditData({ ...editData, role: value as Role })}
+                  onValueChange={(value) => setEditData({ ...editData, role: value as UserRole })}
                 >
                   <SelectTrigger>
                     <SelectValue />
