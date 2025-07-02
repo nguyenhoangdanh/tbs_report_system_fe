@@ -35,7 +35,9 @@ export function useLogin() {
   return useMutation<AuthResponse, Error, LoginDto>({
     mutationFn: (data: LoginDto) => AuthService.login(data),
     onSuccess: (response) => {
-      window.location.replace('/dashboard')
+      // Let AuthGuard handle navigation based on user role
+      // This ensures consistent navigation logic
+      // window.location.replace('/dashboard') // Temporary redirect, AuthGuard will handle proper routing
     },
     onError: (error) => {
       console.error('Login error:', error)
@@ -225,18 +227,20 @@ export function useAuthPermissions() {
     }
   }
   
+  const userRole = user.role as string
+  
   return {
-    canViewAllReports: ['ADMIN', 'SUPERADMIN'].includes(user.role),
-    canManageUsers: ['ADMIN', 'SUPERADMIN'].includes(user.role),
-    canViewOfficeStats: ['ADMIN', 'SUPERADMIN', 'OFFICE_MANAGER'].includes(user.role),
-    canViewDepartmentStats: ['ADMIN', 'SUPERADMIN', 'OFFICE_MANAGER', 'OFFICE_ADMIN'].includes(user.role),
+    canViewAllReports: ['ADMIN', 'SUPERADMIN'].includes(userRole),
+    canManageUsers: ['ADMIN', 'SUPERADMIN'].includes(userRole),
+    canViewOfficeStats: ['ADMIN', 'SUPERADMIN', 'OFFICE_MANAGER'].includes(userRole),
+    canViewDepartmentStats: ['ADMIN', 'SUPERADMIN', 'OFFICE_MANAGER', 'OFFICE_ADMIN'].includes(userRole),
     canEditOwnProfile: true,
-    canEditOtherUsers: ['ADMIN', 'SUPERADMIN'].includes(user.role),
-    isSuperAdmin: user.role === 'SUPERADMIN',
-    isAdmin: ['ADMIN', 'SUPERADMIN'].includes(user.role),
-    isOfficeManager: user.role === 'OFFICE_MANAGER',
-    isOfficeAdmin: user.role === 'OFFICE_ADMIN',
-    isUser: user.role === 'USER',
+    canEditOtherUsers: ['ADMIN', 'SUPERADMIN'].includes(userRole),
+    isSuperAdmin: userRole === 'SUPERADMIN',
+    isAdmin: ['ADMIN', 'SUPERADMIN'].includes(userRole),
+    isOfficeManager: userRole === 'OFFICE_MANAGER',
+    isOfficeAdmin: userRole === 'OFFICE_ADMIN',
+    isUser: userRole === 'USER',
   }
 }
 

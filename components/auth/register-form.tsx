@@ -10,7 +10,7 @@ import { AnimatedButton } from '@/components/ui/animated-button'
 import { registerSchema, type RegisterFormData } from '@/lib/validations/auth'
 import { UserService } from '@/services/user.service'
 import { toast } from 'react-hot-toast'
-import { type Office, type JobPosition, type Department, Role } from '@/types'
+import { type Office, type JobPosition, type Department, type UserRole } from '@/types'
 import { PasswordField } from '../ui/password-field'
 import { useRegister } from '@/hooks/use-auth'
 
@@ -41,7 +41,7 @@ export function RegisterForm() {
       officeId: '',
       departmentId: '',
       jobPositionId: '',
-      role: Role.USER, // Default role
+      role: 'USER' as UserRole, // Changed to string literal
     }
   })
 
@@ -125,7 +125,7 @@ export function RegisterForm() {
         phone: data.phone || undefined,
         jobPositionId: data.jobPositionId,
         officeId: data.officeId,
-        role: data.role,
+        role: data.role as UserRole, // Explicit cast to UserRole
       })
       // Redirect được handle trong useRegister hook
     } catch (error) {
@@ -214,7 +214,7 @@ export function RegisterForm() {
               required
               placeholder="Chọn vai trò"
               value={watch('role')}
-              onValueChange={(value) => setValue('role', value as RegisterFormData['role'])}
+              onValueChange={(value) => setValue('role', value as UserRole)}
               error={errors.role?.message}
             >
               {roleOptions.map((role) => (

@@ -11,7 +11,7 @@ export enum OfficeType {
   FACTORY_OFFICE = 'FACTORY_OFFICE',
 }
 
-export type UserRole = 'SUPERADMIN' | 'ADMIN' | 'USER' | 'OFFICE_MANAGER' | 'OFFICE_ADMIN'
+export type UserRole = keyof typeof Role
 
 export interface User {
   id: string
@@ -20,7 +20,7 @@ export interface User {
   firstName: string
   lastName: string
   phone?: string
-  role: Role
+  role: UserRole // Changed to use UserRole type
   jobPositionId: string
   isActive: boolean
   officeId: string
@@ -116,7 +116,7 @@ export interface RegisterDto {
   phone?: string
   jobPositionId: string
   officeId: string
-  role: Role
+  role: UserRole // Changed to use UserRole type
 }
 
 export interface ChangePasswordDto {
@@ -245,7 +245,7 @@ export interface CreateUserDto {
   firstName: string
   lastName: string
   phone?: string
-  role: Role
+  role: UserRole // Changed to use UserRole type
   jobPositionId: string
   officeId: string
 }

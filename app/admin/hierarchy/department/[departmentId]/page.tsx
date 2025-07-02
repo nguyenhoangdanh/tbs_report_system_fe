@@ -158,7 +158,7 @@ function DepartmentDetailsContent() {
 
   // Check permissions
   const allowedRoles = ['SUPERADMIN', 'ADMIN', 'OFFICE_MANAGER', 'OFFICE_ADMIN']
-  if (!allowedRoles.includes(user.role)) {
+  if (!user?.role || !allowedRoles.includes(user.role)) {
     return (
       <MainLayout
         title="Không có quyền truy cập"
@@ -167,7 +167,7 @@ function DepartmentDetailsContent() {
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
           { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
-          { label: 'Chi tiết phòng ban' }
+          { label: 'Chi tiết phòng ban', href: '#' }
         ]}
       >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -193,6 +193,7 @@ function DepartmentDetailsContent() {
     )
   }
 
+  // Also fix error state breadcrumb
   if (error || !departmentData) {
     return (
       <MainLayout
@@ -201,8 +202,8 @@ function DepartmentDetailsContent() {
         breadcrumbItems={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
-          { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
-          { label: 'Chi tiết phòng ban' }
+          { label: 'Báo cáo phân cấp', href: `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}` },
+          { label: 'Chi tiết phòng ban', href: '#' }
         ]}
       >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -248,12 +249,81 @@ function DepartmentDetailsContent() {
     noReport: departmentData?.users?.filter(u => !u.reportStatus?.hasReport).length || 0,
   }
 
-  // Generate back URL with filter
-  const getBackUrl = () => {
-    if (departmentData?.department?.office) {
-      return `/admin/hierarchy/office/${departmentData.department.office.id}?weekNumber=${selectedWeek}&year=${selectedYear}`
+  // Generate role-appropriate breadcrumb
+  const getBreadcrumbItems = () => {
+    const items = [{ label: 'Dashboard', href: '/dashboard' }]
+    
+    // Only show Admin breadcrumb for roles that can access admin area
+    if (user?.role && ['SUPERADMIN', 'ADMIN'].includes(user.role)) {
+      items.push({ label: 'Admin', href: '/admin' })
     }
-    return `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}`
+    
+    items.push({ 
+      label: 'Báo cáo phân cấp', 
+      href: `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}` 
+    })
+    items.push({ 
+      label: departmentData?.department?.name || 'Chi tiết phòng ban',
+      href: `/admin/hierarchy/department/${departmentId}?weekNumber=${selectedWeek}&year=${selectedYear}`
+    })
+    
+    return items
+  }
+
+  // Generate back URL based on user role and permissions
+  const getBackUrl = () => {
+    const userRole = user?.role
+    
+    // OFFICE_ADMIN should go back to their office page if they have access
+    if (userRole === 'OFFICE_ADMIN' && departmentData?.department?.office) {
+      // Check if this is their department
+      const userDepartmentId = user.jobPosition?.department?.id || user.jobPosition?.departmentId
+      if (userDepartmentId === departmentId) {
+        // This is their own department, go back to dashboard
+        return '/dashboard'
+      }
+      // Otherwise, they shouldn't be here, but if they are, go to dashboard
+      return '/dashboard'
+    }
+    
+    // OFFICE_MANAGER can go back to their office page
+    if (userRole === 'OFFICE_MANAGER' && departmentData?.department?.office) {
+      const userOfficeId = user.office?.id || user.officeId
+      const departmentOfficeId = departmentData.department.office.id
+      
+      if (userOfficeId === departmentOfficeId) {
+        return `/admin/hierarchy/office/${departmentOfficeId}?weekNumber=${selectedWeek}&year=${selectedYear}`
+      }
+      // If different office, go to dashboard (shouldn't happen)
+      return '/dashboard'
+    }
+    
+    // ADMIN and SUPERADMIN can choose office page or hierarchy page
+    if (userRole && ['SUPERADMIN', 'ADMIN'].includes(userRole)) {
+      // Prefer going back to office page if office data is available
+      if (departmentData?.department?.office) {
+        return `/admin/hierarchy/office/${departmentData.department.office.id}?weekNumber=${selectedWeek}&year=${selectedYear}`
+      }
+      return `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}`
+    }
+    
+    // Default fallback
+    return '/dashboard'
+  }
+
+  const getBackButtonText = () => {
+    const userRole = user?.role
+    
+    if (userRole === 'OFFICE_ADMIN') {
+      return 'Về Dashboard'
+    }
+    if (userRole === 'OFFICE_MANAGER') {
+      return 'Về trang văn phòng'
+    }
+    if (departmentData?.department?.office) {
+      return 'Quay lại văn phòng'
+    }
+    return 'Quay lại'
   }
 
   return (
@@ -261,12 +331,7 @@ function DepartmentDetailsContent() {
       title={departmentData?.department?.name || 'Chi tiết phòng ban'}
       subtitle={`${departmentData?.department?.office?.name || ''} - Tuần ${selectedWeek}/${selectedYear}`}
       showBreadcrumb
-      breadcrumbItems={[
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Admin', href: '/admin' },
-        { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
-        { label: departmentData?.department?.name || 'Chi tiết phòng ban' }
-      ]}
+      breadcrumbItems={getBreadcrumbItems()}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Back Button */}
@@ -275,7 +340,7 @@ function DepartmentDetailsContent() {
             <Link href={getBackUrl()}>
               <Button variant="outline" size="sm" className="flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Quay lại</span>
+                <span className="hidden sm:inline">{getBackButtonText()}</span>
                 <span className="sm:hidden">Quay lại</span>
               </Button>
             </Link>

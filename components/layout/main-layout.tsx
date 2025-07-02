@@ -26,11 +26,11 @@ export function MainLayout({
         subtitle={subtitle}
       />
       {showBreadcrumb && breadcrumbItems.length > 0 && (
-        <div className="container mx-auto px-4 sm:px-6 lg:px-8">
+        <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-2">
           <Breadcrumbs items={breadcrumbItems} />
         </div>
       )}
-      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="flex-1 container mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {children}
       </main>
       <AppFooter />

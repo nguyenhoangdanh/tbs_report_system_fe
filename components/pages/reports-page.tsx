@@ -444,23 +444,23 @@ function ReportsPage() {
       showBreadcrumb
       breadcrumbItems={[
         { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Báo cáo của tôi' }
+        { label: 'Báo cáo của tôi', href: '/reports' }
       ]}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         {viewMode === 'list' ? (
-          <div className="space-y-6">
-            <div className="flex items-center justify-between">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
               <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100">
                   Báo cáo công việc
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1">
                   Quản lý và theo dõi báo cáo công việc hàng tuần
                 </p>
               </div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
                 {/* Create Previous Week Button */}
                 {weekAvailability.previous.shouldShow && (
                   <Button
@@ -470,10 +470,13 @@ function ReportsPage() {
                       'previous'
                     )}
                     variant="outline"
-                    className="flex items-center gap-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+                    size="sm"
+                    className="flex items-center gap-1 sm:gap-2 text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-950/20 text-xs sm:text-sm"
                   >
-                    <Plus className="w-4 h-4" />
-                    Tuần {weekAvailability.previous.weekNumber} (Trước)
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Tuần {weekAvailability.previous.weekNumber}</span>
+                    <span className="xs:hidden">T{weekAvailability.previous.weekNumber}</span>
+                    <span className="hidden sm:inline">(Trước)</span>
                   </Button>
                 )}
 
@@ -485,10 +488,13 @@ function ReportsPage() {
                       weekAvailability.current.year, 
                       'current'
                     )}
-                    className="flex items-center gap-2 bg-green-600 hover:bg-green-700"
+                    size="sm"
+                    className="flex items-center gap-1 sm:gap-2 bg-green-600 hover:bg-green-700 text-xs sm:text-sm"
                   >
-                    <Plus className="w-4 h-4" />
-                    Tuần {weekAvailability.current.weekNumber} (Hiện tại)
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Tuần {weekAvailability.current.weekNumber}</span>
+                    <span className="xs:hidden">T{weekAvailability.current.weekNumber}</span>
+                    <span className="hidden sm:inline">(Hiện tại)</span>
                   </Button>
                 )}
 
@@ -501,10 +507,13 @@ function ReportsPage() {
                       'next'
                     )}
                     variant="outline"
-                    className="flex items-center gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                    size="sm"
+                    className="flex items-center gap-1 sm:gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/20 text-xs sm:text-sm"
                   >
-                    <Plus className="w-4 h-4" />
-                    Tuần {weekAvailability.next.weekNumber} (Tiếp theo)
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden xs:inline">Tuần {weekAvailability.next.weekNumber}</span>
+                    <span className="xs:hidden">T{weekAvailability.next.weekNumber}</span>
+                    <span className="hidden sm:inline">(Tiếp theo)</span>
                   </Button>
                 )}
 
@@ -515,21 +524,24 @@ function ReportsPage() {
                   <Button
                     disabled
                     variant="outline"
-                    className="flex items-center gap-2 opacity-50"
+                    size="sm"
+                    className="flex items-center gap-1 sm:gap-2 opacity-50 text-xs sm:text-sm"
                   >
-                    <Plus className="w-4 h-4" />
-                    Không có tuần nào khả dụng
+                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="hidden sm:inline">Không có tuần nào khả dụng</span>
+                    <span className="sm:hidden">Không khả dụng</span>
                   </Button>
                 )}
               </div>
             </div>
 
             {/* Filter Controls */}
-            <div className="flex flex-wrap items-center gap-4">
-              <div className="flex items-center gap-2">
+            <div className="flex flex-col sm:flex-row flex-wrap items-start sm:items-center gap-3 sm:gap-4">
+              <div className="flex items-center gap-1 sm:gap-2 w-full sm:w-auto overflow-x-auto">
                 <Button
                   variant={filterTab === 'week' ? 'default' : 'outline'}
                   size="sm"
+                  className="text-xs sm:text-sm whitespace-nowrap"
                   onClick={() => handleFilterTabChange('week')}
                 >
                   Theo tuần
@@ -537,6 +549,7 @@ function ReportsPage() {
                 <Button
                   variant={filterTab === 'month' ? 'default' : 'outline'}
                   size="sm"
+                  className="text-xs sm:text-sm whitespace-nowrap"
                   onClick={() => handleFilterTabChange('month')}
                 >
                   Theo tháng
@@ -544,27 +557,42 @@ function ReportsPage() {
                 <Button
                   variant={filterTab === 'year' ? 'default' : 'outline'}
                   size="sm"
+                  className="text-xs sm:text-sm whitespace-nowrap"
                   onClick={() => handleFilterTabChange('year')}
                 >
                   Theo năm
                 </Button>
               </div>
 
-              {filterTab === 'month' && (
-                <>
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+                {filterTab === 'month' && (
+                  <>
+                    <select
+                      className="border rounded px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm bg-background min-w-0"
+                      value={selectedMonth}
+                      onChange={e => handleMonthChange(Number(e.target.value))}
+                    >
+                      {Array.from({ length: 12 }, (_, i) => (
+                        <option key={i + 1} value={i + 1}>
+                          Tháng {i + 1}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="border rounded px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm bg-background min-w-0"
+                      value={selectedYear}
+                      onChange={e => handleYearChange(Number(e.target.value))}
+                    >
+                      {availableYears.map(year => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </>
+                )}
+
+                {filterTab === 'year' && (
                   <select
-                    className="border rounded px-3 py-2 text-sm bg-background"
-                    value={selectedMonth}
-                    onChange={e => handleMonthChange(Number(e.target.value))}
-                  >
-                    {Array.from({ length: 12 }, (_, i) => (
-                      <option key={i + 1} value={i + 1}>
-                        Tháng {i + 1}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="border rounded px-3 py-2 text-sm bg-background"
+                    className="border rounded px-2 sm:px-3 py-1 sm:py-2 text-xs sm:text-sm bg-background min-w-0"
                     value={selectedYear}
                     onChange={e => handleYearChange(Number(e.target.value))}
                   >
@@ -572,20 +600,8 @@ function ReportsPage() {
                       <option key={year} value={year}>{year}</option>
                     ))}
                   </select>
-                </>
-              )}
-
-              {filterTab === 'year' && (
-                <select
-                  className="border rounded px-3 py-2 text-sm bg-background"
-                  value={selectedYear}
-                  onChange={e => handleYearChange(Number(e.target.value))}
-                >
-                  {availableYears.map(year => (
-                    <option key={year} value={year}>{year}</option>
-                  ))}
-                </select>
-              )}
+                )}
+              </div>
             </div>
 
             <ReportsList
@@ -596,21 +612,22 @@ function ReportsPage() {
             />
           </div>
         ) : (
-          <div className="space-y-6">
-            <div className="flex items-center gap-4">
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
               <Button
                 onClick={handleBackToList}
                 variant="outline"
-                className="flex items-center gap-2"
+                size="sm"
+                className="flex items-center gap-1 sm:gap-2 w-fit"
               >
-                <ArrowLeft className="w-4 h-4" />
-                Trở về danh sách
+                <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm">Trở về danh sách</span>
               </Button>
-              <div>
-                <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              <div className="min-w-0">
+                <h1 className="text-xl sm:text-2xl font-bold text-gray-900 dark:text-gray-100 truncate">
                   {selectedReport ? 'Chỉnh sửa báo cáo' : 'Tạo báo cáo mới'}
                 </h1>
-                <p className="text-gray-600 dark:text-gray-400 mt-1">
+                <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400 mt-1 truncate">
                   {selectedReport
                     ? `Chỉnh sửa báo cáo tuần ${selectedReport.weekNumber}/${selectedReport.year}`
                     : `Tạo báo cáo tuần ${currentWeekNumber}/${currentYear}`

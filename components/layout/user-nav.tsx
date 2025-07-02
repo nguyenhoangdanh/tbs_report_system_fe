@@ -17,10 +17,84 @@ export function UserNav() {
     }
   }
 
+  // Get role-specific admin links
+  const getAdminLinks = () => {
+    if (!user) return []
+
+    const links = []
+    const userRole = user.role
+
+    // Common admin access for management roles
+    if (['SUPERADMIN', 'ADMIN'].includes(userRole)) {
+      links.push({
+        href: '/admin/hierarchy',
+        icon: '📊',
+        label: 'Báo cáo phân cấp',
+        description: 'Xem báo cáo theo cấu trúc tổ chức'
+      })
+    }
+
+    // Role-specific links
+    switch (userRole) {
+      case 'SUPERADMIN':
+        links.push(
+          {
+            href: '/admin/users',
+            icon: '👥',
+            label: 'Quản lý Users',
+            description: 'Quản lý tất cả người dùng'
+          },
+          {
+            href: '/admin/hierarchy',
+            icon: '🏢',
+            label: 'Quản trị hệ thống',
+            description: 'Toàn quyền quản trị'
+          }
+        )
+        break
+
+      case 'ADMIN':
+        links.push({
+          href: '/admin/users',
+          icon: '👥',
+          label: 'Quản lý Users',
+          description: 'Quản lý người dùng'
+        })
+        break
+
+      case 'OFFICE_MANAGER':
+        const officeId = user.office?.id || user.officeId
+        if (officeId) {
+          links.push({
+            href: `/admin/hierarchy/office/${officeId}`,
+            icon: '🏢',
+            label: `Quản lý ${user.office?.name || 'Văn phòng'}`,
+            description: 'Quản lý văn phòng của bạn'
+          })
+        }
+        break
+
+      case 'OFFICE_ADMIN':
+        const departmentId = user.jobPosition?.department?.id || user.jobPosition?.departmentId
+        if (departmentId) {
+          links.push({
+            href: `/admin/hierarchy/department/${departmentId}`,
+            icon: '🏭',
+            label: `Quản lý ${user.jobPosition?.department?.name || 'Phòng ban'}`,
+            description: 'Quản lý phòng ban của bạn'
+          })
+        }
+        break
+    }
+
+    return links
+  }
+
   if (!user) return null
 
   const userInitials = `${user.firstName?.charAt(0) || ''}${user.lastName?.charAt(0) || ''}`
-  const userFullName = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+  const userFullName = `${user.firstName || ''} ${user.lastName || ''}`.trim()
+  const adminLinks = getAdminLinks()
 
   return (
     <div className="relative">
@@ -28,23 +102,23 @@ export function UserNav() {
         {/* User Menu Trigger */}
         <button
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
-          className="flex items-center space-x-3 p-2 rounded-lg hover:bg-accent transition-colors"
+          className="flex items-center space-x-2 sm:space-x-3 p-1 sm:p-2 rounded-lg hover:bg-accent transition-colors"
         >
-          <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-            <span className="text-white text-sm font-medium">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+            <span className="text-white text-xs sm:text-sm font-medium">
               {userInitials}
             </span>
           </div>
-          <div className="hidden md:block text-left">
+          <div className="hidden lg:block text-left">
             <p className="text-sm font-medium text-foreground">
               {userFullName || user.employeeCode}
             </p>
             <p className="text-xs text-muted-foreground">
-              {user.jobPosition.position.description || 'Chưa xác định'}
+              {user.jobPosition?.position?.description || user.role}
             </p>
           </div>
           <svg 
-            className={`w-4 h-4 text-muted-foreground transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
+            className={`w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
             fill="none" 
             stroke="currentColor" 
             viewBox="0 0 24 24"
@@ -70,83 +144,73 @@ export function UserNav() {
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: -10 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full mt-2 w-64 bg-card border border-border rounded-lg shadow-lg z-50"
+              className="absolute right-0 top-full mt-2 w-64 sm:w-72 bg-card border border-border rounded-lg shadow-lg z-50 max-h-[calc(100vh-120px)] overflow-y-auto"
             >
-              {/* User Info Header */}
-              <div className="p-4 border-b border-border">
-                <div className="flex items-center space-x-3">
-                  <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-medium">
-                      {userInitials}
-                    </span>
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="font-medium text-foreground truncate">
-                      {userFullName || 'Người dùng'}
-                    </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {user.employeeCode || user.phone}
-                    </p>
-                    <span className={`inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium ${
-                      user.role === 'SUPERADMIN' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
-                      user.role === 'ADMIN' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                    }`}>
-                      {user.jobPosition.position.description || 'Chưa xác định'}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
               {/* Menu Items */}
               <div className="p-2">
-                <Link
-                  href="/profile"
-                  className="flex items-center space-x-3 w-full p-2 text-left rounded-md hover:bg-accent transition-colors"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  <span className="text-lg">👤</span>
-                  <span className="text-sm font-medium">Thông tin cá nhân</span>
-                </Link>
-
-                <Link
-                  href="/dashboard"
-                  className="flex items-center space-x-3 w-full p-2 text-left rounded-md hover:bg-accent transition-colors"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  <span className="text-lg">📊</span>
-                  <span className="text-sm font-medium">Dashboard</span>
-                </Link>
-
-                <Link
-                  href="/reports"
-                  className="flex items-center space-x-3 w-full p-2 text-left rounded-md hover:bg-accent transition-colors"
-                  onClick={() => setIsDropdownOpen(false)}
-                >
-                  <span className="text-lg">📝</span>
-                  <span className="text-sm font-medium">Báo cáo của tôi</span>
-                </Link>
-
-                {(user.role === 'ADMIN' || user.role === 'SUPERADMIN') && (
+                {/* Personal Links */}
+                <div className="mb-2">
                   <Link
-                    href="/admin"
-                    className="flex items-center space-x-3 w-full p-2 text-left rounded-md hover:bg-accent transition-colors"
+                    href="/profile"
+                    className="flex items-center space-x-3 w-full p-2 sm:p-3 text-left rounded-md hover:bg-accent transition-colors"
                     onClick={() => setIsDropdownOpen(false)}
                   >
-                    <span className="text-lg">⚙️</span>
-                    <span className="text-sm font-medium">Quản trị</span>
+                    <span className="text-base sm:text-lg">👤</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">Thông tin cá nhân</div>
+                      <div className="text-xs text-muted-foreground truncate">Cập nhật hồ sơ</div>
+                    </div>
                   </Link>
-                )}
 
-                {user.role === 'SUPERADMIN' && (
                   <Link
-                    href="/admin/users"
-                    className="flex items-center space-x-3 w-full p-2 text-left rounded-md hover:bg-accent transition-colors"
+                    href="/dashboard"
+                    className="flex items-center space-x-3 w-full p-2 sm:p-3 text-left rounded-md hover:bg-accent transition-colors"
                     onClick={() => setIsDropdownOpen(false)}
                   >
-                    <span className="text-lg">👥</span>
-                    <span className="text-sm font-medium">Quản lý Users</span>
+                    <span className="text-base sm:text-lg">🏠</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">Dashboard</div>
+                      <div className="text-xs text-muted-foreground truncate">Trang chủ cá nhân</div>
+                    </div>
                   </Link>
+
+                  <Link
+                    href="/reports"
+                    className="flex items-center space-x-3 w-full p-2 sm:p-3 text-left rounded-md hover:bg-accent transition-colors"
+                    onClick={() => setIsDropdownOpen(false)}
+                  >
+                    <span className="text-base sm:text-lg">📝</span>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate">Báo cáo của tôi</div>
+                      <div className="text-xs text-muted-foreground truncate">Quản lý báo cáo cá nhân</div>
+                    </div>
+                  </Link>
+                </div>
+
+                {/* Admin Links */}
+                {adminLinks.length > 0 && (
+                  <>
+                    <div className="border-t border-border my-2" />
+                    <div className="px-2 py-1">
+                      <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                        Quản trị
+                      </div>
+                    </div>
+                    {adminLinks.map((link) => (
+                      <Link
+                        key={link.href}
+                        href={link.href}
+                        className="flex items-center space-x-3 w-full p-2 sm:p-3 text-left rounded-md hover:bg-accent transition-colors"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <span className="text-base sm:text-lg">{link.icon}</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium truncate">{link.label}</div>
+                          <div className="text-xs text-muted-foreground truncate">{link.description}</div>
+                        </div>
+                      </Link>
+                    ))}
+                  </>
                 )}
               </div>
 
@@ -157,10 +221,13 @@ export function UserNav() {
                     setIsDropdownOpen(false)
                     handleLogout()
                   }}
-                  className="flex items-center space-x-3 w-full p-2 text-left rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
+                  className="flex items-center space-x-3 w-full p-2 sm:p-3 text-left rounded-md text-red-600 hover:bg-red-50 dark:hover:bg-red-950/30 transition-colors"
                 >
-                  <span className="text-lg">🚪</span>
-                  <span className="text-sm font-medium">Đăng xuất</span>
+                  <span className="text-base sm:text-lg">🚪</span>
+                  <div className="min-w-0 flex-1">
+                    <div className="text-sm font-medium truncate">Đăng xuất</div>
+                    <div className="text-xs text-red-500 truncate">Thoát khỏi hệ thống</div>
+                  </div>
                 </button>
               </div>
             </motion.div>

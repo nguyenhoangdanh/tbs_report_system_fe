@@ -15,15 +15,14 @@ function HierarchyPageContent() {
 
   // Check permissions
   const allowedRoles = ['SUPERADMIN', 'ADMIN', 'OFFICE_MANAGER', 'OFFICE_ADMIN', 'USER']
-  if (!allowedRoles.includes(user.role)) {
+  if (!user.role || !allowedRoles.includes(user.role)) {
     return (
       <MainLayout
         title="Không có quyền truy cập"
         showBreadcrumb
         breadcrumbItems={[
           { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Admin', href: '/admin' },
-          { label: 'Báo cáo phân cấp' }
+          { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' }
         ]}
       >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -36,16 +35,25 @@ function HierarchyPageContent() {
     )
   }
 
+  // Generate role-appropriate breadcrumb
+  const getBreadcrumbItems = () => {
+    const items = [{ label: 'Dashboard', href: '/dashboard' }]
+    
+    // Only show Admin breadcrumb for roles that can access admin area
+    if (user.role && ['SUPERADMIN', 'ADMIN'].includes(user.role)) {
+      items.push({ label: 'Admin', href: '/admin' })
+    }
+    
+    items.push({ label: 'Báo cáo phân cấp', href: '/admin/hierarchy' })
+    return items
+  }
+
   return (
     <MainLayout
       title="Báo cáo phân cấp"
       subtitle="Xem và quản lý báo cáo theo cấu trúc tổ chức với xếp loại hiệu suất"
       showBreadcrumb
-      breadcrumbItems={[
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Admin', href: '/admin' },
-        { label: 'Báo cáo phân cấp' }
-      ]}
+      breadcrumbItems={getBreadcrumbItems()}
     >
       <HierarchyDashboard />
     </MainLayout>
