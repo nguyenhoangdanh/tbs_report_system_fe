@@ -32,15 +32,10 @@ export function useAuthProfile() {
  * Login mutation
  */
 export function useLogin() {
-  const queryClient = useQueryClient()
-  const router = useRouter()
-  
   return useMutation<AuthResponse, Error, LoginDto>({
     mutationFn: (data: LoginDto) => AuthService.login(data),
     onSuccess: (response) => {
-      console.log('Login successful:', response.user)
-      // Không cần lưu token vào localStorage
-      // Backend đã set HTTP-only cookie
+      window.location.replace('/dashboard')
     },
     onError: (error) => {
       console.error('Login error:', error)
@@ -60,12 +55,10 @@ export function useRegister() {
   return useMutation<AuthResponse, Error, RegisterDto>({
     mutationFn: (data: RegisterDto) => AuthService.register(data),
     onSuccess: (response) => {
-      // Store access token if provided
-      if (response.access_token && typeof window !== 'undefined') {
-        localStorage.setItem('access_token', response.access_token)
-      }
+      // Backend handles HTTP-only cookie authentication
+      // No need to handle access_token in frontend
       
-      // Update profile cache
+      // Update profile cache with user data
       queryClient.setQueryData(AUTH_QUERY_KEYS.profile, response.user)
       
       // Invalidate auth queries
@@ -194,11 +187,8 @@ export function useAuthCheck() {
     queryKey: AUTH_QUERY_KEYS.checkAuth,
     queryFn: async () => {
       try {
-        if (typeof window === 'undefined') return false
-        
-        const token = localStorage.getItem('access_token')
-        if (!token) return false
-        
+        // Check authentication via profile API call
+        // Backend will validate HTTP-only cookie
         await AuthService.getProfile()
         return true
       } catch (error) {

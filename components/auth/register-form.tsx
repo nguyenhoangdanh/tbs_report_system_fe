@@ -9,10 +9,10 @@ import { SelectItem } from '@/components/ui/select'
 import { AnimatedButton } from '@/components/ui/animated-button'
 import { registerSchema, type RegisterFormData } from '@/lib/validations/auth'
 import { UserService } from '@/services/user.service'
-import { useAuth } from '@/components/providers/auth-provider'
 import { toast } from 'react-hot-toast'
 import { type Office, type JobPosition, type Department, Role } from '@/types'
 import { PasswordField } from '../ui/password-field'
+import { useRegister } from '@/hooks/use-auth'
 
 export function RegisterForm() {
   const [offices, setOffices] = useState<Office[]>([])
@@ -20,7 +20,7 @@ export function RegisterForm() {
   const [jobPositions, setJobPositions] = useState<JobPosition[]>([])
   const [loading, setLoading] = useState(true)
 
-  const { register: registerUser, isRegisterLoading } = useAuth()
+  const registerMutation = useRegister()
 
   const {
     register,
@@ -116,7 +116,7 @@ export function RegisterForm() {
   const onSubmit = async (data: RegisterFormData) => {
     try {
       console.log('Submitting registration data:', data)
-      await registerUser({
+      await registerMutation.mutateAsync({
         employeeCode: data.employeeCode,
         email: data.email || undefined,
         password: data.password,
@@ -127,9 +127,10 @@ export function RegisterForm() {
         officeId: data.officeId,
         role: data.role,
       })
-      // Redirect được handle trong useAuth hook
+      // Redirect được handle trong useRegister hook
     } catch (error) {
-      // Error is handled by the auth provider
+      // Error is handled by the useRegister hook
+      console.error('Registration failed:', error)
     }
   }
 
@@ -333,9 +334,9 @@ export function RegisterForm() {
           type="submit"
           variant="gradient"
           className="w-full h-12 text-lg font-semibold"
-          loading={isRegisterLoading}
+          loading={registerMutation.isPending}
         >
-          {isRegisterLoading ? 'Đang đăng ký...' : 'Đăng ký tài khoản'}
+          {registerMutation.isPending ? 'Đang đăng ký...' : 'Đăng ký tài khoản'}
         </AnimatedButton>
         <div className="text-xs text-muted-foreground mt-2 text-center">
           Tài khoản mặc định: <span className="font-semibold">USER</span> / <span className="font-semibold">Abcd@1234</span>
