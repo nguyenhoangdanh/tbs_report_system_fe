@@ -1,20 +1,15 @@
-import { FlatCompat } from '@eslint/eslintrc';
-import js from '@eslint/js';
-import typescriptEslint from 'typescript-eslint';
-import reactPlugin from 'eslint-plugin-react';
-import globals from 'globals';
-import { dirname } from 'path';
-import { fileURLToPath } from 'url';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = dirname(__filename);
+const { FlatCompat } = require('@eslint/eslintrc');
+const js = require('@eslint/js');
+const typescriptEslint = require('typescript-eslint');
+const reactPlugin = require('eslint-plugin-react');
+const globals = require('globals');
 
 const compat = new FlatCompat({
   baseDirectory: __dirname,
   recommendedConfig: js.configs.recommended,
 });
 
-export default [
+module.exports = [
   {
     ignores: [
       '.next/**',
@@ -22,14 +17,11 @@ export default [
       'node_modules/**',
       '.git/**',
       'dist/**',
-      'build/**',
-      '*.config.js',
-      '*.config.mjs'
+      'build/**'
     ]
   },
   js.configs.recommended,
   ...typescriptEslint.configs.recommended,
-  ...compat.extends('next/core-web-vitals'),
   {
     files: ['**/*.{js,jsx,ts,tsx}'],
     plugins: {
@@ -63,7 +55,8 @@ export default [
       'no-var': 'error',
     },
     linterOptions: {
-      reportUnusedDisableDirectives: 'error',
+      reportUnusedDisableDirectives: true,
     },
   },
+  ...compat.extends('next/core-web-vitals'),
 ];

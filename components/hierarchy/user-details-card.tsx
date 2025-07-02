@@ -55,7 +55,7 @@ export const UserDetailsCard = memo(function UserDetailsCard({
     }), [data.reports]
   )
 
-  const getPerformanceColor = useMemo(() => (rate: number) => {
+  const getPerformanceTextColor = useMemo(() => (rate: number) => {
     const colors = getPerformanceColor(rate)
     return colors.text
   }, [])
@@ -135,7 +135,7 @@ export const UserDetailsCard = memo(function UserDetailsCard({
         </div>
         <div className="mt-4 sm:mt-0 sm:text-right">
           <div className="text-sm text-muted-foreground">Tỷ lệ hoàn thành CV</div>
-          <div className={`text-3xl font-bold ${getPerformanceColor(data.overallStats.taskCompletionRate)}`}>
+          <div className={`text-3xl font-bold ${getPerformanceTextColor(data.overallStats.taskCompletionRate)}`}>
             {data.overallStats.taskCompletionRate}%
           </div>
           <PerformanceBadge 
@@ -270,7 +270,7 @@ export const UserDetailsCard = memo(function UserDetailsCard({
                             <div className="text-xs text-muted-foreground">Chưa xong</div>
                           </div>
                           <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-                            <div className={`text-lg font-bold ${getPerformanceColor(report.stats.taskCompletionRate)}`}>
+                            <div className={`text-lg font-bold ${getPerformanceTextColor(report.stats.taskCompletionRate)}`}>
                               {report.stats.taskCompletionRate}%
                             </div>
                             <div className="text-xs text-muted-foreground">Tỷ lệ HT</div>

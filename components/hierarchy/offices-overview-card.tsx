@@ -197,6 +197,7 @@ export const OfficesOverviewCard = memo(function OfficesOverviewCard({
                   completed={office.stats.usersWithReports}
                   total={office.stats.totalUsers}
                   completionRate={office.stats.reportSubmissionRate}
+                  reportSubmissionRate={office.stats.reportSubmissionRate}
                   detailsUrl={`/admin/hierarchy/office/${office.id}`}
                 />
               </motion.div>

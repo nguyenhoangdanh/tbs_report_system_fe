@@ -95,10 +95,10 @@ export function HierarchyDashboard() {
   const { user } = useAuth()
   const currentWeekData = useCurrentWeekFilters()
   const currentWeekInfo = getCurrentWeek()
-  
+
   const defaultWeek = currentWeekData.weekNumber ?? currentWeekInfo.weekNumber
   const defaultYear = currentWeekData.year ?? currentWeekInfo.year
-  
+
   const [selectedWeek, setSelectedWeek] = useState<number>(defaultWeek)
   const [selectedYear, setSelectedYear] = useState<number>(defaultYear)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -238,12 +238,15 @@ export function HierarchyDashboard() {
           </Card>
         </div>
 
-        {/* Performance Distribution Summary using backend data */}
+        {/* Performance Distribution Summary - corrected to show office-level distribution */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-blue-600" />
               Phân bố xếp loại văn phòng
+              <Badge variant="outline" className="ml-2">
+                Dựa trên hiệu suất trung bình phòng ban của mỗi văn phòng
+              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -253,41 +256,53 @@ export function HierarchyDashboard() {
                   {offices.filter((o: any) => o.stats.taskCompletionRate === 100).length}
                 </div>
                 <div className="text-sm text-purple-600 font-medium">GIỎI (100%)</div>
-                <div className="text-xs text-muted-foreground mt-1">Hoàn thành xuất sắc</div>
+                <div className="text-xs text-muted-foreground mt-1">Văn phòng xuất sắc</div>
               </div>
               <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
                 <div className="text-2xl font-bold text-green-500">
-                  {offices.filter((o: any) => o.stats.taskCompletionRate >= 95 && o.stats.taskCompletionRate < 100).length}
+                  {offices.filter((o: any) => {
+                    const rate = o.stats.taskCompletionRate || 0;
+                    return rate >= 95 && rate < 100;
+                  }).length}
                 </div>
                 <div className="text-sm text-green-500 font-medium">KHÁ (95-99%)</div>
-                <div className="text-xs text-muted-foreground mt-1">Hoàn thành tốt</div>
+                <div className="text-xs text-muted-foreground mt-1">Văn phòng tốt</div>
               </div>
               <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                 <div className="text-2xl font-bold text-yellow-500">
-                  {offices.filter((o: any) => o.stats.taskCompletionRate >= 90 && o.stats.taskCompletionRate < 95).length}
+                  {offices.filter((o: any) => {
+                    const rate = o.stats.taskCompletionRate || 0;
+                    return rate >= 90 && rate < 95;
+                  }).length}
                 </div>
                 <div className="text-sm text-yellow-500 font-medium">TB (90-94%)</div>
-                <div className="text-xs text-muted-foreground mt-1">Hoàn thành trung bình</div>
+                <div className="text-xs text-muted-foreground mt-1">Văn phòng trung bình</div>
               </div>
               <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
                 <div className="text-2xl font-bold text-orange-500">
-                  {offices.filter((o: any) => o.stats.taskCompletionRate >= 85 && o.stats.taskCompletionRate < 90).length}
+                  {offices.filter((o: any) => {
+                    const rate = o.stats.taskCompletionRate || 0;
+                    return rate >= 85 && rate < 90;
+                  }).length}
                 </div>
                 <div className="text-sm text-orange-500 font-medium">YẾU (85-89%)</div>
-                <div className="text-xs text-muted-foreground mt-1">Cần cải thiện</div>
+                <div className="text-xs text-muted-foreground mt-1">Văn phòng cần cải thiện</div>
               </div>
               <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
                 <div className="text-2xl font-bold text-red-600">
-                  {offices.filter((o: any) => o.stats.taskCompletionRate < 85).length}
+                  {offices.filter((o: any) => (o.stats.taskCompletionRate || 0) < 85).length}
                 </div>
                 <div className="text-sm text-red-600 font-medium">KÉM (&lt;85%)</div>
-                <div className="text-xs text-muted-foreground mt-1">Yêu cầu cải thiện ngay</div>
+                <div className="text-xs text-muted-foreground mt-1">Văn phòng yêu cầu cải thiện ngay</div>
               </div>
+            </div>
+            <div className="mt-4 text-xs text-muted-foreground text-center">
+              * Xếp loại văn phòng dựa trên hiệu suất trung bình của tất cả phòng ban trong văn phòng đó
             </div>
           </CardContent>
         </Card>
 
-        {/* Offices List using backend data */}
+        {/* Enhanced Offices List with Rankings */}
         <Card>
           <CardHeader>
             <div className="flex items-center justify-between">
@@ -311,6 +326,9 @@ export function HierarchyDashboard() {
             </div>
           </CardHeader>
           <CardContent>
+            <div className="mb-4 text-sm text-muted-foreground">
+              Hiệu suất văn phòng = Trung bình hiệu suất của tất cả phòng ban trong văn phòng đó
+            </div>
             <div className="grid grid-cols-1 gap-4">
               {offices.map((office: any, index: number) => {
                 const performanceBadge = getPerformanceBadge(office.stats.taskCompletionRate)
@@ -335,24 +353,24 @@ export function HierarchyDashboard() {
                         }
                       ]}
                       stats={[
-                        { 
-                          label: 'Phòng ban', 
+                        {
+                          label: 'Phòng ban',
                           value: office.stats.totalDepartments,
                           color: 'text-blue-600'
                         },
-                        { 
-                          label: 'Nhân viên', 
-                          value: office.stats.totalUsers 
+                        {
+                          label: 'Nhân viên',
+                          value: office.stats.totalUsers
                         },
-                        { 
-                          label: 'Đã nộp BC', 
-                          value: office.stats.usersWithReports, 
-                          color: 'text-green-600' 
+                        {
+                          label: 'Đã nộp BC',
+                          value: office.stats.usersWithReports,
+                          color: 'text-green-600'
                         },
-                        { 
-                          label: 'BC hoàn thành', 
-                          value: office.stats.usersWithCompletedReports, 
-                          color: 'text-purple-600' 
+                        {
+                          label: 'BC hoàn thành',
+                          value: office.stats.usersWithCompletedReports,
+                          color: 'text-purple-600'
                         },
                         {
                           label: 'Tỷ lệ HT',
@@ -363,6 +381,7 @@ export function HierarchyDashboard() {
                       completed={office.stats.usersWithReports}
                       total={office.stats.totalUsers}
                       completionRate={office.stats.taskCompletionRate}
+                      reportSubmissionRate={office.stats.reportSubmissionRate}
                       detailsUrl={`/admin/hierarchy/office/${office.id}?weekNumber=${selectedWeek}&year=${selectedYear}`}
                     />
                   </motion.div>
@@ -383,7 +402,7 @@ export function HierarchyDashboard() {
     const { office, departments, summary } = data
     const performanceBadge = getPerformanceBadge(summary.averageCompletionRate)
     const performanceColor = getPerformanceColor(summary.averageCompletionRate)
-    
+
     return (
       <div className="space-y-6">
         {/* Office Overview using backend data */}
@@ -464,15 +483,16 @@ export function HierarchyDashboard() {
                         { label: 'Nhân viên', value: dept.stats.totalUsers },
                         { label: 'Đã nộp BC', value: dept.stats.usersWithReports, color: 'text-green-600' },
                         { label: 'BC hoàn thành', value: dept.stats.usersWithCompletedReports, color: 'text-blue-600' },
-                        { 
-                          label: 'Tỷ lệ HT', 
-                          value: `${dept.stats.taskCompletionRate}%`, 
+                        {
+                          label: 'Tỷ lệ HT',
+                          value: `${dept.stats.taskCompletionRate}%`,
                           color: deptPerformanceColor.text
                         }
                       ]}
                       completed={dept.stats.usersWithReports}
                       total={dept.stats.totalUsers}
                       completionRate={dept.stats.taskCompletionRate}
+                      reportSubmissionRate={dept.stats.reportSubmissionRate}
                       detailsUrl={`/admin/hierarchy/department/${dept.id}?weekNumber=${selectedWeek}&year=${selectedYear}`}
                     />
                   </motion.div>
@@ -493,7 +513,7 @@ export function HierarchyDashboard() {
     const { department, users, summary } = data
     const deptPerformanceBadge = getPerformanceBadge(summary.averageTaskCompletion)
     const deptPerformanceColor = getPerformanceColor(summary.averageTaskCompletion)
-    
+
     return (
       <div className="space-y-6">
         {/* Department Overview using backend data */}
@@ -552,7 +572,7 @@ export function HierarchyDashboard() {
                 const userCompletionRate = userData.reportStatus?.taskCompletionRate || 0
                 const userPerformanceBadge = getPerformanceBadge(userCompletionRate)
                 const userPerformanceColor = getPerformanceColor(userCompletionRate)
-                
+
                 return (
                   <div key={userData.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
                     <div className="flex items-center justify-between">
@@ -564,7 +584,7 @@ export function HierarchyDashboard() {
                           {userData.employeeCode} • {userData.jobPosition?.jobName}
                         </div>
                         <div className="text-xs text-muted-foreground">
-                          {userData.reportStatus?.hasReport ? 'Đã nộp' : 'Chưa nộp'} • 
+                          {userData.reportStatus?.hasReport ? 'Đã nộp' : 'Chưa nộp'} •
                           {userData.reportStatus?.isCompleted ? ' Hoàn thành' : ' Chưa hoàn thành'}
                         </div>
                       </div>
@@ -613,7 +633,7 @@ export function HierarchyDashboard() {
                   {data.user.employeeCode} • {data.user.jobPosition?.positionName}
                 </p>
               </div>
-              
+
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                 <div className="text-center">
                   <div className="text-2xl font-bold">{data.overallStats?.totalReports || 0}</div>
@@ -646,7 +666,7 @@ export function HierarchyDashboard() {
               <div className="space-y-3">
                 {data.reports.slice(0, 5).map((report: any) => {
                   const reportPerformanceColor = getPerformanceColor(report.stats.taskCompletionRate)
-                  
+
                   return (
                     <div key={report.id} className="p-3 border rounded-lg">
                       <div className="flex items-center justify-between">
@@ -700,28 +720,28 @@ export function HierarchyDashboard() {
           return renderOfficesOverview(hierarchyData)
         }
         return <div>Không có dữ liệu offices</div>
-      
+
       case 'OFFICE_MANAGER':
         // Check if we have office details from backend
         if ('office' in hierarchyData && 'departments' in hierarchyData) {
           return renderOfficeDetails(hierarchyData)
         }
         return <div>Không có dữ liệu office details</div>
-      
+
       case 'OFFICE_ADMIN':
         // Check if we have department details from backend
         if ('department' in hierarchyData && 'users' in hierarchyData) {
           return renderDepartmentDetails(hierarchyData)
         }
         return <div>Không có dữ liệu department details</div>
-      
+
       case 'USER':
         // Check if we have user details from backend
         if ('user' in hierarchyData) {
           return renderUserDetails(hierarchyData)
         }
         return <div>Không có dữ liệu user details</div>
-      
+
       default:
         return <div>Không có quyền truy cập</div>
     }
@@ -732,7 +752,7 @@ export function HierarchyDashboard() {
     const years = []
     const startYear = defaultYear - 2
     const endYear = defaultYear + 2
-    
+
     for (let year = startYear; year <= endYear; year++) {
       years.push(year)
     }
@@ -823,7 +843,7 @@ export function HierarchyDashboard() {
         </TabsContent>
 
         <TabsContent value="missing-reports">
-          <EmployeesWithoutReports 
+          <EmployeesWithoutReports
             weekNumber={selectedWeek}
             year={selectedYear}
           />

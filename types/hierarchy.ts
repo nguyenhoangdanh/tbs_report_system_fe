@@ -146,9 +146,9 @@ export interface UserInDepartment {
 
 export interface DepartmentDetailsResponse extends HierarchyView {
   department: {
-    id: string
-    name: string
-    description?: string
+    id: string;
+    name: string;
+    description?: string;
     office: {
       id: string
       name: string
@@ -174,91 +174,91 @@ export interface DepartmentDetailsResponse extends HierarchyView {
 
 export interface UserDetails {
   user: {
-    id: string
-    employeeCode: string
-    firstName: string
-    lastName: string
-    email?: string
-    role: string
-    isActive: boolean
+    id: string;
+    employeeCode: string;
+    firstName: string;
+    lastName: string;
+    email?: string;
+    role: string;
+    isActive: boolean;
     office: {
-      id: string
-      name: string
-      type: string
-    }
+      id: string;
+      name: string;
+      type: string;
+    };
     jobPosition: {
-      id: string
-      jobName: string
-      positionName: string
+      id: string;
+      jobName: string;
+      positionName: string;
       department: {
-        id: string
-        name: string
+        id: string;
+        name: string;
         office: {
-          id: string
-          name: string
-        }
-      }
-    }
-  }
+          id: string;
+          name: string;
+        };
+      };
+    };
+  };
   overallStats: {
-    totalReports: number
-    completedReports: number
-    reportCompletionRate: number
-    totalTasks: number
-    completedTasks: number
-    taskCompletionRate: number
-  }
+    totalReports: number;
+    completedReports: number;
+    reportCompletionRate: number;
+    totalTasks: number;
+    completedTasks: number;
+    taskCompletionRate: number;
+  };
   reports: Array<{
-    id: string
-    weekNumber: number
-    year: number
-    isCompleted: boolean
-    isLocked: boolean
-    createdAt: string
-    updatedAt: string
+    id: string;
+    weekNumber: number;
+    year: number;
+    isCompleted: boolean;
+    isLocked: boolean;
+    createdAt: string;
+    updatedAt: string;
     stats: {
-      totalTasks: number
-      completedTasks: number
-      incompleteTasks: number
-      taskCompletionRate: number
-      tasksByDay: Record<string, number>
+      totalTasks: number;
+      completedTasks: number;
+      incompleteTasks: number;
+      taskCompletionRate: number;
+      tasksByDay: Record<string, number>;
       incompleteReasons: Array<{
-        reason: string
-        count: number
-        tasks: string[]
-      }>
-    }
-    tasks: Array<any>
-  }>
+        reason: string;
+        count: number;
+        tasks: string[];
+      }>;
+    };
+    tasks: Array<any>;
+  }>;
 }
 
 // Task completion trends
 export interface TaskCompletionTrends {
   filters: {
-    officeId?: string
-    departmentId?: string
-    weeks: number
-  }
+    officeId?: string;
+    departmentId?: string;
+    weeks: number;
+  };
   trends: Array<{
-    weekNumber: number
-    year: number
-    totalReports: number
-    completedReports: number
-    totalTasks: number
-    completedTasks: number
-    taskCompletionRate: number
-    reportCompletionRate: number
-  }>
+    weekNumber: number;
+    year: number;
+    totalReports: number;
+    completedReports: number;
+    totalTasks: number;
+    completedTasks: number;
+    taskCompletionRate: number;
+    reportCompletionRate: number;
+  }>;
   summary: {
-    averageTaskCompletion: number
-    averageReportCompletion: number
-  }
+    averageTaskCompletion: number;
+    averageReportCompletion: number;
+  };
 }
 
 // Incomplete reasons analysis
 export interface IncompleteReasonsHierarchy {
-  weekNumber: number
-  year: number
+  weekNumber: number;
+  year: number;
   filters: {
     officeId?: string
     departmentId?: string
@@ -266,22 +266,22 @@ export interface IncompleteReasonsHierarchy {
   totalIncompleteTasks: number
   totalReports: number
   reasonsAnalysis: Array<{
-    reason: string
-    count: number
-    affectedUsers: number
-    percentage: number
+    reason: string;
+    count: number;
+    affectedUsers: number;
+    percentage: number;
     sampleTasks: Array<{
-      taskName: string
-      userName: string
-      department: string
-      office: string
-    }>
-  }>
+      taskName: string;
+      userName: string;
+      department: string;
+      office: string;
+    }>;
+  }>;
   summary: {
-    topReason: string
-    mostAffectedUsers: number
-    diversityIndex: number
-  }
+    topReason: string;
+    mostAffectedUsers: number;
+    diversityIndex: number;
+  };
 }
 
 export interface EmployeesWithoutReportsResponse {

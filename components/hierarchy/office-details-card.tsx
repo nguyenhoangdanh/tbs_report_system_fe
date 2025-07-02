@@ -151,6 +151,7 @@ export const OfficeDetailsCard = memo(function OfficeDetailsCard({
                     completed={department.stats?.usersWithReports ?? 0}
                     total={department.stats?.totalUsers ?? 0}
                     completionRate={department.stats?.reportSubmissionRate ?? 0}
+                    reportSubmissionRate={department.stats?.reportSubmissionRate ?? 0}
                     detailsUrl={`/admin/hierarchy/department/${department.id}`}
                   />
                 </motion.div>

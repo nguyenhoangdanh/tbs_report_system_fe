@@ -1,4 +1,4 @@
-'use client'
+"use client";
 
 import { AuthService } from '@/services/auth.service'
 import type { RegisterDto, ChangePasswordDto, User, AuthResponse, LoginDto, ForgotPasswordDto, ResetPasswordDto, ForgotPasswordResponse } from '@/types'

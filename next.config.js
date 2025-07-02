@@ -3,9 +3,8 @@ const nextConfig = {
   // Tối ưu cho production
   reactStrictMode: true,
   swcMinify: true,
-  experimental: {
-    appDir: true,
-  },
+  
+  // Remove experimental appDir as it's now stable
   
   // Tối ưu images - production ready
   images: {
@@ -15,6 +14,21 @@ const nextConfig = {
     minimumCacheTTL: 60,
   },
   
+  // ESLint configuration for v9 compatibility
+  eslint: {
+    dirs: ['pages', 'components', 'lib', 'src', 'app'],
+  },
+  
+  // Rewrites để proxy API calls đến backend trong quá trình phát triển
+  async rewrites() {
+    return [
+      {
+        source: '/api/:path*',
+        destination: `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'}/:path*`,
+      },
+    ]
+  },
+
   // Biến môi trường
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
@@ -45,19 +59,14 @@ const nextConfig = {
 
   // Redirects nếu cần
   async redirects() {
-    return []
+    return [
+      {
+        source: '/home',
+        destination: '/dashboard',
+        permanent: true,
+      },
+    ]
   },
-
-  // Rewrites để proxy API calls đến backend trong quá trình phát triển
-  async rewrites() {
-    return []
-  },
-
-  // Loại bỏ experimental features gây conflict
-  // experimental: {
-  //   optimizeCss: true,
-  //   optimizePackageImports: ['@tanstack/react-query', 'framer-motion'],
-  // },
 
   // Compiler options - đơn giản hóa
   compiler: {
