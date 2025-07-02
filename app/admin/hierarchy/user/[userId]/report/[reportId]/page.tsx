@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useReportDetailsForAdmin } from '@/hooks/use-hierarchy'
 import { MainLayout } from '@/components/layout/main-layout'
@@ -31,8 +31,14 @@ import { vi } from 'date-fns/locale'
 function ReportDetailsContent() {
   const { user: currentUser } = useAuth()
   const params = useParams()
+  const searchParams = useSearchParams()
   const userId = params?.userId as string
   const reportId = params?.reportId as string
+
+  // Extract filters from URL to preserve them
+  const weekNumberFromUrl = searchParams.get('weekNumber')
+  const yearFromUrl = searchParams.get('year')
+  const returnTo = searchParams.get('returnTo')
 
   const { 
     data: reportData, 
@@ -82,6 +88,14 @@ function ReportDetailsContent() {
   }
 
   if (error || !reportData) {
+    // Generate proper back URL with preserved filters
+    const getBackUrl = () => {
+      if (returnTo === 'user-details' && weekNumberFromUrl && yearFromUrl) {
+        return `/admin/hierarchy/user/${userId}?weekNumber=${weekNumberFromUrl}&year=${yearFromUrl}`
+      }
+      return `/admin/hierarchy/user/${userId}/reports`
+    }
+
     return (
       <MainLayout
         title="Lỗi tải dữ liệu"
@@ -101,7 +115,7 @@ function ReportDetailsContent() {
               <p className="text-red-600 mb-4">
                 {(error as any)?.message || 'Có lỗi xảy ra khi tải chi tiết báo cáo'}
               </p>
-              <Link href={`/admin/hierarchy/user/${userId}/reports`}>
+              <Link href={getBackUrl()}>
                 <Button variant="outline">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Quay lại
@@ -115,6 +129,16 @@ function ReportDetailsContent() {
   }
 
   const { report, user: userInfo, stats } = reportData
+
+  // Generate back URL with proper filter preservation
+  const getBackUrl = () => {
+    if (returnTo === 'user-details' && weekNumberFromUrl && yearFromUrl) {
+      // Quay lại user details với filters được preserve
+      return `/admin/hierarchy/user/${userId}?weekNumber=${weekNumberFromUrl}&year=${yearFromUrl}`
+    }
+    // Default: quay lại reports list
+    return `/admin/hierarchy/user/${userId}/reports${weekNumberFromUrl && yearFromUrl ? `?weekNumber=${weekNumberFromUrl}&year=${yearFromUrl}` : ''}`
+  }
 
   const getDayName = (day: string) => {
     const dayNames: Record<string, string> = {
@@ -144,18 +168,24 @@ function ReportDetailsContent() {
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Admin', href: '/admin' },
         { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
-        { label: `${userInfo.firstName} ${userInfo.lastName}`, href: `/admin/hierarchy/user/${userId}` },
-        { label: 'Báo cáo', href: `/admin/hierarchy/user/${userId}/reports` },
+        { 
+          label: `${userInfo.firstName} ${userInfo.lastName}`, 
+          href: weekNumberFromUrl && yearFromUrl 
+            ? `/admin/hierarchy/user/${userId}?weekNumber=${weekNumberFromUrl}&year=${yearFromUrl}`
+            : `/admin/hierarchy/user/${userId}`
+        },
         { label: `Tuần ${report.weekNumber}/${report.year}` }
       ]}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Back Button */}
+        {/* Back Button - Fixed navigation with proper filter preservation */}
         <div className="mb-4 sm:mb-6">
-          <Link href={`/admin/hierarchy/user/${userId}/reports`}>
+          <Link href={getBackUrl()}>
             <Button variant="outline" size="sm" className="flex items-center gap-2">
               <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Quay lại danh sách báo cáo</span>
+              <span className="hidden sm:inline">
+                {returnTo === 'user-details' ? 'Quay lại chi tiết nhân viên' : 'Quay lại danh sách báo cáo'}
+              </span>
               <span className="sm:hidden">Quay lại</span>
             </Button>
           </Link>

@@ -1,50 +1,82 @@
 "use client"
 
-import { Suspense, useState } from 'react'
-import { useParams } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
-import { useDepartmentDetails, useCurrentWeekFilter } from '@/hooks/use-hierarchy'
+import { useCurrentWeekFilters, useDepartmentDetails } from '@/hooks/use-hierarchy'
 import { MainLayout } from '@/components/layout/main-layout'
 import { AppLoading } from '@/components/ui/app-loading'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { SimplePieChart } from '@/components/charts/simple-pie-chart'
-import { ArrowLeft, Building2, Search, Filter, Users, FileText, CheckCircle2, RefreshCw } from 'lucide-react'
+import { ArrowLeft, Building2, Search, Filter, RefreshCw, Calendar, Eye, User, CheckCircle, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
+import { getCurrentWeek } from '@/utils/week-utils'
+import { RankingSummaryCard } from '@/components/hierarchy/ranking-summary-card'
+import { getPerformanceBadge, getPerformanceColor } from '@/utils/performance-classification'
+import { Progress } from '@/components/ui/progress'
+import { calculatePerformanceDistribution } from '@/utils/performance-classification'
 
 function DepartmentDetailsContent() {
   const { user } = useAuth()
   const params = useParams()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const departmentId = params?.departmentId as string
-  const { weekNumber: currentWeek, year: currentYear } = useCurrentWeekFilter()
   
+  // Get current week/year with guaranteed fallbacks
+  const currentWeekData = useCurrentWeekFilters()
+  const currentWeekInfo = getCurrentWeek()
+  const currentWeek = currentWeekInfo.weekNumber
+  const currentYear = currentWeekData.year ?? currentWeekInfo.year
+
+  // Parse URL parameters with simple fallbacks
+  const urlWeek = searchParams.get('weekNumber')
+  const urlYear = searchParams.get('year')
+  
+  const [selectedWeek, setSelectedWeek] = useState<number>(
+    urlWeek ? parseInt(urlWeek) || currentWeek : currentWeek
+  )
+  
+  const [selectedYear, setSelectedYear] = useState<number>(
+    urlYear ? parseInt(urlYear) || currentYear : currentYear
+  )
+
+  // Update URL when week/year changes
+  useEffect(() => {
+    const params = new URLSearchParams()
+    params.set('weekNumber', selectedWeek.toString())
+    params.set('year', selectedYear.toString())
+    router.replace(`/admin/hierarchy/department/${departmentId}?${params.toString()}`)
+  }, [selectedWeek, selectedYear, departmentId, router])
+
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending' | 'no-report'>('all')
   const [showFilters, setShowFilters] = useState(false)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const queryClient = useQueryClient()
 
+  // Ensure we pass valid numbers to the hook
   const { 
     data: departmentData, 
     isLoading, 
     error,
     refetch
   } = useDepartmentDetails(departmentId, {
-    weekNumber: currentWeek,
-    year: currentYear
+    weekNumber: selectedWeek,
+    year: selectedYear
   })
 
   const handleRefresh = async () => {
     setIsRefreshing(true)
     try {
-      await queryClient.invalidateQueries({ 
-        queryKey: ['hierarchy', 'department-details', departmentId] 
-      })
+      await queryClient.invalidateQueries({ queryKey: ['hierarchy', 'department', departmentId] })
       await refetch()
       toast.success('Dữ liệu đã được cập nhật')
     } catch (error) {
@@ -54,9 +86,75 @@ function DepartmentDetailsContent() {
     }
   }
 
-  if (!user) {
-    return <AppLoading text="Đang xác thực..." />
+  const handleWeekChange = (value: string) => {
+    const week = parseInt(value)
+    if (week >= 1 && week <= 53) {
+      setSelectedWeek(week)
+    }
   }
+
+  const handleYearChange = (value: string) => {
+    const year = parseInt(value)
+    if (year >= 2020 && year <= 2030) {
+      setSelectedYear(year)
+    }
+  }
+
+  // Generate dynamic year options
+  const generateYearOptions = () => {
+    const years = []
+    const startYear = currentYear - 2
+    const endYear = currentYear + 2
+    
+    for (let year = startYear; year <= endYear; year++) {
+      years.push(year)
+    }
+    return years
+  }
+
+  // Calculate ranking distribution for users based on their individual task completion rates
+  const getUserRankingData = () => {
+    if (!departmentData?.users) return null
+    
+    // Get individual user completion rates from backend
+    const userRates = departmentData.users
+      .filter(user => user.reportStatus?.hasReport) // Only count users who have reports
+      .map(user => user.reportStatus?.taskCompletionRate || 0)
+    
+    if (userRates.length === 0) return null
+    
+    const distribution = calculatePerformanceDistribution(userRates)
+    
+    // Use backend calculated average directly
+    const departmentAverage = departmentData.summary?.averageTaskCompletion || 0
+    
+    return {
+      totalEntities: userRates.length, // Only count users with reports
+      averageCompletionRate: departmentAverage, // Use backend calculated average
+      ranking: {
+        excellent: { count: distribution.excellent, percentage: distribution.excellentRate },
+        good: { count: distribution.good, percentage: distribution.goodRate },
+        average: { count: distribution.average, percentage: distribution.averageRate },
+        poor: { count: distribution.poor, percentage: distribution.poorRate },
+        fail: { count: distribution.fail, percentage: distribution.failRate }
+      }
+    }
+  }
+
+  const getStatusBadge = (user: any) => {
+    if (!user.reportStatus.hasReport) {
+      return { label: 'Chưa nộp', variant: 'secondary' as const, color: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300' }
+    }
+    if (user.reportStatus.isCompleted) {
+      return { label: 'Hoàn thành', variant: 'default' as const, color: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' }
+    }
+    if (user.reportStatus.taskCompletionRate >= 70) {
+      return { label: 'Đang làm', variant: 'outline' as const, color: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' }
+    }
+    return { label: 'Cần theo dõi', variant: 'destructive' as const, color: 'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300' }
+  }
+
+  if (!user) return <AppLoading text="Đang xác thực..." />
 
   // Check permissions
   const allowedRoles = ['SUPERADMIN', 'ADMIN', 'OFFICE_MANAGER', 'OFFICE_ADMIN']
@@ -73,11 +171,11 @@ function DepartmentDetailsContent() {
         ]}
       >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card className="border-red-200 bg-red-50">
+          <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
             <CardContent className="p-8 text-center">
               <Building2 className="w-16 h-16 text-red-600 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-red-800 mb-2">Không có quyền truy cập</h2>
-              <p className="text-red-600">Chỉ quản lý mới có thể xem chi tiết phòng ban.</p>
+              <h2 className="text-xl font-semibold text-red-800 dark:text-red-200 mb-2">Không có quyền truy cập</h2>
+              <p className="text-red-600 dark:text-red-400">Chỉ quản lý mới có thể xem chi tiết phòng ban.</p>
             </CardContent>
           </Card>
         </div>
@@ -108,14 +206,14 @@ function DepartmentDetailsContent() {
         ]}
       >
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <Card className="border-red-200 bg-red-50">
+          <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
             <CardContent className="p-8 text-center">
               <Building2 className="w-16 h-16 text-red-600 mx-auto mb-4" />
-              <h2 className="text-xl font-semibold text-red-800 mb-2">Không thể tải dữ liệu</h2>
-              <p className="text-red-600 mb-4">
+              <h2 className="text-xl font-semibold text-red-800 dark:text-red-200 mb-2">Không thể tải dữ liệu</h2>
+              <p className="text-red-600 dark:text-red-400 mb-4">
                 {(error as any)?.message || 'Có lỗi xảy ra khi tải chi tiết phòng ban'}
               </p>
-              <Link href="/admin/hierarchy">
+              <Link href={`/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}`}>
                 <Button variant="outline">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Quay lại
@@ -128,61 +226,56 @@ function DepartmentDetailsContent() {
     )
   }
 
-  // Filter users based on search and status
-  const filteredUsers = departmentData.users?.filter(user => {
+  // Filter users based on search and status with null safety
+  const filteredUsers = departmentData?.users?.filter(user => {
     const matchesSearch = searchTerm === '' || 
       `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+      (user.email && user.email.toLowerCase().includes(searchTerm.toLowerCase()))
 
     const matchesStatus = statusFilter === 'all' || 
-      (statusFilter === 'completed' && user.reportStatus.isCompleted) ||
-      (statusFilter === 'pending' && user.reportStatus.hasReport && !user.reportStatus.isCompleted) ||
-      (statusFilter === 'no-report' && !user.reportStatus.hasReport)
+      (statusFilter === 'completed' && user.reportStatus?.isCompleted) ||
+      (statusFilter === 'pending' && user.reportStatus?.hasReport && !user.reportStatus?.isCompleted) ||
+      (statusFilter === 'no-report' && !user.reportStatus?.hasReport)
 
     return matchesSearch && matchesStatus
   }) || []
 
   const statusCounts = {
-    all: departmentData.users?.length || 0,
-    completed: departmentData.users?.filter(u => u.reportStatus.isCompleted).length || 0,
-    pending: departmentData.users?.filter(u => u.reportStatus.hasReport && !u.reportStatus.isCompleted).length || 0,
-    noReport: departmentData.users?.filter(u => !u.reportStatus.hasReport).length || 0,
+    all: departmentData?.users?.length || 0,
+    completed: departmentData?.users?.filter(u => u.reportStatus?.isCompleted).length || 0,
+    pending: departmentData?.users?.filter(u => u.reportStatus?.hasReport && !u.reportStatus?.isCompleted).length || 0,
+    noReport: departmentData?.users?.filter(u => !u.reportStatus?.hasReport).length || 0,
   }
 
-  const getStatusBadge = (user: any) => {
-    if (!user.reportStatus.hasReport) {
-      return { label: 'Chưa nộp', variant: 'secondary' as const }
+  // Generate back URL with filter
+  const getBackUrl = () => {
+    if (departmentData?.department?.office) {
+      return `/admin/hierarchy/office/${departmentData.department.office.id}?weekNumber=${selectedWeek}&year=${selectedYear}`
     }
-    if (user.reportStatus.isCompleted) {
-      return { label: 'Hoàn thành', variant: 'default' as const }
-    }
-    if (user.reportStatus.taskCompletionRate >= 70) {
-      return { label: 'Đang làm', variant: 'outline' as const }
-    }
-    return { label: 'Cần theo dõi', variant: 'destructive' as const }
+    return `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}`
   }
 
   return (
     <MainLayout
-      title={departmentData.department.name}
-      subtitle={`${departmentData.department.office.name} - Tuần ${departmentData.weekNumber}/${departmentData.year}`}
+      title={departmentData?.department?.name || 'Chi tiết phòng ban'}
+      subtitle={`${departmentData?.department?.office?.name || ''} - Tuần ${selectedWeek}/${selectedYear}`}
       showBreadcrumb
       breadcrumbItems={[
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Admin', href: '/admin' },
         { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
-        { label: departmentData.department.name }
+        { label: departmentData?.department?.name || 'Chi tiết phòng ban' }
       ]}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Back Button */}
         <div className="mb-4 sm:mb-6">
           <div className="flex items-center justify-between">
-            <Link href="/admin/hierarchy">
+            <Link href={getBackUrl()}>
               <Button variant="outline" size="sm" className="flex items-center gap-2">
                 <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Quay lại báo cáo phân cấp</span>
+                <span className="hidden sm:inline">Quay lại</span>
                 <span className="sm:hidden">Quay lại</span>
               </Button>
             </Link>
@@ -200,100 +293,45 @@ function DepartmentDetailsContent() {
           </div>
         </div>
 
-        {/* Mobile Department Summary */}
-        <div className="block lg:hidden mb-6">
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-12 h-12 bg-purple-50 dark:bg-purple-950/20 rounded-lg flex items-center justify-center flex-shrink-0">
-                  <Building2 className="w-6 h-6 text-purple-600 dark:text-purple-400" />
+        {/* Week/Year Selector */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Chi tiết phòng ban - Tuần {selectedWeek}/{selectedYear}
+              </CardTitle>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium whitespace-nowrap">Tuần:</span>
+                  <Select value={selectedWeek.toString()} onValueChange={handleWeekChange}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 53 }, (_, i) => i + 1).map(week => (
+                        <SelectItem key={week} value={week.toString()}>{week}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-lg font-bold truncate">{departmentData.department.name}</h1>
-                  <p className="text-sm text-muted-foreground truncate">{departmentData.department.office.name}</p>
-                </div>
-                <div className="text-center">
-                  <SimplePieChart
-                    completed={departmentData.summary.usersWithReports}
-                    incomplete={departmentData.summary.totalUsers - departmentData.summary.usersWithReports}
-                    size={50}
-                    strokeWidth={6}
-                    showPercentage={true}
-                    showLabel={false}
-                  />
-                  <div className="text-xs text-muted-foreground mt-1">Nộp BC</div>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3 mb-4">
-                <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{departmentData.summary.totalUsers}</div>
-                  <div className="text-xs text-muted-foreground">Nhân viên</div>
-                </div>
-                <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                  <div className="text-lg font-bold text-green-600 dark:text-green-400">{departmentData.summary.usersWithReports}</div>
-                  <div className="text-xs text-muted-foreground">Đã nộp</div>
-                </div>
-                <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
-                  <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{departmentData.summary.completedReports}</div>
-                  <div className="text-xs text-muted-foreground">Hoàn thành</div>
-                </div>
-                <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                  <div className="text-lg font-bold text-orange-600 dark:text-orange-400">{departmentData.summary.averageTaskCompletion}%</div>
-                  <div className="text-xs text-muted-foreground">Tỷ lệ HT</div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium whitespace-nowrap">Năm:</span>
+                  <Select value={selectedYear.toString()} onValueChange={handleYearChange}>
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {generateYearOptions().map(year => (
+                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Desktop Department Summary - Hidden on mobile */}
-        <div className="hidden lg:block mb-6">
-          <Card>
-            <CardHeader>
-              <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
-                <div>
-                  <CardTitle className="text-2xl flex items-center gap-3">
-                    <Building2 className="w-7 h-7 text-purple-600" />
-                    {departmentData.department.name}
-                  </CardTitle>
-                  <div className="flex flex-wrap items-center gap-2 mt-2">
-                    <Badge variant="outline">{departmentData.department.office.name}</Badge>
-                    <Badge variant="secondary">
-                      Tuần {departmentData.weekNumber}/{departmentData.year}
-                    </Badge>
-                  </div>
-                </div>
-                
-                {/* Department Summary */}
-                <div className="flex items-center gap-4">
-                  <div className="text-center">
-                    <SimplePieChart
-                      completed={departmentData.summary.usersWithReports}
-                      incomplete={departmentData.summary.totalUsers - departmentData.summary.usersWithReports}
-                      size={100}
-                      strokeWidth={10}
-                      showLabel
-                    />
-                    <p className="text-xs text-muted-foreground mt-2">Tỷ lệ nộp BC</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground">Tỷ lệ hoàn thành TB</p>
-                    <p className="text-3xl font-bold text-purple-600">
-                      {departmentData.summary.averageTaskCompletion}%
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </CardHeader>
-            
-            {departmentData.department.description && (
-              <CardContent>
-                <p className="text-muted-foreground">{departmentData.department.description}</p>
-              </CardContent>
-            )}
-          </Card>
-        </div>
+            </div>
+          </CardHeader>
+        </Card>
 
         {/* Search & Filter - Mobile Optimized */}
         <Card className="mb-4">
@@ -361,192 +399,166 @@ function DepartmentDetailsContent() {
           </CardContent>
         </Card>
 
-        {/* Users List - Mobile Optimized */}
+        {/* Department Summary Cards - fixed display */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+          <Card className="text-center p-6">
+            <div className="text-2xl font-bold">{departmentData.summary?.totalUsers || 0}</div>
+            <div className="text-sm text-muted-foreground">Tổng nhân viên</div>
+          </Card>
+          <Card className="text-center p-6">
+            <div className="text-2xl font-bold text-green-600">{departmentData.summary?.usersWithReports || 0}</div>
+            <div className="text-sm text-muted-foreground">Đã nộp BC</div>
+          </Card>
+          <Card className="text-center p-6">
+            <div className="text-2xl font-bold text-blue-600">{departmentData.summary?.completedReports || 0}</div>
+            <div className="text-sm text-muted-foreground">BC hoàn thành</div>
+          </Card>
+          <Card className="text-center p-6">
+            <div className="text-2xl font-bold text-purple-600">
+              {(departmentData.summary?.averageTaskCompletion || 0).toFixed(2)}%
+            </div>
+            <div className="text-sm text-muted-foreground">Hiệu suất TB</div>
+          </Card>
+        </div>
+
+        {/* Employee Ranking Summary - use frontend calculated ranking if backend doesn't provide */}
+        {(() => {
+          // First try to use backend ranking data if available
+          const backendRanking = departmentData?.summary?.rankingDistribution
+          
+          // If backend provides ranking data, use it
+          if (backendRanking) {
+            const rankingData = {
+              totalEntities: departmentData.users?.filter(u => u.reportStatus?.hasReport).length || 0,
+              averageCompletionRate: departmentData.summary?.averageTaskCompletion || 0,
+              ranking: backendRanking
+            }
+            
+            return (
+              <div className="mb-6">
+                <RankingSummaryCard
+                  title="Xếp loại nhân viên phòng ban"
+                  data={rankingData}
+                  entityType="employees"
+                />
+              </div>
+            )
+          }
+          
+          // Otherwise fall back to frontend calculation
+          const frontendRanking = getUserRankingData()
+          return frontendRanking ? (
+            <div className="mb-6">
+              <RankingSummaryCard
+                title="Xếp loại nhân viên phòng ban"
+                data={frontendRanking}
+                entityType="employees"
+              />
+            </div>
+          ) : null
+        })()}
+
+        {/* Enhanced Users List - use backend calculated taskCompletionRate */}
         <Card>
-          <CardHeader className="pb-3">
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Danh sách nhân viên
-            </CardTitle>
+          <CardHeader>
+            <CardTitle>Chi tiết nhân viên với xếp loại cá nhân</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Hiệu suất cá nhân được tính từ backend dựa trên task completion rate
+            </p>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-3">
+          <CardContent>
+            <div className="grid grid-cols-1 gap-3">
               {filteredUsers.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Users className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>
-                    {departmentData.users?.length === 0 
-                      ? 'Phòng ban này chưa có nhân viên nào' 
-                      : 'Không tìm thấy nhân viên nào phù hợp'
-                    }
-                  </p>
+                <div className="text-center py-8">
+                  <User className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+                  <p className="text-muted-foreground">Không tìm thấy nhân viên nào</p>
                 </div>
               ) : (
-                filteredUsers.map((user, index) => {
-                  const statusBadge = getStatusBadge(user)
-                  
+                filteredUsers.map((userData: any, index: number) => {
+                  // Use backend calculated taskCompletionRate directly
+                  const userCompletionRate = userData.reportStatus?.taskCompletionRate || 0
+                  const performanceBadge = getPerformanceBadge(userCompletionRate)
+                  const performanceColor = getPerformanceColor(userCompletionRate)
+
                   return (
                     <motion.div
-                      key={user.id}
-                      initial={{ opacity: 0, y: 10 }}
+                      key={userData.id}
+                      initial={{ opacity: 0, y: 20 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
+                      className="p-4 border rounded-lg hover:bg-muted/30 transition-colors"
                     >
-                      <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          {/* Mobile Layout */}
-                          <div className="block lg:hidden">
-                            <div className="flex items-start gap-3 mb-3">
-                              <div className="w-12 h-12 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
-                                <span className="text-white font-medium text-sm">
-                                  {user.firstName.charAt(0)}{user.lastName.charAt(0)}
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <div className="font-medium">
+                              {userData.firstName} {userData.lastName}
+                            </div>
+                            <Badge className={performanceBadge.className}>
+                              {performanceBadge.label}
+                            </Badge>
+                          </div>
+                          <div className="text-sm text-muted-foreground mb-2">
+                            {userData.employeeCode} • {userData.jobPosition?.jobName || 'N/A'}
+                          </div>
+                          <div className="flex items-center gap-2 mb-2">
+                            <Badge 
+                              variant={userData.reportStatus?.hasReport ? 'default' : 'destructive'}
+                              className={userData.reportStatus?.hasReport ? 
+                                'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 
+                                'bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300'
+                              }
+                            >
+                              {userData.reportStatus?.hasReport ? 'Đã nộp' : 'Chưa nộp'}
+                            </Badge>
+                            {userData.reportStatus?.hasReport && (
+                              <Badge 
+                                variant={userData.reportStatus?.isCompleted ? 'default' : 'secondary'}
+                                className={userData.reportStatus?.isCompleted ? 
+                                  'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' : 
+                                  'bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300'
+                                }
+                              >
+                                {userData.reportStatus?.isCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}
+                              </Badge>
+                            )}
+                          </div>
+
+                          {/* Progress Bar - show completion rate with 2 decimal places */}
+                          {userData.reportStatus?.hasReport && (
+                            <div className="mt-2">
+                              <div className="flex justify-between text-xs mb-1">
+                                <span>Hiệu suất cá nhân</span>
+                                <span style={{ color: performanceColor.text }}>
+                                  {userCompletionRate.toFixed(2)}%
                                 </span>
                               </div>
-                              
-                              {user.reportStatus.hasReport && (
-                                <div className="flex-shrink-0">
-                                  <SimplePieChart
-                                    completed={user.reportStatus.completedTasks}
-                                    incomplete={user.reportStatus.totalTasks - user.reportStatus.completedTasks}
-                                    size={36}
-                                    strokeWidth={4}
-                                    showPercentage={true}
-                                    showLabel={false}
-                                  />
-                                </div>
-                              )}
-                              
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <h3 className="font-semibold truncate text-sm">{user.firstName} {user.lastName}</h3>
-                                  <Badge variant={statusBadge.variant} className="text-xs flex-shrink-0">
-                                    {statusBadge.label}
-                                  </Badge>
-                                </div>
-                                <div className="text-xs text-muted-foreground space-y-1">
-                                  <p>Mã: {user.employeeCode}</p>
-                                  <p className="truncate">{user.jobPosition.jobName}</p>
-                                </div>
-                              </div>
+                              <Progress value={userCompletionRate} className="h-2" />
                             </div>
-
-                            {user.reportStatus.hasReport && (
-                              <div className="grid grid-cols-3 gap-2 text-center text-xs mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                                <div>
-                                  <span className="text-muted-foreground">Tổng:</span>
-                                  <span className="font-medium ml-1">{user.reportStatus.totalTasks}</span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Xong:</span>
-                                  <span className="font-medium ml-1 text-green-600">{user.reportStatus.completedTasks}</span>
-                                </div>
-                                <div>
-                                  <span className="text-muted-foreground">Tỷ lệ:</span>
-                                  <span className="font-medium ml-1">{user.reportStatus.taskCompletionRate}%</span>
-                                </div>
-                              </div>
-                            )}
-
-                            {!user.reportStatus.hasReport && (
-                              <div className="text-center py-3 text-muted-foreground">
-                                <FileText className="w-6 h-6 mx-auto mb-1 opacity-50" />
-                                <p className="text-xs">Chưa nộp báo cáo</p>
-                              </div>
-                            )}
-
-                            <div className="flex gap-2">
-                              <Link href={`/admin/hierarchy/user/${user.id}`} className="flex-1">
-                                <Button variant="outline" size="sm" className="w-full text-xs">
-                                  Xem chi tiết
-                                </Button>
-                              </Link>
-                              {user.reportStatus.hasReport && user.reportStatus.reportId && (
-                                <Link href={`/admin/hierarchy/user/${user.id}/report/${user.reportStatus.reportId}`}>
-                                  <Button variant="ghost" size="sm" className="text-xs">
-                                    Báo cáo
-                                  </Button>
-                                </Link>
-                              )}
-                            </div>
+                          )}
+                        </div>
+                        <div className="text-right mr-4">
+                          <div className="font-semibold text-lg" style={{ color: performanceColor.text }}>
+                            {userCompletionRate.toFixed(2)}%
                           </div>
-
-                          {/* Desktop Layout - Hidden on mobile */}
-                          <div className="hidden lg:block">
-                            <div className="flex items-center gap-6">
-                              <div className="flex items-center gap-4 flex-1">
-                                <div className="w-16 h-16 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
-                                  <span className="text-white font-semibold text-lg">
-                                    {user.firstName.charAt(0)}{user.lastName.charAt(0)}
-                                  </span>
-                                </div>
-                                
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <h3 className="font-semibold text-lg">{user.firstName} {user.lastName}</h3>
-                                    <Badge variant={statusBadge.variant} className="text-xs">
-                                      {statusBadge.label}
-                                    </Badge>
-                                  </div>
-                                  <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                                    <div>
-                                      <p>Mã NV: {user.employeeCode}</p>
-                                      <p>Email: {user.email || 'Chưa có'}</p>
-                                    </div>
-                                    <div>
-                                      <p>Vị trí: {user.jobPosition.jobName}</p>
-                                      <p>Chức danh: {user.jobPosition.positionName}</p>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-
-                              {user.reportStatus.hasReport && (
-                                <div className="flex items-center gap-6">
-                                  <SimplePieChart
-                                    completed={user.reportStatus.completedTasks}
-                                    incomplete={user.reportStatus.totalTasks - user.reportStatus.completedTasks}
-                                    size={80}
-                                    strokeWidth={8}
-                                    showLabel
-                                  />
-                                  
-                                  <div className="grid grid-cols-2 gap-4 text-center">
-                                    <div>
-                                      <div className="text-2xl font-bold">{user.reportStatus.totalTasks}</div>
-                                      <div className="text-xs text-muted-foreground">Tổng CV</div>
-                                    </div>
-                                    <div>
-                                      <div className="text-2xl font-bold text-green-600">{user.reportStatus.completedTasks}</div>
-                                      <div className="text-xs text-muted-foreground">Hoàn thành</div>
-                                    </div>
-                                  </div>
-                                </div>
-                              )}
-
-                              <div className="text-right">
-                                {user.reportStatus.hasReport && (
-                                  <div className="mb-3">
-                                    <div className="text-sm text-muted-foreground">Tỷ lệ HT</div>
-                                    <div className={`text-2xl font-bold ${
-                                      user.reportStatus.taskCompletionRate >= 90 ? 'text-green-600' :
-                                      user.reportStatus.taskCompletionRate >= 70 ? 'text-yellow-600' :
-                                      'text-red-600'
-                                    }`}>
-                                      {user.reportStatus.taskCompletionRate}%
-                                    </div>
-                                  </div>
-                                )}
-                                
-                                <Link href={`/admin/hierarchy/user/${user.id}`}>
-                                  <Button variant="outline" size="sm">
-                                    Xem chi tiết
-                                  </Button>
-                                </Link>
-                              </div>
-                            </div>
+                          <div className="text-sm text-muted-foreground">
+                            {userData.reportStatus?.completedTasks || 0}/{userData.reportStatus?.totalTasks || 0} công việc
                           </div>
-                        </CardContent>
-                      </Card>
+                          {(userData.reportStatus?.incompleteReasons?.length || 0) > 0 && (
+                            <div className="text-xs text-red-600 dark:text-red-400 mt-1">
+                              {userData.reportStatus.incompleteReasons.length} lý do chưa HT
+                            </div>
+                          )}
+                        </div>
+                        <div>
+                          <Link href={`/admin/hierarchy/user/${userData.id}?weekNumber=${selectedWeek}&year=${selectedYear}`}>
+                            <Button variant="outline" size="sm" className="flex items-center gap-1">
+                              <Eye className="w-3 h-3" />
+                              <span className="hidden sm:inline">Chi tiết</span>
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
                     </motion.div>
                   )
                 })

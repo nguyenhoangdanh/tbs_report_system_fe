@@ -1,7 +1,7 @@
 'use client'
 
 import { useAuth } from '@/components/providers/auth-provider'
-import { useMemo, useCallback, useEffect } from 'react'
+import { useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,18 +9,15 @@ import { Badge } from '@/components/ui/badge'
 import { useDashboardData } from '@/hooks/use-statistics'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import { CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, Hourglass, FileText, Info, Activity, Zap } from 'lucide-react'
+import { CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, Hourglass, FileText, Info, Zap } from 'lucide-react'
 import { AppLoading } from '@/components/ui/app-loading'
 import { StatsCard } from '@/components/dashboard/stats-card'
-import { TaskCompletionChart } from '@/components/charts/task-completion-chart'
-import { WeeklyTrendsChart } from '@/components/charts/weekly-trends-chart'
-import { IncompleteReasonsChart } from '@/components/charts/incomplete-reasons-chart'
 import { RecentActivity } from '@/services/statistics.service'
 
 // --- Main DashboardPage ---
 function DashboardPage() {
     const { user } = useAuth()
-    const { data: dashboardData, isLoading: isDashboardLoading, error, refetch } = useDashboardData()
+    const { data: dashboardData, isLoading: isDashboardLoading, error } = useDashboardData()
 
     // Always call useMemo hooks at the top level
     const now = useMemo(() => new Date(), [])
@@ -36,29 +33,27 @@ function DashboardPage() {
         yearlyTaskStats 
     } = dashboardData || {}
 
-    // Enhanced month and year stats with better error handling
+    // Enhanced week stats with proper interface
+    const weeklyIncompleteReasons = useMemo(() => {
+        return weeklyTaskStats?.incompleteReasonsAnalysis || []
+    }, [weeklyTaskStats])
+
+    // Enhanced month and year stats with proper error handling
     const monthStat = useMemo(() => {
-        // Handle both array and object with stats property
-        const stats = Array.isArray(monthlyTaskStats) ? monthlyTaskStats : monthlyTaskStats?.stats
-        
-        if (!stats || !Array.isArray(stats)) {
-            console.warn('[DASHBOARD] monthlyTaskStats.stats is not an array:', monthlyTaskStats)
+        if (!monthlyTaskStats?.monthlyStats || !Array.isArray(monthlyTaskStats.monthlyStats)) {
             return { month: currentMonth, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
         }
         
-        const stat = stats.find((item: any) => item.month === currentMonth)
+        const stat = monthlyTaskStats.monthlyStats.find((item: any) => item.month === currentMonth)
         return stat || { month: currentMonth, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
     }, [monthlyTaskStats, currentMonth])
     
     const yearStat = useMemo(() => {
-        // Handle both array and object with stats property
-        const stats = Array.isArray(yearlyTaskStats) ? yearlyTaskStats : yearlyTaskStats?.stats
-        
-        if (!stats || !Array.isArray(stats)) {
+        if (!yearlyTaskStats?.yearlyStats || !Array.isArray(yearlyTaskStats.yearlyStats)) {
             return { year: currentYear, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
         }
         
-        const stat = stats.find((item: any) => item.year === currentYear)
+        const stat = yearlyTaskStats.yearlyStats.find((item: any) => item.year === currentYear)
         return stat || { year: currentYear, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
     }, [yearlyTaskStats, currentYear])
 
@@ -70,7 +65,6 @@ function DashboardPage() {
             completionRate: dashboardStats?.totals?.completionRate || 0,
         }
         
-        
         return {
             ...stats,
             isExcellent: stats.completionRate >= 90,
@@ -78,58 +72,35 @@ function DashboardPage() {
         }
     }, [dashboardStats])
 
-    // Prepare chart data
-    const monthlyChartData = useMemo(() => {
-        const stats = Array.isArray(monthlyTaskStats) ? monthlyTaskStats : monthlyTaskStats?.stats
-        if (!stats || !Array.isArray(stats)) return []
-        
-        return stats.map((item: any) => ({
-            name: `Tháng ${item.month}`,
-            completed: item.completed,
-            uncompleted: item.uncompleted,
-            completionRate: item.total > 0 ? Math.round((item.completed / item.total) * 100) : 0,
-            totalTasks: item.total,
-            completedTasks: item.completed
-        }))
-    }, [monthlyTaskStats])
-
-    const weeklyIncompleteReasons = useMemo(() => {
-        return weeklyTaskStats?.incompleteReasonsAnalysis || []
-    }, [weeklyTaskStats])
-
-    const weeklyTrendsData = useMemo(() => {
-        if (!monthlyChartData || monthlyChartData.length === 0) return []
-        
-        // Create trend data for last 8 weeks (simulated from monthly data)
-        return monthlyChartData.slice(-8).map((item, index) => ({
-            week: `T${index + 1}`,
-            completionRate: item.completionRate,
-            totalTasks: item.totalTasks,
-            completedTasks: item.completedTasks
-        }))
-    }, [monthlyChartData])
-
     // Utility functions
     const getActivityColor = useCallback((activity: RecentActivity) => {
-        switch (activity.status) {
-            case 'completed':
-                return 'bg-green-500'
-            case 'pending':
-                return 'bg-orange-500'
-            default:
-                return 'bg-blue-500'
-        }
+        if (activity.isCompleted) return 'bg-green-500'
+        if (activity.stats.incompleteTasks > 0) return 'bg-orange-500'
+        return 'bg-blue-500'
     }, [])
 
     const getActivityIcon = useCallback((activity: RecentActivity) => {
-        switch (activity.status) {
-            case 'completed':
-                return <CheckCircle2 className="text-green-500 w-5 h-5" />
-            case 'pending':
-                return <Hourglass className="text-orange-500 w-5 h-5" />
-            default:
-                return <FileText className="text-blue-500 w-5 h-5" />
+        if (activity.isCompleted) return <CheckCircle2 className="text-green-500 w-5 h-5" />
+        if (activity.stats.incompleteTasks > 0) return <Hourglass className="text-orange-500 w-5 h-5" />
+        return <FileText className="text-blue-500 w-5 h-5" />
+    }, [])
+
+    const getActivityTitle = useCallback((activity: RecentActivity) => {
+        return `Báo cáo tuần ${activity.weekNumber}/${activity.year}`
+    }, [])
+
+    const getActivityDescription = useCallback((activity: RecentActivity) => {
+        const { totalTasks, completedTasks, incompleteTasks } = activity.stats
+        if (activity.isCompleted) {
+            return `Hoàn thành ${totalTasks} công việc`
         }
+        return `${completedTasks}/${totalTasks} công việc hoàn thành • ${incompleteTasks} chưa xong`
+    }, [])
+
+    const getActivityStatus = useCallback((activity: RecentActivity) => {
+        if (activity.isCompleted) return 'completed'
+        if (activity.stats.incompleteTasks > 0) return 'pending'
+        return 'draft'
     }, [])
 
     // Handle loading and error states
@@ -142,18 +113,55 @@ function DashboardPage() {
             <MainLayout>
                 <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
                     <div className="px-4 sm:px-6 py-6">
-                        <AppLoading text="Đang tải dữ liệu dashboard..." minimal={false} />
+                        <AppLoading text="Đang tải dữ liệu dashboard..." />
                     </div>
                 </div>
             </MainLayout>
         )
     }
 
+    if (error) {
+        return (
+            <MainLayout>
+                <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                    <div className="px-4 sm:px-6 py-6">
+                        <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
+                            <CardContent className="p-6">
+                                <div className="text-center">
+                                    <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+                                        Không thể tải dữ liệu dashboard
+                                    </h3>
+                                    <p className="text-red-600 dark:text-red-400">
+                                        Vui lòng thử lại sau hoặc liên hệ quản trị viên
+                                    </p>
+                                </div>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+            </MainLayout>
+        )
+    }
+    console.log('🔧 Dashboard data loaded:', dashboardStats)
+
     return (
         <MainLayout>
             <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
                 <div className="px-4 sm:px-6 py-6 space-y-8">
-
+                    {/* Header */}
+                    <motion.div
+                        initial={{ opacity: 0, y: -20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.5 }}
+                        className="text-center space-y-2"
+                    >
+                        <h1 className="text-3xl font-bold text-foreground">
+                            Chào mừng, {user?.firstName} {user?.lastName}! 👋
+                        </h1>
+                        <p className="text-muted-foreground">
+                            Đây là tổng quan về hoạt động báo cáo của bạn
+                        </p>
+                    </motion.div>
 
                     {/* Current Week Alert */}
                     {dashboardStats?.currentWeek?.incompleteTasksAnalysis && 
@@ -161,7 +169,7 @@ function DashboardPage() {
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.5, delay: 0.1 }}
+                            transition={{ duration: 0.5, delay: 0.2 }}
                         >
                             <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
                                 <CardContent className="p-6">
@@ -180,7 +188,7 @@ function DashboardPage() {
                                             </div>
                                             <p className="text-amber-700 dark:text-amber-300 mb-3">
                                                 Bạn có <strong>{dashboardStats.currentWeek.incompleteTasksAnalysis.totalIncompleteTasks}</strong> công việc 
-                                                chưa hoàn thành trong tổng số <strong>{dashboardStats.currentWeek.incompleteTasksAnalysis.totalTasks}</strong> công việc tuần này.
+                                                chưa hoàn thành trong tổng số <strong>{weeklyTaskStats?.total || 'N/A'}</strong> công việc tuần này.
                                             </p>
                                             {dashboardStats.currentWeek.incompleteTasksAnalysis.reasons?.length > 0 && (
                                                 <div className="text-sm text-amber-600 dark:text-amber-400">
@@ -197,14 +205,14 @@ function DashboardPage() {
                         </motion.div>
                     )}
 
-                    {/* Stats Cards Grid */}
+                    {/* Stats Cards Grid - Enhanced with Rankings */}
                     <motion.div
                         className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.2 }}
+                        transition={{ duration: 0.5, delay: 0.3 }}
                     >
-                        {/* Weekly Stats */}
+                        {/* Weekly Stats with Performance Ranking */}
                         <StatsCard
                             title="Công việc tuần này"
                             total={Number(weeklyTaskStats?.total) || 0}
@@ -216,11 +224,11 @@ function DashboardPage() {
                             icon={<CalendarDays className="w-6 h-6 text-green-600 dark:text-green-400" />}
                             color="text-green-600"
                             bgColor="bg-green-50 dark:bg-green-950/20"
-                            incompleteReasons={weeklyTaskStats?.incompleteReasonsAnalysis || []}
+                            incompleteReasons={weeklyIncompleteReasons}
                             isLoading={!weeklyTaskStats}
                         />
 
-                        {/* Monthly Stats */}
+                        {/* Monthly Stats with Performance Ranking */}
                         <StatsCard
                             title="Công việc tháng này"
                             subtitle={`Tháng ${currentMonth}/${currentYear}`}
@@ -237,7 +245,7 @@ function DashboardPage() {
                             isLoading={!monthlyTaskStats}
                         />
 
-                        {/* Yearly Stats */}
+                        {/* Yearly Stats with Performance Ranking */}
                         <StatsCard
                             title="Công việc năm nay"
                             subtitle={`Năm ${currentYear}`}
@@ -255,44 +263,11 @@ function DashboardPage() {
                         />
                     </motion.div>
 
-                    {/* Charts Section */}
-                    {/* <motion.div
-                        className="grid grid-cols-1 xl:grid-cols-2 gap-6"
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.3 }}
-                    > */}
-                        {/* Monthly Task Completion Chart */}
-                        {/* <TaskCompletionChart
-                            data={monthlyChartData}
-                            type="bar"
-                            title="Hoàn thành công việc theo tháng"
-                            height={300}
-                        /> */}
-
-                        {/* Incomplete Reasons Chart */}
-                        {/* <IncompleteReasonsChart
-                            data={weeklyIncompleteReasons}
-                            type="pie"
-                        />
-                    </motion.div> */}
-
-                    {/* Weekly Trends Chart */}
-                    {/* {weeklyTrendsData.length > 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ duration: 0.5, delay: 0.4 }}
-                        >
-                            <WeeklyTrendsChart data={weeklyTrendsData} />
-                        </motion.div>
-                    )} */}
-
                     {/* Recent Activity Section */}
                     <motion.div
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.5 }}
+                        transition={{ duration: 0.5, delay: 0.6 }}
                     >
                         <Card className="shadow-lg">
                             <CardHeader className="bg-gradient-to-r from-cyan-50 to-blue-50 dark:from-cyan-950/20 dark:to-blue-950/20">
@@ -311,55 +286,72 @@ function DashboardPage() {
                             <CardContent className="p-0">
                                 {Array.isArray(activities) && activities.length > 0 ? (
                                     <div className="divide-y divide-border">
-                                        {activities.map((activity: RecentActivity, index: number) => (
-                                            <motion.div
-                                                key={activity.id}
-                                                className="flex items-start space-x-4 p-6 hover:bg-muted/30 transition-colors"
-                                                initial={{ opacity: 0, x: -20 }}
-                                                animate={{ opacity: 1, x: 0 }}
-                                                transition={{ duration: 0.3, delay: index * 0.1 }}
-                                            >
-                                                <div className={`w-3 h-3 ${getActivityColor(activity)} rounded-full mt-2 flex-shrink-0`} />
-                                                <div className="flex-1 min-w-0">
-                                                    <p className="text-foreground font-medium">{activity.title}</p>
-                                                    <p className="text-muted-foreground text-sm">{activity.description}</p>
-                                                    
-                                                    {activity.incompleteTasksCount > 0 && activity.mostCommonIncompleteReason && (
-                                                        <div className="mt-2 p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-100 dark:border-orange-800">
-                                                            <div className="flex items-center gap-2 mb-2">
-                                                                <Zap className="w-4 h-4 text-orange-500" />
-                                                                <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
-                                                                    {activity.incompleteTasksCount} công việc chưa xong
-                                                                </span>
-                                                                <span className="text-orange-400">•</span>
-                                                                <span className="text-xs text-orange-600 dark:text-orange-400">
-                                                                    &quot;{activity.mostCommonIncompleteReason}&quot;
-                                                                </span>
-                                                            </div>
-                                                            {activity.incompleteTasksSample && activity.incompleteTasksSample.length > 0 && (
-                                                                <div className="text-xs text-orange-600 dark:text-orange-400">
-                                                                    <span className="font-medium">Ví dụ:</span>{' '}
-                                                                    {activity.incompleteTasksSample.map((task, idx) => (
-                                                                        <span key={idx}>
-                                                                            {task.taskName}
-                                                                            {idx < activity.incompleteTasksSample!.length - 1 ? ', ' : ''}
-                                                                        </span>
-                                                                    ))}
-                                                                </div>
-                                                            )}
+                                        {activities.map((activity: RecentActivity, index: number) => {
+                                            const activityTitle = getActivityTitle(activity)
+                                            const activityDescription = getActivityDescription(activity)
+                                            const activityStatus = getActivityStatus(activity)
+                                            const topReason = activity.stats.topIncompleteReasons?.[0]
+                                            
+                                            return (
+                                                <motion.div
+                                                    key={activity.reportId}
+                                                    className="flex items-start space-x-4 p-6 hover:bg-muted/30 transition-colors"
+                                                    initial={{ opacity: 0, x: -20 }}
+                                                    animate={{ opacity: 1, x: 0 }}
+                                                    transition={{ duration: 0.3, delay: index * 0.1 }}
+                                                >
+                                                    <div className={`w-3 h-3 ${getActivityColor(activity)} rounded-full mt-2 flex-shrink-0`} />
+                                                    <div className="flex-1 min-w-0">
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="text-foreground font-medium">{activityTitle}</p>
+                                                            <Badge 
+                                                                variant={activity.isCompleted ? "default" : "secondary"}
+                                                                className={`text-xs ${
+                                                                    activity.isCompleted 
+                                                                        ? "bg-green-100 text-green-700 border-green-200" 
+                                                                        : "bg-orange-100 text-orange-700 border-orange-200"
+                                                                }`}
+                                                            >
+                                                                {activity.isCompleted ? "Hoàn thành" : "Chưa xong"}
+                                                            </Badge>
                                                         </div>
-                                                    )}
-                                                    
-                                                    <p className="text-muted-foreground text-xs mt-2">
-                                                        {formatDistanceToNow(new Date(activity.updatedAt), {
-                                                            addSuffix: true,
-                                                            locale: vi
-                                                        })}
-                                                    </p>
-                                                </div>
-                                                <div className="text-lg flex-shrink-0">{getActivityIcon(activity)}</div>
-                                            </motion.div>
-                                        ))}
+                                                        <p className="text-muted-foreground text-sm">{activityDescription}</p>
+                                                        
+                                                        {activity.stats.incompleteTasks > 0 && topReason && (
+                                                            <div className="mt-2 p-3 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-100 dark:border-orange-800">
+                                                                <div className="flex items-center gap-2 mb-1">
+                                                                    <Zap className="w-4 h-4 text-orange-500" />
+                                                                    <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
+                                                                        {activity.stats.incompleteTasks} công việc chưa xong
+                                                                    </span>
+                                                                    {activity.stats.completionRate !== undefined && (
+                                                                        <>
+                                                                            <span className="text-orange-400">•</span>
+                                                                            <span className="text-xs text-orange-600 dark:text-orange-400">
+                                                                                {activity.stats.completionRate}% hoàn thành
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                                <div className="text-xs text-orange-600 dark:text-orange-400">
+                                                                    <span className="font-medium">Lý do chính:</span>{' '}
+                                                                    &quot;{topReason.reason}&quot;
+                                                                    {topReason.count > 1 && ` (${topReason.count} lần)`}
+                                                                </div>
+                                                            </div>
+                                                        )}
+                                                        
+                                                        <p className="text-muted-foreground text-xs mt-2">
+                                                            {formatDistanceToNow(new Date(activity.updatedAt), {
+                                                                addSuffix: true,
+                                                                locale: vi
+                                                            })}
+                                                        </p>
+                                                    </div>
+                                                    <div className="text-lg flex-shrink-0">{getActivityIcon(activity)}</div>
+                                                </motion.div>
+                                            )
+                                        })}
                                     </div>
                                 ) : (
                                     <div className="text-center py-12">

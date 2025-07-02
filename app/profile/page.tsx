@@ -11,13 +11,13 @@ import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { UserService } from '@/services/user.service'
-import { useProfile } from '@/hooks/use-profile'
 import { toast } from 'react-hot-toast'
 import type { JobPosition, Office } from '@/types'
+import { useProfileManagement } from '@/hooks/use-profile' // Changed import
 
 function ProfileContent() {
   const { user, isAuthenticated, isLoading } = useAuth()
-  const { updateProfile, changePassword, isUpdating, isChangingPassword } = useProfile()
+  const { updateProfile, changePassword, isUpdating, isChangingPassword } = useProfileManagement() // Use the new hook
   const router = useRouter()
 
   const [activeTab, setActiveTab] = useState<'info' | 'password'>('info')

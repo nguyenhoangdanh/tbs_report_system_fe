@@ -1,38 +1,91 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+'use client'
+
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { AuthService } from '@/services/auth.service'
 import { UserService } from '@/services/user.service'
-import type { UpdateProfileDto } from '@/types'
-import { toast } from 'react-hot-toast'
+import toast from 'react-hot-toast'
+import { ChangePasswordDto, UpdateProfileDto } from '@/types'
 
+// Query keys for profile data
+const PROFILE_QUERY_KEYS = {
+  profile: ['auth', 'profile'] as const,
+}
+
+/**
+ * Get current user profile
+ */
 export function useProfile() {
-  const queryClient = useQueryClient()
+  return useQuery({
+    queryKey: ['auth', 'profile'],
+    queryFn: AuthService.getProfile, // Use AuthService for authentication context
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    retry: (failureCount, error: any) => {
+      // Không retry nếu là lỗi 401 (Unauthorized)
+      if (error?.status === 401 || error?.response?.status === 401) {
+        return false
+      }
+      return failureCount < 2
+    },
+  })
+}
 
-  const updateProfileMutation = useMutation({
+/**
+ * Update profile mutation
+ */
+export function useUpdateProfile() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
     mutationFn: (data: UpdateProfileDto) => UserService.updateProfile(data),
     onSuccess: (updatedUser) => {
-      // Update the cached user data
+      // Update both auth and user caches
       queryClient.setQueryData(['auth', 'profile'], updatedUser)
-      toast.success('Cập nhật thông tin thành công!')
+      queryClient.setQueryData(['users', 'profile'], updatedUser)
+      queryClient.invalidateQueries({ queryKey: ['auth', 'profile'] })
+      toast.success('Cập nhật thông tin cá nhân thành công!')
     },
-    onError: (error: Error) => {
-      toast.error(error.message || 'Cập nhật thất bại')
-    }
+    onError: (error) => {
+      console.error('Update profile error:', error)
+      toast.error(error.message || 'Cập nhật thông tin thất bại')
+    },
+    retry: 1,
   })
+}
 
-  const changePasswordMutation = useMutation({
-    mutationFn: (data: { currentPassword: string; newPassword: string }) => 
-      UserService.changePassword(data),
+/**
+ * Change password mutation
+ */
+export function useChangePassword() {
+  return useMutation({
+    mutationFn: (data: ChangePasswordDto) => AuthService.changePassword(data),
     onSuccess: () => {
       toast.success('Đổi mật khẩu thành công!')
     },
-    onError: (error: Error) => {
+    onError: (error) => {
+      console.error('Change password error:', error)
       toast.error(error.message || 'Đổi mật khẩu thất bại')
-    }
+    },
+    retry: 1,
   })
+}
 
+
+/**
+ * Combined hook for profile management
+ */
+export function useProfileManagement() {
+  const profile = useProfile()
+  const updateProfile = useUpdateProfile()
+  const changePassword = useChangePassword()
+  
   return {
-    updateProfile: updateProfileMutation.mutateAsync,
-    changePassword: changePasswordMutation.mutateAsync,
-    isUpdating: updateProfileMutation.isPending,
-    isChangingPassword: changePasswordMutation.isPending,
+    user: profile.data,
+    isLoading: profile.isLoading,
+    error: profile.error,
+    updateProfile: updateProfile.mutateAsync,
+    changePassword: changePassword.mutateAsync,
+    isUpdating: updateProfile.isPending,
+    isChangingPassword: changePassword.isPending,
+    refetch: profile.refetch,
   }
 }

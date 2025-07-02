@@ -3,6 +3,9 @@ const nextConfig = {
   // Tối ưu cho production
   reactStrictMode: true,
   swcMinify: true,
+  experimental: {
+    appDir: true,
+  },
   
   // Tối ưu images - production ready
   images: {
@@ -12,11 +15,16 @@ const nextConfig = {
     minimumCacheTTL: 60,
   },
   
+  // Biến môi trường
+  env: {
+    NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL,
+  },
+
   // Headers bảo mật
   async headers() {
     return [
       {
-        source: '/((?!api).*)',
+        source: '/(.*)',
         headers: [
           {
             key: 'X-Frame-Options',
@@ -28,7 +36,7 @@ const nextConfig = {
           },
           {
             key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
+            value: 'origin-when-cross-origin',
           },
         ],
       },
@@ -37,13 +45,12 @@ const nextConfig = {
 
   // Redirects nếu cần
   async redirects() {
-    return [
-      {
-        source: '/home',
-        destination: '/dashboard',
-        permanent: true,
-      },
-    ]
+    return []
+  },
+
+  // Rewrites để proxy API calls đến backend trong quá trình phát triển
+  async rewrites() {
+    return []
   },
 
   // Loại bỏ experimental features gây conflict

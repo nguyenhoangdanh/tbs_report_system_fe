@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import React, { memo, useMemo } from "react";
 import { useTheme } from "next-themes";
 
 interface SimplePieChartProps {
@@ -8,98 +8,167 @@ interface SimplePieChartProps {
   incomplete: number;
   size?: number;
   strokeWidth?: number;
+  className?: string;
   showLabel?: boolean;
-  showPercentage?: boolean;
-  colors?: {
-    completed: string;
-    incomplete: string;
-  };
 }
 
-export function SimplePieChart({
-  completed,
-  incomplete,
-  size = 80,
-  strokeWidth = 8,
-  showLabel = false,
-  showPercentage = true,
-  colors,
-}: SimplePieChartProps) {
-  const { theme } = useTheme();
+export const SimplePieChart = memo(
+  ({
+    completed,
+    incomplete,
+    size = 60,
+    strokeWidth = 4,
+    className = "",
+    showLabel = true,
+  }: SimplePieChartProps) => {
+    const { theme } = useTheme();
 
-  const chartData = useMemo(() => {
-    const total = completed + incomplete;
-    if (total === 0) return { percentage: 0, total: 0 };
+    const {
+      radius,
+      circumference,
+      completedPercentage,
+      strokeDasharray,
+      colors,
+    } = useMemo(
+      () => {
+        const total = completed + incomplete;
+        const radius = (size - strokeWidth) / 2;
+        const circumference = 2 * Math.PI * radius;
+        const completedPercentage = total > 0 ? (completed / total) * 100 : 0;
+        const strokeDasharray = `${(completedPercentage / 100) * circumference} ${circumference}`;
 
-    const percentage = Math.round((completed / total) * 100);
-    return { percentage, total };
-  }, [completed, incomplete]);
+        // Enhanced color scheme with better contrast
+        const colors = {
+          background:
+            theme === "dark"
+              ? "rgba(148, 163, 184, 0.2)"
+              : "rgba(148, 163, 184, 0.3)",
+          progress:
+            completedPercentage >= 90
+              ? theme === "dark"
+                ? "#10b981"
+                : "#059669" // emerald
+              : completedPercentage >= 70
+              ? theme === "dark"
+                ? "#f59e0b"
+                : "#d97706" // amber
+              : theme === "dark"
+              ? "#ef4444"
+              : "#dc2626", // red
+          text: theme === "dark" ? "#f8fafc" : "#1e293b",
+        };
 
-  const defaultColors = useMemo(() => {
-    const isDark = theme === "dark";
-    return {
-      completed: colors?.completed || (isDark ? "#22c55e" : "#16a34a"),
-      incomplete: colors?.incomplete || (isDark ? "#374151" : "#e5e7eb"),
-      background: isDark ? "#1f2937" : "#f9fafb",
-    };
-  }, [theme, colors]);
+        return {
+          radius,
+          circumference,
+          completedPercentage,
+          strokeDasharray,
+          colors,
+        };
+      },
+      [completed, incomplete, size, strokeWidth, theme]
+    );
 
-  const radius = (size - strokeWidth) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDasharray = circumference;
-  const strokeDashoffset = circumference - (chartData.percentage / 100) * circumference;
+    const center = size / 2;
 
-  if (chartData.total === 0) {
     return (
       <div
-        className="flex items-center justify-center rounded-full border-2 border-dashed border-gray-300 dark:border-gray-700"
+        className={`relative inline-flex items-center justify-center ${className}`}
         style={{ width: size, height: size }}
       >
-        <span className="text-xs text-muted-foreground">N/A</span>
+        {/* Drop shadow for depth */}
+        <div className="absolute inset-0 rounded-full bg-black/5 dark:bg-black/20 blur-sm transform translate-y-0.5" />
+
+        <svg
+          width={size}
+          height={size}
+          className="transform -rotate-90 relative z-10"
+          style={{
+            filter: "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))",
+          }}
+        >
+          {/* Background circle with gradient */}
+          <defs>
+            <linearGradient
+              id={`bg-gradient-${size}`}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop offset="0%" stopColor={colors.background} />
+              <stop
+                offset="100%"
+                stopColor={
+                  theme === "dark"
+                    ? "rgba(148, 163, 184, 0.1)"
+                    : "rgba(148, 163, 184, 0.2)"
+                }
+              />
+            </linearGradient>
+            <linearGradient
+              id={`progress-gradient-${size}`}
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop offset="0%" stopColor={colors.progress} />
+              <stop
+                offset="100%"
+                stopColor={colors.progress}
+                stopOpacity="0.8"
+              />
+            </linearGradient>
+          </defs>
+
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="none"
+            stroke={`url(#bg-gradient-${size})`}
+            strokeWidth={strokeWidth}
+          />
+
+          {/* Progress circle with enhanced styling */}
+          <circle
+            cx={center}
+            cy={center}
+            r={radius}
+            fill="none"
+            stroke={`url(#progress-gradient-${size})`}
+            strokeWidth={strokeWidth}
+            strokeDasharray={strokeDasharray}
+            strokeLinecap="round"
+            className="transition-all duration-700 ease-out"
+            style={{
+              filter: "drop-shadow(0 0 4px rgba(16, 185, 129, 0.3))",
+            }}
+          />
+        </svg>
+
+        {/* Enhanced label with better typography */}
+        {showLabel && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <span
+              className="font-bold transition-all duration-300"
+              style={{
+                fontSize: Math.max(size * 0.2, 10),
+                color: colors.text,
+                textShadow:
+                  theme === "dark"
+                    ? "0 1px 2px rgba(0, 0, 0, 0.5)"
+                    : "0 1px 2px rgba(255, 255, 255, 0.8)",
+              }}
+            >
+              {Math.round(completedPercentage)}%
+            </span>
+          </div>
+        )}
       </div>
     );
   }
+);
 
-  return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg width={size} height={size} className="transform -rotate-90">
-        {/* Background circle */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={defaultColors.incomplete}
-          strokeWidth={strokeWidth}
-        />
-        {/* Progress circle */}
-        <circle
-          cx={size / 2}
-          cy={size / 2}
-          r={radius}
-          fill="none"
-          stroke={defaultColors.completed}
-          strokeWidth={strokeWidth}
-          strokeDasharray={strokeDasharray}
-          strokeDashoffset={strokeDashoffset}
-          strokeLinecap="round"
-          className="transition-all duration-500 ease-in-out"
-        />
-      </svg>
-
-      {/* Center text */}
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        {showPercentage && (
-          <span className={`font-bold text-foreground ${size < 60 ? "text-xs" : size < 80 ? "text-sm" : "text-base"}`}>
-            {chartData.percentage}%
-          </span>
-        )}
-        {showLabel && (
-          <span className="text-xs text-muted-foreground">
-            {completed}/{chartData.total}
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
+SimplePieChart.displayName = "SimplePieChart";

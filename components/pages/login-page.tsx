@@ -12,7 +12,7 @@ import Link from 'next/link'
 import { UserLock } from 'lucide-react'
 
 export function LoginPage() {
-  const { login, isLoginLoading } = useAuth()
+  const { login, isLoading } = useAuth()
 
   const {
     register,
@@ -23,9 +23,8 @@ export function LoginPage() {
   })
 
   const onSubmit = async (data: LoginFormData) => {
-    console.log('[LoginPage] Form data:', data)
     try {
-      await login(data.employeeCode, data.password)
+      await login(data.employeeCode, data.password, data.rememberMe)
     } catch (error) {
       console.error('[LoginPage] Login error:', error)
     }
@@ -69,6 +68,28 @@ export function LoginPage() {
             error={errors.password?.message}
           />
         </motion.div>
+
+        <motion.div
+          className="flex items-center justify-between"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5 }}
+        >
+          <div className="flex items-center space-x-2">
+            <input
+              id="rememberMe"
+              type="checkbox"
+              {...register('rememberMe')}
+              className="h-4 w-4 text-green-600 border-gray-300 rounded focus:ring-green-500"
+            />
+            <label htmlFor="rememberMe" className="text-sm text-gray-700">
+              Ghi nhớ đăng nhập
+            </label>
+          </div>
+          <Link href="/forgot-password" className="text-sm text-blue-600 hover:text-blue-700 font-semibold hover:underline transition-colors">
+            Quên mật khẩu?
+          </Link>
+        </motion.div>
         
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -76,15 +97,15 @@ export function LoginPage() {
           transition={{ delay: 0.5 }}
         >
           <SubmitButton
-            loading={isLoginLoading}
-            text={isLoginLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
+            loading={isLoading}
+            text={isLoading ? 'Đang đăng nhập...' : 'Đăng nhập'}
             size="lg"
             className="w-full"
           />
         </motion.div>
       </form>
       
-      <motion.div
+      {/* <motion.div
         className="mt-6 text-center text-sm space-y-2"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
@@ -110,7 +131,7 @@ export function LoginPage() {
         transition={{ delay: 0.7 }}
       >
         Demo: EMP001/123456
-      </motion.div>
+      </motion.div> */}
     </AuthLayout>
   )
 }

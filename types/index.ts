@@ -75,7 +75,8 @@ export interface WeeklyReport {
   weekNumber: number
   year: number
   isLocked: boolean
-  isCompleted: boolean // Add this property
+  isCompleted: boolean
+  userId: string
   tasks: TaskReport[]
   createdAt: string
   updatedAt: string
@@ -95,12 +96,15 @@ export interface TaskReport {
   isCompleted: boolean
   reasonNotDone?: string
   reportId: string
+  createdAt?: string
+  updatedAt?: string
 }
 
 // Auth DTOs
 export interface LoginDto {
   employeeCode: string
   password: string
+  rememberMe?: boolean
 }
 
 export interface RegisterDto {
@@ -232,3 +236,21 @@ export interface PaginatedResponse<T> {
 
 // Add hierarchy types to main types file
 export * from './hierarchy'
+
+// Add missing DTOs
+export interface CreateUserDto {
+  employeeCode: string
+  email?: string
+  password: string
+  firstName: string
+  lastName: string
+  phone?: string
+  role: Role
+  jobPositionId: string
+  officeId: string
+}
+
+export interface UpdateReportDto {
+  tasks?: UpdateTaskDto[]
+  isCompleted?: boolean
+}

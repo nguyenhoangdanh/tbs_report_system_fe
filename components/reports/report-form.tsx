@@ -3,11 +3,11 @@
 import { useState, useCallback, useEffect, memo, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
-import { AlertCircle, Trash2, HelpCircle } from 'lucide-react'
+import { AlertCircle, Trash2, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { TaskTable } from './task-table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'react-hot-toast'
-import { getCurrentWeek, validateWeekYear, isValidWeekForCreation, isValidWeekForEdit, getNextWeek, getPreviousWeek } from '@/lib/date-utils'
+import { getCurrentWeek, isValidWeekForCreation, isValidWeekForEdit, getAvailableWeeksForReporting, isValidWeekForDeletion } from '@/utils/week-utils'
 import type { WeeklyReport, TaskReport } from '@/types'
 
 interface ReportFormProps {
@@ -29,12 +29,9 @@ export const ReportForm = memo(function ReportForm({
   year: propYear,
   isLoading 
 }: ReportFormProps) {
-  // Memoize week calculations
-  const { currentWeek, nextWeek, previousWeek } = useMemo(() => ({
-    currentWeek: getCurrentWeek(),
-    nextWeek: getNextWeek(),
-    previousWeek: getPreviousWeek()
-  }), [])
+  // Get available weeks for display
+  const availableWeeks = useMemo(() => getAvailableWeeksForReporting(), [])
+  const currentWeek = useMemo(() => getCurrentWeek(), [])
   
   const [weekNumber, setWeekNumber] = useState(propWeekNumber || report?.weekNumber || currentWeek.weekNumber)
   const [year, setYear] = useState(propYear || report?.year || currentWeek.year)
@@ -63,7 +60,7 @@ export const ReportForm = memo(function ReportForm({
     }
   }, [report, propWeekNumber, propYear])
 
-  // Memoize validation and permissions
+  // Validate permissions
   const { canEdit, validation } = useMemo(() => {
     let validationResult
     if (report) {
@@ -78,19 +75,119 @@ export const ReportForm = memo(function ReportForm({
       canEdit: canEditReport,
       validation: validationResult
     }
-  }, [report, weekNumber, year, isLoading, onDelete])
+  }, [report, weekNumber, year])
 
-  // Memoize week type info
+  // Week type info
   const weekTypeInfo = useMemo(() => {
-    const isCurrentWeekReport = weekNumber === currentWeek.weekNumber && year === currentWeek.year
-    const isNextWeekReport = weekNumber === nextWeek.weekNumber && year === nextWeek.year
-    const isPreviousWeekReport = weekNumber === previousWeek.weekNumber && year === previousWeek.year
-
-    if (isPreviousWeekReport) return { label: 'Tuần trước', color: 'text-orange-600' }
-    if (isNextWeekReport) return { label: 'Tuần tiếp theo', color: 'text-blue-600' }
-    if (isCurrentWeekReport) return { label: 'Tuần hiện tại', color: 'text-green-600' }
+    const weekInfo = availableWeeks.find(w => w.weekNumber === weekNumber && w.year === year)
+    
+    if (weekInfo?.isCurrent) return { label: 'Tuần hiện tại', color: 'text-green-600' }
+    if (weekInfo?.isPast) return { label: 'Tuần trước', color: 'text-orange-600' }
+    if (weekInfo?.isFuture) return { label: 'Tuần tiếp theo', color: 'text-blue-600' }
     return { label: '', color: 'text-muted-foreground' }
-  }, [weekNumber, year, currentWeek, nextWeek, previousWeek])
+  }, [weekNumber, year, availableWeeks])
+
+  // Week navigation handlers - Allow navigation to any week in the year
+  const handlePreviousWeek = useCallback(() => {
+    let newWeekNumber = weekNumber - 1
+    let newYear = year
+    
+    if (newWeekNumber < 1) {
+      newWeekNumber = 52
+      newYear = year - 1
+    }
+    
+    setWeekNumber(newWeekNumber)
+    setYear(newYear)
+    onWeekChange?.(newWeekNumber, newYear)
+    
+    // Only clear tasks if creating new report
+    if (!report) {
+      setTasks([])
+    }
+  }, [weekNumber, year, report, onWeekChange])
+
+  const handleNextWeek = useCallback(() => {
+    let newWeekNumber = weekNumber + 1
+    let newYear = year
+    
+    if (newWeekNumber > 52) {
+      newWeekNumber = 1
+      newYear = year + 1
+    }
+    
+    setWeekNumber(newWeekNumber)
+    setYear(newYear)
+    onWeekChange?.(newWeekNumber, newYear)
+    
+    // Only clear tasks if creating new report
+    if (!report) {
+      setTasks([])
+    }
+  }, [weekNumber, year, report, onWeekChange])
+
+  const handleCurrentWeek = useCallback(() => {
+    const current = getCurrentWeek()
+    setWeekNumber(current.weekNumber)
+    setYear(current.year)
+    onWeekChange?.(current.weekNumber, current.year)
+    
+    // Only clear tasks if creating new report
+    if (!report) {
+      setTasks([])
+    }
+  }, [report, onWeekChange])
+
+  // Check if navigation is available - Allow navigation for viewing any week
+  const navigationAvailable = useMemo(() => {
+    const currentWeekInfo = getCurrentWeek()
+    
+    // Check previous week - always allow navigation
+    let prevWeekNumber = weekNumber - 1
+    let prevYear = year
+    if (prevWeekNumber < 1) {
+      prevWeekNumber = 52
+      prevYear = year - 1
+    }
+    
+    // Check next week - always allow navigation
+    let nextWeekNumber = weekNumber + 1
+    let nextYear = year
+    if (nextWeekNumber > 52) {
+      nextWeekNumber = 1
+      nextYear = year + 1
+    }
+    
+    // Check if current week is different
+    const isCurrentWeek = weekNumber === currentWeekInfo.weekNumber && year === currentWeekInfo.year
+    
+    return {
+      canGoPrevious: true, // Always allow navigation
+      canGoNext: true, // Always allow navigation
+      canGoToCurrent: !isCurrentWeek // Allow going to current week if not already there
+    }
+  }, [weekNumber, year])
+
+  // Check if report can be deleted (only current week and next week)
+  const canDeleteReport = useMemo(() => {
+    if (!report) return false
+    
+    const deletionValidation = isValidWeekForDeletion(report.weekNumber, report.year)
+    return deletionValidation.isValid && !report.isLocked
+  }, [report])
+
+  // Check if current week can be edited (only for creation/editing validation)
+  const canEditCurrentWeek = useMemo(() => {
+    if (report) {
+      // For existing reports, check edit validation
+      const editValidation = isValidWeekForEdit(weekNumber, year)
+      return editValidation.isValid && !report.isLocked
+    } else {
+      // For new reports, check creation validation
+      const creationValidation = isValidWeekForCreation(weekNumber, year)
+      return creationValidation.isValid
+    }
+  }, [report, weekNumber, year])
 
   const handleAddTask = useCallback(() => {
     if (!canEdit) return
@@ -107,7 +204,9 @@ export const ReportForm = memo(function ReportForm({
       sunday: false,
       isCompleted: false,
       reasonNotDone: '',
-      reportId: report?.id || ''
+      reportId: report?.id || '',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     }
     
     setTasks(prev => [...prev, newTask])
@@ -129,7 +228,9 @@ export const ReportForm = memo(function ReportForm({
           sunday: field === 'sunday' ? value : false,
           isCompleted: field === 'isCompleted' ? value : false,
           reasonNotDone: field === 'reasonNotDone' ? value : '',
-          reportId: report?.id || ''
+          reportId: report?.id || '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
         }
         return [...prev, newTask]
       }
@@ -176,9 +277,9 @@ export const ReportForm = memo(function ReportForm({
     }
 
     if (!report) {
-      const validationResult = validateWeekYear(weekNumber, year)
+      const validationResult = isValidWeekForCreation(weekNumber, year)
       if (!validationResult.isValid) {
-        toast.error(validationResult.error!)
+        toast.error(validationResult.reason!)
         return
       }
     } else {
@@ -253,16 +354,121 @@ export const ReportForm = memo(function ReportForm({
 
   return (
     <div className="space-y-6">
-      {/* Week Info Display */}
+      {/* Week Info Display with Navigation */}
       <Card className="bg-gradient-to-r from-green-50 to-blue-50 dark:from-green-950/20 dark:to-blue-950/20 border-green-200">
         <CardContent className="p-6">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-              Tuần {weekNumber} - {year}
-            </h2>
-            {weekTypeInfo.label && (
-              <div className={`text-sm font-medium ${weekTypeInfo.color}`}>
-                {weekTypeInfo.label}
+          <div className="text-center space-y-4">
+            <div>
+              <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+                Tuần {weekNumber} - {year}
+              </h2>
+              {weekTypeInfo.label && (
+                <div className={`text-sm font-medium ${weekTypeInfo.color}`}>
+                  {weekTypeInfo.label}
+                </div>
+              )}
+            </div>
+            
+            {/* Week Navigation Buttons - Always show */}
+            <div className="flex items-center justify-center gap-2">
+              {/* Previous Week Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handlePreviousWeek}
+                disabled={isLoading}
+                className="flex items-center gap-1 text-orange-600 border-orange-200 hover:bg-orange-50 dark:hover:bg-orange-950/20"
+                title={`Xem tuần ${weekNumber - 1 < 1 ? 52 : weekNumber - 1}/${weekNumber - 1 < 1 ? year - 1 : year}`}
+              >
+                <ChevronLeft className="w-3 h-3" />
+                <span className="hidden sm:inline">Trước</span>
+              </Button>
+
+              {/* Current Week Button */}
+              <Button
+                variant={weekTypeInfo.color === 'text-green-600' ? 'default' : 'outline'}
+                size="sm"
+                onClick={handleCurrentWeek}
+                disabled={!navigationAvailable.canGoToCurrent || isLoading}
+                className={`flex items-center gap-1 ${
+                  weekTypeInfo.color === 'text-green-600' 
+                    ? 'bg-green-600 hover:bg-green-700 text-white' 
+                    : 'text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-950/20'
+                } ${!navigationAvailable.canGoToCurrent ? 'opacity-50' : ''}`}
+                title="Xem tuần hiện tại"
+              >
+                <Calendar className="w-3 h-3" />
+                <span className="hidden sm:inline">Hiện tại</span>
+              </Button>
+
+              {/* Next Week Button */}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleNextWeek}
+                disabled={isLoading}
+                className="flex items-center gap-1 text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/20"
+                title={`Xem tuần ${weekNumber + 1 > 52 ? 1 : weekNumber + 1}/${weekNumber + 1 > 52 ? year + 1 : year}`}
+              >
+                <span className="hidden sm:inline">Sau</span>
+                <ChevronRight className="w-3 h-3" />
+              </Button>
+            </div>
+            
+            {/* Week information and creation/edit restrictions */}
+            {!report && (
+              <div className="text-xs text-muted-foreground">
+                <div className="flex justify-center gap-2 flex-wrap">
+                  {availableWeeks.map((week) => (
+                    <span
+                      key={`${week.weekNumber}-${week.year}`}
+                      className={`px-2 py-1 rounded text-xs ${
+                        week.weekNumber === weekNumber && week.year === year
+                          ? 'bg-primary text-primary-foreground'
+                          : week.isCurrent
+                          ? 'bg-green-100 text-green-700'
+                          : week.isPast
+                          ? 'bg-orange-100 text-orange-700'
+                          : 'bg-blue-100 text-blue-700'
+                      }`}
+                    >
+                      Tuần {week.weekNumber}
+                    </span>
+                  ))}
+                </div>
+                <div className="mt-2 text-xs text-center">
+                  {canEditCurrentWeek ? (
+                    <span className="text-green-600">
+                      ✓ Có thể tạo báo cáo cho tuần {weekNumber}/{year}
+                    </span>
+                  ) : (
+                    <span className="text-amber-600">
+                      ⚠️ Chỉ có thể tạo báo cáo cho tuần trước, tuần hiện tại và tuần tiếp theo
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* Edit restrictions notice for existing reports */}
+            {report && (
+              <div className="text-xs text-center">
+                {canEditCurrentWeek ? (
+                  <span className="text-green-600 bg-green-50 dark:bg-green-950/20 px-3 py-2 rounded border border-green-200 dark:border-green-800">
+                    ✓ Có thể chỉnh sửa báo cáo tuần {weekNumber}/{year}
+                  </span>
+                ) : (
+                  <span className="text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded border border-amber-200 dark:border-amber-800">
+                    ⚠️ Chỉ có thể chỉnh sửa báo cáo tuần trước, tuần hiện tại và tuần tiếp theo
+                  </span>
+                )}
+              </div>
+            )}
+
+            {/* Delete restrictions notice for existing reports */}
+            {report && !canDeleteReport && (
+              <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 px-3 py-2 rounded border border-red-200 dark:border-red-800 text-center">
+                🚫 Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo
               </div>
             )}
           </div>
@@ -307,18 +513,31 @@ export const ReportForm = memo(function ReportForm({
       {/* Main Content */}
       {(!isLoading || report) && (
         <div className="space-y-6">
-          {/* Task Table - Full width */}
           <TaskTable
             tasks={tasks}
             weekNumber={weekNumber}
             year={year}
-            isEditable={canEdit}
+            isEditable={canEditCurrentWeek} // Use new validation
             onTaskChange={handleTaskChange}
             onAddTask={handleAddTask}
             onRemoveTask={handleRemoveTask}
-            onSave={canEdit && tasks.length > 0 ? handleSave : undefined}
+            onSave={canEditCurrentWeek && tasks.length > 0 ? handleSave : undefined} // Use new validation
             isSaving={isSaving}
           />
+
+          {/* Delete button for existing reports - Updated condition */}
+          {report && canDeleteReport && onDelete && (
+            <div className="flex justify-end">
+              <Button
+                variant="destructive"
+                onClick={() => setShowDeleteDialog(true)}
+                className="flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Xóa báo cáo
+              </Button>
+            </div>
+          )}
         </div>
       )}
 

@@ -5,14 +5,26 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { FileText, TrendingDown, BarChart3 } from 'lucide-react'
-import type { IncompleteReasonData } from '@/services/statistics.service'
+
+export interface IncompleteReason {
+  reason: string
+  count: number
+  percentage: number
+  sampleTasks: Array<{
+    taskName: string
+    reason: string
+  }> | Array<{
+    taskName: string
+    weekNumber: number
+    year: number
+  }>
+}
 
 interface IncompleteReasonsDialogProps {
   title: string
   period: string
-  reasons: IncompleteReasonData[]
+  reasons: IncompleteReason[]
   totalIncomplete: number
   totalTasks: number
   children: React.ReactNode
@@ -146,7 +158,7 @@ const IncompleteReasonsDialog = memo(function IncompleteReasonsDialog({
                                   <div className="font-medium text-foreground">
                                     {task.taskName}
                                   </div>
-                                  {task.weekNumber && task.year && (
+                                  {'weekNumber' in task && 'year' in task && (
                                     <div className="text-xs text-muted-foreground">
                                       Tuần {task.weekNumber}/{task.year}
                                     </div>
@@ -167,33 +179,6 @@ const IncompleteReasonsDialog = memo(function IncompleteReasonsDialog({
                 </Card>
               ))}
             </div>
-
-            {/* Insights */}
-            <Card className="bg-blue-50 dark:bg-blue-950/20 border-blue-200">
-              <CardContent className="p-4">
-                <h4 className="font-semibold text-blue-800 dark:text-blue-200 mb-2">
-                  💡 Gợi ý cải thiện
-                </h4>
-                <div className="text-sm text-blue-700 dark:text-blue-300 space-y-2">
-                  {sortedReasons.length > 0 && (
-                    <div>
-                      • <strong>Lý do phổ biến nhất:</strong> &quot;{sortedReasons[0].reason}&quot; 
-                      xuất hiện {sortedReasons[0].count} lần ({sortedReasons[0].percentage}%)
-                    </div>
-                  )}
-                  {sortedReasons.length > 1 && (
-                    <div>
-                      • <strong>Đa dạng lý do:</strong> Có {sortedReasons.length} lý do khác nhau, 
-                      cho thấy {sortedReasons.length > 3 ? 'cần phân tích sâu hơn' : 'tương đối tập trung'}
-                    </div>
-                  )}
-                  <div>
-                    • <strong>Khuyến nghị:</strong> Tập trung giải quyết {Math.min(3, sortedReasons.length)} lý do hàng đầu 
-                    để cải thiện hiệu quả công việc
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
           </div>
         </ScrollArea>
       </DialogContent>

@@ -2,14 +2,12 @@
 
 import { memo, useMemo, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
-import { ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { ChevronLeft, Calendar } from 'lucide-react'
 import { 
   getCurrentWeek, 
-  getWeekDateRange, 
-  formatDateRange, 
-  getNextWeek,
-  getPreviousWeek
-} from '@/lib/date-utils'
+  getWeekRange,
+  getAvailableWeeksForReporting
+} from '@/utils/week-utils'
 import { useRouter } from 'next/navigation'
 
 interface WeekSelectorProps {
@@ -17,6 +15,16 @@ interface WeekSelectorProps {
   year: number
   onWeekChange: (weekNumber: number, year: number) => void
   disabled?: boolean
+}
+
+// Add interface for navigation button
+interface NavigationButton {
+  key: string
+  label: string
+  description: string
+  variant: 'outline' | 'default'
+  className: string
+  onClick: () => void
 }
 
 const WeekSelector = memo(function WeekSelector({
@@ -27,115 +35,141 @@ const WeekSelector = memo(function WeekSelector({
 }: WeekSelectorProps) {
   const router = useRouter()
 
-  // Memoize week calculations
-  const { currentWeek, nextWeek, previousWeek, validWeekNumber, validYear } = useMemo(() => {
+  // Memoize week calculations with availability info
+  const { currentWeek, availableWeeks, weekTypeInfo, dateRange } = useMemo(() => {
     const current = getCurrentWeek()
-    const next = getNextWeek()
-    const previous = getPreviousWeek()
+    const availableWeeksData = getAvailableWeeksForReporting()
+    
+    const selectedWeekInfo = availableWeeksData.find(w => 
+      w.weekNumber === weekNumber && w.year === year
+    )
+    
+    let typeInfo = null
+    if (selectedWeekInfo) {
+      if (selectedWeekInfo.isCurrent) {
+        typeInfo = { label: '📍 Tuần hiện tại', color: 'text-green-600' }
+      } else if (selectedWeekInfo.isPast) {
+        typeInfo = { label: '⏮️ Tuần trước', color: 'text-orange-600' }
+      } else if (selectedWeekInfo.isFuture) {
+        typeInfo = { label: '⏭️ Tuần tiếp theo', color: 'text-blue-600' }
+      }
+    }
+    
+    // Calculate date range for current selected week
+    const weekRangeInfo = getWeekRange(weekNumber, year)
     
     return {
       currentWeek: current,
-      nextWeek: next,
-      previousWeek: previous,
-      validWeekNumber: Number(weekNumber) || current.weekNumber,
-      validYear: Number(year) || current.year
+      availableWeeks: availableWeeksData,
+      weekTypeInfo: typeInfo,
+      dateRange: weekRangeInfo.display
     }
   }, [weekNumber, year])
 
-  // Memoize date range calculation
-  const { dateRange, weekTypeInfo } = useMemo(() => {
-    const { start, end } = getWeekDateRange(validWeekNumber, validYear)
-    const range = formatDateRange(start, end)
-    
-    const isCurrentWeek = validWeekNumber === currentWeek.weekNumber && validYear === currentWeek.year
-    const isNextWeek = validWeekNumber === nextWeek.weekNumber && validYear === nextWeek.year
-    const isPreviousWeek = validWeekNumber === previousWeek.weekNumber && validYear === previousWeek.year
-    
-    let typeInfo = null
-    if (isPreviousWeek) {
-      typeInfo = { label: '⏮️ Tuần trước', color: 'text-orange-600' }
-    } else if (isCurrentWeek) {
-      typeInfo = { label: '📍 Tuần hiện tại', color: 'text-green-600' }
-    } else if (isNextWeek) {
-      typeInfo = { label: '⏭️ Tuần tiếp theo', color: 'text-blue-600' }
-    }
-    
-    return { dateRange: range, weekTypeInfo: typeInfo }
-  }, [validWeekNumber, validYear, currentWeek, nextWeek, previousWeek])
-
-  // Memoize navigation handlers
-  const handleCurrentWeek = useCallback(() => {
-    if (!disabled) {
-      onWeekChange(currentWeek.weekNumber, currentWeek.year)
-    }
-  }, [disabled, onWeekChange, currentWeek])
-
-  const handleStepPrevious = useCallback(() => {
-    if (disabled) return
-    
-    if (validWeekNumber > 1) {
-      onWeekChange(validWeekNumber - 1, validYear)
-    } else if (validYear > 2020) {
-      onWeekChange(52, validYear - 1)
-    }
-  }, [disabled, validWeekNumber, validYear, onWeekChange])
-
-  const handleStepNext = useCallback(() => {
-    if (disabled) return
-    
-    if (validWeekNumber < 52) {
-      onWeekChange(validWeekNumber + 1, validYear)
-    } else if (validYear < 2030) {
-      onWeekChange(1, validYear + 1)
-    }
-  }, [disabled, validWeekNumber, validYear, onWeekChange])
-
+  // Navigation handlers
   const handleBack = useCallback(() => {
     router.back()
   }, [router])
 
-  // Memoize navigation buttons
-  const navigationButtons = useMemo(() => {
+  // Quick navigation handlers
+  const handleQuickNavigation = useCallback((targetWeek: { weekNumber: number; year: number }) => {
+    if (!disabled) {
+      onWeekChange(targetWeek.weekNumber, targetWeek.year)
+    }
+  }, [disabled, onWeekChange])
+
+  // Previous/Next week navigation
+  const handleStepNavigation = useCallback((direction: 'prev' | 'next') => {
+    if (disabled) return
+    
+    let newWeekNumber = weekNumber
+    let newYear = year
+    
+    if (direction === 'prev') {
+      newWeekNumber = weekNumber - 1
+      if (newWeekNumber < 1) {
+        newWeekNumber = 52
+        newYear = year - 1
+      }
+    } else {
+      newWeekNumber = weekNumber + 1
+      if (newWeekNumber > 52) {
+        newWeekNumber = 1
+        newYear = year + 1
+      }
+    }
+    
+    // Check if the target week is in available weeks
+    const isValidTarget = availableWeeks.some(w => w.weekNumber === newWeekNumber && w.year === newYear)
+    
+    if (isValidTarget) {
+      onWeekChange(newWeekNumber, newYear)
+    }
+  }, [disabled, weekNumber, year, availableWeeks, onWeekChange])
+
+  // Enhanced navigation buttons
+  const enhancedNavigationButtons = useMemo(() => {
     const buttons = []
     
-    // Previous button
-    if (validWeekNumber > 1 || validYear > 2020) {
+    // Previous week step button
+    let prevWeekNumber = weekNumber - 1
+    let prevYear = year
+    if (prevWeekNumber < 1) {
+      prevWeekNumber = 52
+      prevYear = year - 1
+    }
+    const canStepPrevious = availableWeeks.some(w => w.weekNumber === prevWeekNumber && w.year === prevYear)
+    
+    if (canStepPrevious) {
       buttons.push({
-        key: 'prev',
-        label: 'Trước',
-        icon: ChevronLeft,
+        key: 'step-prev',
+        label: '← Trước',
         variant: 'outline' as const,
-        className: 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-950 dark:border-gray-600 dark:text-gray-300',
-        onClick: handleStepPrevious
+        className: 'text-orange-600 border-orange-200 hover:bg-orange-50',
+        onClick: () => handleStepNavigation('prev')
       })
     }
-
-    // Current week button
-    if (!weekTypeInfo || weekTypeInfo.label !== '📍 Tuần hiện tại') {
-      buttons.push({
-        key: 'current',
-        label: 'Hiện tại',
-        icon: Calendar,
-        variant: 'default' as const,
-        className: 'bg-green-600 hover:bg-green-700 text-white',
-        onClick: handleCurrentWeek
-      })
+    
+    // Quick jump buttons for other available weeks
+    availableWeeks.forEach((week) => {
+      const isSelected = week.weekNumber === weekNumber && week.year === year
+      
+      if (!isSelected) {
+        buttons.push({
+          key: `quick-${week.weekNumber}-${week.year}`,
+          label: `Tuần ${week.weekNumber}`,
+          variant: week.isCurrent ? 'default' : 'outline',
+          className: week.isCurrent 
+            ? 'bg-green-600 hover:bg-green-700 text-white'
+            : week.isPast
+            ? 'text-orange-600 border-orange-200 hover:bg-orange-50'
+            : 'text-blue-600 border-blue-200 hover:bg-blue-50',
+          onClick: () => handleQuickNavigation(week)
+        })
+      }
+    })
+    
+    // Next week step button
+    let nextWeekNumber = weekNumber + 1
+    let nextYear = year
+    if (nextWeekNumber > 52) {
+      nextWeekNumber = 1
+      nextYear = year + 1
     }
-
-    // Next button
-    if (validWeekNumber < 52 || validYear < 2030) {
+    const canStepNext = availableWeeks.some(w => w.weekNumber === nextWeekNumber && w.year === nextYear)
+    
+    if (canStepNext) {
       buttons.push({
-        key: 'next',
-        label: 'Sau',
-        icon: ChevronRight,
+        key: 'step-next',
+        label: 'Sau →',
         variant: 'outline' as const,
-        className: 'border-gray-300 text-gray-700 hover:bg-gray-50 dark:hover:bg-gray-950 dark:border-gray-600 dark:text-gray-300',
-        onClick: handleStepNext
+        className: 'text-blue-600 border-blue-200 hover:bg-blue-50',
+        onClick: () => handleStepNavigation('next')
       })
     }
 
     return buttons
-  }, [validWeekNumber, validYear, weekTypeInfo, handleStepPrevious, handleCurrentWeek, handleStepNext])
+  }, [weekNumber, year, availableWeeks, handleStepNavigation, handleQuickNavigation])
 
   return (
     <div className="bg-muted/50 rounded-lg p-4 space-y-4">
@@ -147,7 +181,7 @@ const WeekSelector = memo(function WeekSelector({
           onClick={handleBack}
           className="text-sm"
         >
-          <ChevronLeft className="w-4 h-4" />
+          <ChevronLeft className="w-4 h-4 mr-1" />
           Trở về
         </Button>
       </div>
@@ -155,7 +189,7 @@ const WeekSelector = memo(function WeekSelector({
       {/* Week Info Display */}
       <div className="text-center">
         <div className="font-semibold text-lg">
-          Tuần {validWeekNumber} - {validYear}
+          Tuần {weekNumber} - {year}
         </div>
         <div className="text-sm text-muted-foreground">
           {dateRange}
@@ -169,24 +203,61 @@ const WeekSelector = memo(function WeekSelector({
         )}
       </div>
 
-      {/* Navigation Buttons */}
-      {navigationButtons.length > 0 && (
-        <div className="flex items-center gap-2 justify-center flex-wrap">
-          {navigationButtons.map((button) => (
-            <Button
-              key={button.key}
-              variant={button.variant}
-              size="sm"
-              onClick={button.onClick}
-              disabled={disabled}
-              className={`flex items-center gap-2 text-sm ${button.className || ''}`}
-            >
-              <button.icon className="w-3 h-3" />
-              {button.label}
-            </Button>
-          ))}
+      {/* Enhanced Navigation Buttons */}
+      {enhancedNavigationButtons.length > 0 && (
+        <div className="space-y-3">
+          <div className="text-xs text-center text-muted-foreground">
+            Tuần có thể chọn:
+          </div>
+          <div className="flex items-center gap-2 justify-center flex-wrap">
+            {enhancedNavigationButtons.map((button) => (
+              <Button
+                key={button.key}
+                variant={button.variant}
+                size="sm"
+                onClick={button.onClick}
+                disabled={disabled}
+                className={`text-xs ${button.className || ''}`}
+              >
+                {button.label}
+              </Button>
+            ))}
+          </div>
         </div>
       )}
+
+      {/* Available Weeks Visual Indicator */}
+      <div className="text-center">
+        <div className="flex justify-center gap-1 flex-wrap">
+          {availableWeeks.map((week) => (
+            <button
+              key={`indicator-${week.weekNumber}-${week.year}`}
+              className={`text-xs px-2 py-1 rounded cursor-pointer transition-colors ${
+                week.weekNumber === weekNumber && week.year === year
+                  ? 'bg-primary text-primary-foreground'
+                  : week.isCurrent
+                  ? 'bg-green-100 text-green-700 hover:bg-green-200'
+                  : week.isPast
+                  ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
+                  : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+              }`}
+              onClick={() => handleQuickNavigation(week)}
+              disabled={disabled}
+            >
+              {week.weekNumber}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Help Text */}
+      <div className="text-xs text-muted-foreground text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded border border-blue-200 dark:border-blue-800">
+        <div className="flex items-center justify-center gap-2 mb-1">
+          <Calendar className="w-3 h-3" />
+          <span className="font-medium">Navigation</span>
+        </div>
+        <div>Sử dụng các nút để di chuyển giữa các tuần khả dụng</div>
+      </div>
     </div>
   )
 })

@@ -1,50 +1,178 @@
 "use client"
 
-import { Suspense, useState, useMemo } from 'react'
-import { useParams } from 'next/navigation'
+import { Suspense, useState, useEffect } from 'react'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
-import { useUserDetails, useCurrentWeekFilter } from '@/hooks/use-hierarchy'
+import { useCurrentWeekFilters } from '@/hooks/use-hierarchy'
 import { MainLayout } from '@/components/layout/main-layout'
 import { AppLoading } from '@/components/ui/app-loading'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
-import { SimplePieChart } from '@/components/charts/simple-pie-chart'
-import { ArrowLeft, User, FileText, TrendingUp, Calendar, AlertTriangle, CheckCircle2, Phone, Mail, Building, Briefcase } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { ArrowLeft, User, RefreshCw, Calendar, FileText, CheckCircle2, AlertTriangle, Clock, EyeIcon } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
-import { formatDistanceToNow } from 'date-fns'
-import { vi } from 'date-fns/locale'
+import { useQueryClient } from '@tanstack/react-query'
+import toast from 'react-hot-toast'
+import { getCurrentWeek } from '@/utils/week-utils'
+import { HierarchyService } from '@/services/hierarchy.service'
+import { UserDetailsCard } from '@/components/hierarchy/user-details-card'
 import type { UserDetails } from '@/types/hierarchy'
+import { getPerformanceBadge, getPerformanceColor } from '@/utils/performance-classification'
+import { Progress } from '@/components/ui/progress'
 
 function UserDetailsContent() {
-  const { user: currentUser } = useAuth()
+  const { user } = useAuth()
   const params = useParams()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const userId = params?.userId as string
-  const { weekNumber: currentWeek, year: currentYear } = useCurrentWeekFilter()
-  
-  const [selectedReportLimit] = useState(10)
 
-  const { 
-    data: userData, 
-    isLoading, 
-    error 
-  } = useUserDetails(userId, {
-    weekNumber: currentWeek,
-    year: currentYear,
-    limit: selectedReportLimit
-  })
+  // Get current week/year with guaranteed fallbacks
+  const currentWeekData = useCurrentWeekFilters()
+  const currentWeekInfo = getCurrentWeek()
+  const currentWeek = currentWeekInfo.weekNumber
+  const currentYear = currentWeekData.year ?? currentWeekInfo.year
 
-  if (!currentUser) {
-    return <AppLoading text="Đang xác thực..." />
+  // Parse URL parameters với better handling
+  const urlWeek = searchParams.get('weekNumber')
+  const urlYear = searchParams.get('year')
+
+  console.log('[USER DETAILS PAGE] URL params:', { urlWeek, urlYear })
+
+  const [selectedWeek, setSelectedWeek] = useState<number>(
+    urlWeek ? parseInt(urlWeek) || currentWeek : currentWeek
+  )
+
+  const [selectedYear, setSelectedYear] = useState<number>(
+    urlYear ? parseInt(urlYear) || currentYear : currentYear
+  )
+
+  const [isRefreshing, setIsRefreshing] = useState(false)
+  const [userData, setUserData] = useState<UserDetails | null>(null)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const queryClient = useQueryClient()
+
+  // Update URL when week/year changes - PRESERVE scroll position
+  useEffect(() => {
+    const params = new URLSearchParams()
+    params.set('weekNumber', selectedWeek.toString())
+    params.set('year', selectedYear.toString())
+    const newUrl = `/admin/hierarchy/user/${userId}?${params.toString()}`
+
+    console.log('[USER DETAILS PAGE] Updating URL to:', newUrl)
+    router.replace(newUrl, { scroll: false })
+  }, [selectedWeek, selectedYear, userId, router])
+
+  // Update state when URL params change (from external navigation) - CRITICAL FIX
+  useEffect(() => {
+    console.log('[USER DETAILS PAGE] URL params changed:', { urlWeek, urlYear })
+
+    if (urlWeek && urlYear) {
+      const parsedWeek = parseInt(urlWeek)
+      const parsedYear = parseInt(urlYear)
+
+      // Only update if values are actually different to avoid loops
+      if (parsedWeek >= 1 && parsedWeek <= 53 && parsedWeek !== selectedWeek) {
+        console.log('[USER DETAILS PAGE] Updating selectedWeek from', selectedWeek, 'to', parsedWeek)
+        setSelectedWeek(parsedWeek)
+      }
+      if (parsedYear >= 2020 && parsedYear <= 2030 && parsedYear !== selectedYear) {
+        console.log('[USER DETAILS PAGE] Updating selectedYear from', selectedYear, 'to', parsedYear)
+        setSelectedYear(parsedYear)
+      }
+    }
+  }, [urlWeek, urlYear, selectedWeek, selectedYear])
+
+  // Fetch user details
+  const fetchUserDetails = async () => {
+    if (!userId) return
+
+    try {
+      setIsLoading(true)
+      setError(null)
+
+      const response = await HierarchyService.getUserDetails(userId, {
+        weekNumber: selectedWeek,
+        year: selectedYear
+      })
+
+      console.log('[USER DETAILS] API Response:', response)
+      setUserData(response)
+    } catch (err: any) {
+      console.error('[USER DETAILS] Error:', err)
+      setError(err.message || 'Có lỗi xảy ra khi tải chi tiết nhân viên')
+    } finally {
+      setIsLoading(false)
+    }
   }
+
+  // Refetch when filters change
+  useEffect(() => {
+    if (userId && selectedWeek && selectedYear) {
+      fetchUserDetails()
+    }
+  }, [userId, selectedWeek, selectedYear])
+
+  const handleRefresh = async () => {
+    setIsRefreshing(true)
+    try {
+      await queryClient.invalidateQueries({
+        queryKey: ['hierarchy', 'user-details', userId]
+      })
+      await fetchUserDetails()
+      toast.success('Dữ liệu đã được cập nhật')
+    } catch (error) {
+      toast.error('Có lỗi khi cập nhật dữ liệu')
+    } finally {
+      setIsRefreshing(false)
+    }
+  }
+
+  const handleWeekChange = (value: string) => {
+    const week = parseInt(value)
+    if (week >= 1 && week <= 53) {
+      setSelectedWeek(week)
+    }
+  }
+
+  const handleYearChange = (value: string) => {
+    const year = parseInt(value)
+    if (year >= 2020 && year <= 2030) {
+      setSelectedYear(year)
+    }
+  }
+
+  // Generate dynamic year options
+  const generateYearOptions = () => {
+    const years = []
+    const startYear = currentYear - 2
+    const endYear = currentYear + 2
+
+    for (let year = startYear; year <= endYear; year++) {
+      years.push(year)
+    }
+    return years
+  }
+
+  // Generate back URL - với filter preservation
+  const getBackUrl = () => {
+    if (userData?.user?.jobPosition?.department) {
+      return `/admin/hierarchy/department/${userData.user.jobPosition.department.id}?weekNumber=${selectedWeek}&year=${selectedYear}`
+    }
+    if (userData?.user?.office) {
+      return `/admin/hierarchy/office/${userData.user.office.id}?weekNumber=${selectedWeek}&year=${selectedYear}`
+    }
+    return `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}`
+  }
+
+  if (!user) return <AppLoading text="Đang xác thực..." />
 
   // Check permissions
   const allowedRoles = ['SUPERADMIN', 'ADMIN', 'OFFICE_MANAGER', 'OFFICE_ADMIN']
-  const canAccess = allowedRoles.includes(currentUser.role) || currentUser.id === userId
-
-  if (!canAccess) {
+  if (!allowedRoles.includes(user.role)) {
     return (
       <MainLayout
         title="Không có quyền truy cập"
@@ -61,7 +189,7 @@ function UserDetailsContent() {
             <CardContent className="p-8 text-center">
               <User className="w-16 h-16 text-red-600 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-red-800 dark:text-red-200 mb-2">Không có quyền truy cập</h2>
-              <p className="text-red-600 dark:text-red-400">Bạn không có quyền xem chi tiết nhân viên này.</p>
+              <p className="text-red-600 dark:text-red-400">Chỉ quản lý mới có thể xem chi tiết nhân viên.</p>
             </CardContent>
           </Card>
         </div>
@@ -97,9 +225,9 @@ function UserDetailsContent() {
               <User className="w-16 h-16 text-red-600 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-red-800 dark:text-red-200 mb-2">Không thể tải dữ liệu</h2>
               <p className="text-red-600 dark:text-red-400 mb-4">
-                {(error as any)?.message || 'Có lỗi xảy ra khi tải chi tiết nhân viên'}
+                {error || 'Có lỗi xảy ra khi tải chi tiết nhân viên'}
               </p>
-              <Link href="/admin/hierarchy">
+              <Link href={getBackUrl()}>
                 <Button variant="outline">
                   <ArrowLeft className="w-4 h-4 mr-2" />
                   Quay lại
@@ -112,537 +240,244 @@ function UserDetailsContent() {
     )
   }
 
-  const getPerformanceColor = (rate: number) => {
-    if (rate >= 90) return 'text-green-600 dark:text-green-400'
-    if (rate >= 70) return 'text-yellow-600 dark:text-yellow-400'
-    return 'text-red-600 dark:text-red-400'
-  }
-
-  const getPerformanceBadge = (rate: number) => {
-    if (rate >= 90) return { label: 'Xuất sắc', variant: 'default' as const }
-    if (rate >= 70) return { label: 'Tốt', variant: 'secondary' as const }
-    return { label: 'Cần cải thiện', variant: 'destructive' as const }
-  }
-
   return (
     <MainLayout
       title={`${userData.user.firstName} ${userData.user.lastName}`}
-      subtitle={`${userData.user.employeeCode} - ${userData.user.jobPosition.department.name}`}
+      subtitle={`${userData.user.employeeCode} - ${userData.user.jobPosition?.jobName || 'N/A'}`}
       showBreadcrumb
       breadcrumbItems={[
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Admin', href: '/admin' },
-        { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
+        { label: 'Báo cáo phân cấp', href: `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}` },
+        {
+          label: userData.user.jobPosition?.department?.name || 'Phòng ban',
+          href: userData.user.jobPosition?.department?.id
+            ? `/admin/hierarchy/department/${userData.user.jobPosition.department.id}?weekNumber=${selectedWeek}&year=${selectedYear}`
+            : '#'
+        },
         { label: `${userData.user.firstName} ${userData.user.lastName}` }
       ]}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
         {/* Back Button */}
         <div className="mb-4 sm:mb-6">
-          <Link href="/admin/hierarchy">
-            <Button variant="outline" size="sm" className="flex items-center gap-2">
-              <ArrowLeft className="w-4 h-4" />
-              <span className="hidden sm:inline">Quay lại báo cáo phân cấp</span>
-              <span className="sm:hidden">Quay lại</span>
+          <div className="flex items-center justify-between">
+            <Link href={getBackUrl()}>
+              <Button variant="outline" size="sm" className="flex items-center gap-2">
+                <ArrowLeft className="w-4 h-4" />
+                <span className="hidden sm:inline">Quay lại phòng ban</span>
+                <span className="sm:hidden">Quay lại</span>
+              </Button>
+            </Link>
+
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleRefresh}
+              disabled={isRefreshing}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+              {isRefreshing ? 'Đang tải...' : 'Làm mới'}
             </Button>
-          </Link>
+          </div>
         </div>
 
-        {/* Mobile Profile Card */}
-        <div className="block lg:hidden mb-6">
-          <Card>
-            <CardContent className="p-4">
-              {/* Avatar and basic info */}
-              <div className="flex items-start gap-3 mb-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-white font-semibold text-lg">
+        {/* Week/Year Selector */}
+        {/* <Card className="mb-6">
+          <CardHeader>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <CardTitle className="flex items-center gap-2">
+                <Calendar className="w-5 h-5" />
+                Chi tiết nhân viên - Tuần {selectedWeek}/{selectedYear}
+              </CardTitle>
+              <div className="flex flex-col sm:flex-row gap-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium whitespace-nowrap">Tuần:</span>
+                  <Select value={selectedWeek.toString()} onValueChange={handleWeekChange}>
+                    <SelectTrigger className="w-20">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {Array.from({ length: 53 }, (_, i) => i + 1).map(week => (
+                        <SelectItem key={week} value={week.toString()}>{week}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium whitespace-nowrap">Năm:</span>
+                  <Select value={selectedYear.toString()} onValueChange={handleYearChange}>
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {generateYearOptions().map(year => (
+                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+        </Card> */}
+
+        {/* Enhanced User Details with Ranking */}
+        <Card className="mb-6">
+          <CardHeader>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
+                  <span className="text-white font-bold text-lg">
                     {userData.user.firstName.charAt(0)}{userData.user.lastName.charAt(0)}
                   </span>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <h1 className="text-xl font-bold truncate">
+                <div>
+                  <CardTitle className="text-2xl">
                     {userData.user.firstName} {userData.user.lastName}
-                  </h1>
-                  <div className="flex flex-wrap gap-1 mt-1">
-                    <Badge variant="outline" className="text-xs">{userData.user.employeeCode}</Badge>
-                    <Badge variant="secondary" className="text-xs">{userData.user.role}</Badge>
-                  </div>
-                </div>
-                <div className="text-center">
-                  <SimplePieChart
-                    completed={userData.overallStats.completedTasks}
-                    incomplete={userData.overallStats.totalTasks - userData.overallStats.completedTasks}
-                    size={50}
-                    strokeWidth={6}
-                    showPercentage={true}
-                    showLabel={false}
-                  />
-                  <div className="text-xs text-muted-foreground mt-1">Hoàn thành</div>
-                </div>
-              </div>
-
-              {/* Contact info */}
-              <div className="space-y-2 text-sm mb-4">
-                <div className="flex items-center gap-2">
-                  <Mail className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="truncate">{userData.user.email || 'Chưa có email'}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Briefcase className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="truncate">{userData.user.jobPosition.jobName}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Building className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  <span className="truncate">{userData.user.jobPosition.department.name}</span>
-                </div>
-              </div>
-
-              {/* Mobile stats grid */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="text-center p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                  <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{userData.overallStats.totalReports}</div>
-                  <div className="text-xs text-muted-foreground">Tổng BC</div>
-                </div>
-                <div className="text-center p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                  <div className="text-lg font-bold text-green-600 dark:text-green-400">{userData.overallStats.completedReports}</div>
-                  <div className="text-xs text-muted-foreground">BC hoàn thành</div>
-                </div>
-                <div className="text-center p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
-                  <div className="text-lg font-bold text-purple-600 dark:text-purple-400">{userData.overallStats.totalTasks}</div>
-                  <div className="text-xs text-muted-foreground">Tổng CV</div>
-                </div>
-                <div className="text-center p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                  <div className={`text-lg font-bold ${getPerformanceColor(userData.overallStats.taskCompletionRate)}`}>
-                    {userData.overallStats.taskCompletionRate}%
-                  </div>
-                  <div className="text-xs text-muted-foreground">Tỷ lệ HT</div>
-                </div>
-              </div>
-
-              {/* Performance progress */}
-              <div className="mt-4 space-y-3">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Hoàn thành báo cáo</span>
-                    <span className={getPerformanceColor(userData.overallStats.reportCompletionRate)}>
-                      {userData.overallStats.reportCompletionRate}%
-                    </span>
-                  </div>
-                  <Progress value={userData.overallStats.reportCompletionRate} className="h-2" />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Hoàn thành công việc</span>
-                    <span className={getPerformanceColor(userData.overallStats.taskCompletionRate)}>
-                      {userData.overallStats.taskCompletionRate}%
-                    </span>
-                  </div>
-                  <Progress value={userData.overallStats.taskCompletionRate} className="h-2" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Desktop Profile Card - Hidden on mobile */}
-        <div className="hidden lg:block mb-6">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                    <span className="text-white font-semibold text-lg">
-                      {userData.user.firstName.charAt(0)}{userData.user.lastName.charAt(0)}
-                    </span>
-                  </div>
-                  <div>
-                    <CardTitle className="text-2xl">
-                      {userData.user.firstName} {userData.user.lastName}
-                    </CardTitle>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="outline">{userData.user.employeeCode}</Badge>
-                      <Badge variant="secondary">{userData.user.role}</Badge>
-                      <Badge variant={userData.user.isActive ? 'default' : 'destructive'}>
-                        {userData.user.isActive ? 'Hoạt động' : 'Không hoạt động'}
+                  </CardTitle>
+                  <div className="flex items-center gap-2 mt-2">
+                    <Badge variant="outline">{userData.user.employeeCode}</Badge>
+                    <Badge variant="secondary">{userData.user.role}</Badge>
+                    {userData.overallStats?.taskCompletionRate && (
+                      <Badge className={getPerformanceBadge(userData.overallStats.taskCompletionRate).className}>
+                        {getPerformanceBadge(userData.overallStats.taskCompletionRate).label}
                       </Badge>
-                    </div>
+                    )}
                   </div>
-                </div>
-                <div className="text-right">
-                  <div className="text-sm text-muted-foreground">Tỷ lệ hoàn thành CV</div>
-                  <div className={`text-3xl font-bold ${getPerformanceColor(userData.overallStats.taskCompletionRate)}`}>
-                    {userData.overallStats.taskCompletionRate}%
-                  </div>
-                  <Badge {...getPerformanceBadge(userData.overallStats.taskCompletionRate)} className="text-xs">
-                    {getPerformanceBadge(userData.overallStats.taskCompletionRate).label}
-                  </Badge>
+                  <p className="text-muted-foreground mt-1">
+                    {userData.user.jobPosition?.jobName} • {userData.user.jobPosition?.department?.name}
+                  </p>
                 </div>
               </div>
-            </CardHeader>
-            <CardContent>
-              {/* Basic Info */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                <div>
-                  <h3 className="font-semibold mb-3">Thông tin cá nhân</h3>
-                  <div className="space-y-2 text-sm">
-                    <p>Email: {userData.user.email || 'Chưa có'}</p>
-                    <p>Vị trí: {userData.user.jobPosition.jobName}</p>
-                    <p>Chức danh: {userData.user.jobPosition.positionName}</p>
-                  </div>
-                </div>
-                <div>
-                  <h3 className="font-semibold mb-3">Thông tin tổ chức</h3>
-                  <div className="space-y-2 text-sm">
-                    <p>Phòng ban: {userData.user.jobPosition.department.name}</p>
-                    <p>Văn phòng: {userData.user.office.name}</p>
-                    <p>Loại văn phòng: {userData.user.office.type === 'HEAD_OFFICE' ? 'Văn phòng chính' : 'Văn phòng nhà máy'}</p>
-                  </div>
+              <div className="text-right">
+                <div className="text-sm text-muted-foreground">Hiệu suất tổng thể</div>
+                <div className={`text-3xl font-bold ${userData.overallStats?.taskCompletionRate
+                  ? getPerformanceColor(userData.overallStats.taskCompletionRate).text
+                  : 'text-gray-400'
+                  }`}>
+                  {userData.overallStats?.taskCompletionRate || 0}%
                 </div>
               </div>
-
-              {/* Overall Stats */}
-              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                <div className="text-center p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                  <FileText className="w-8 h-8 text-blue-600 dark:text-blue-400 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{userData.overallStats.totalReports}</div>
-                  <div className="text-sm text-muted-foreground">Tổng báo cáo</div>
-                </div>
-                <div className="text-center p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
-                  <CheckCircle2 className="w-8 h-8 text-green-600 dark:text-green-400 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-green-600 dark:text-green-400">{userData.overallStats.completedReports}</div>
-                  <div className="text-sm text-muted-foreground">BC hoàn thành</div>
-                </div>
-                <div className="text-center p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
-                  <TrendingUp className="w-8 h-8 text-purple-600 dark:text-purple-400 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">{userData.overallStats.totalTasks}</div>
-                  <div className="text-sm text-muted-foreground">Tổng công việc</div>
-                </div>
-                <div className="text-center p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
-                  <Calendar className="w-8 h-8 text-orange-600 dark:text-orange-400 mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">{userData.overallStats.completedTasks}</div>
-                  <div className="text-sm text-muted-foreground">CV hoàn thành</div>
-                </div>
-              </div>
-
-              {/* Performance Progress */}
-              <div className="mt-6 space-y-3">
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Tỷ lệ hoàn thành báo cáo</span>
-                    <span className={getPerformanceColor(userData.overallStats.reportCompletionRate)}>
-                      {userData.overallStats.reportCompletionRate}%
-                    </span>
-                  </div>
-                  <Progress value={userData.overallStats.reportCompletionRate} className="h-2" />
-                </div>
-                
-                <div>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span>Tỷ lệ hoàn thành công việc</span>
-                    <span className={getPerformanceColor(userData.overallStats.taskCompletionRate)}>
-                      {userData.overallStats.taskCompletionRate}%
-                    </span>
-                  </div>
-                  <Progress value={userData.overallStats.taskCompletionRate} className="h-2" />
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Reports History - Mobile Optimized */}
-        <Card>
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <CardTitle className="text-lg flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                <span className="hidden sm:inline">Lịch sử báo cáo</span>
-                <span className="sm:hidden">Báo cáo</span>
-              </CardTitle>
-              {/* Admin xem tất cả báo cáo của user này */}
-              <Link href={`/admin/hierarchy/user/${userData.user.id}/reports`} passHref>
-                <Button variant="outline" size="sm" className="text-xs">
-                  <span className="hidden sm:inline">Xem tất cả</span>
-                  <span className="sm:hidden">Tất cả</span>
-                </Button>
-              </Link>
             </div>
           </CardHeader>
-          <CardContent className="pt-0">
-            <div className="space-y-3">
-              {userData.reports.length === 0 ? (
-                <div className="text-center py-8 text-muted-foreground">
-                  <FileText className="w-12 h-12 mx-auto mb-3 opacity-50" />
-                  <p>Chưa có báo cáo nào</p>
+          <CardContent>
+            {/* Performance Overview */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+              <div className="text-center p-4 bg-blue-50 rounded-lg">
+                <div className="text-2xl font-bold text-blue-600">
+                  {userData.overallStats?.totalReports || 0}
                 </div>
-              ) : (
-                userData.reports.map((report, index) => {
-                  const performanceBadge = getPerformanceBadge(report.stats.taskCompletionRate)
-                  
+                <div className="text-sm text-muted-foreground">Tổng báo cáo</div>
+              </div>
+              <div className="text-center p-4 bg-green-50 rounded-lg">
+                <div className="text-2xl font-bold text-green-600">
+                  {userData.overallStats?.completedReports || 0}
+                </div>
+                <div className="text-sm text-muted-foreground">Đã hoàn thành</div>
+              </div>
+              <div className="text-center p-4 bg-purple-50 rounded-lg">
+                <div className="text-2xl font-bold text-purple-600">
+                  {userData.overallStats?.reportCompletionRate || 0}%
+                </div>
+                <div className="text-sm text-muted-foreground">Tỷ lệ hoàn thành BC</div>
+              </div>
+              <div className="text-center p-4 bg-orange-50 rounded-lg">
+                <div className="text-2xl font-bold text-orange-600">
+                  {userData.overallStats?.totalTasks || 0}
+                </div>
+                <div className="text-sm text-muted-foreground">Tổng công việc</div>
+              </div>
+            </div>
+
+            {/* Overall Performance Progress */}
+            {userData.overallStats?.taskCompletionRate && (
+              <div className="mb-4">
+                <div className="flex justify-between text-sm mb-2">
+                  <span>Hiệu suất làm việc tổng thể</span>
+                  <span className={getPerformanceColor(userData.overallStats.taskCompletionRate).text}>
+                    {userData.overallStats.taskCompletionRate}%
+                  </span>
+                </div>
+                <Progress value={userData.overallStats.taskCompletionRate} className="h-3" />
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Recent Reports with Performance Analysis */}
+        {userData.reports && userData.reports.length > 0 && (
+          <Card>
+            <CardHeader>
+              <CardTitle>Báo cáo gần đây với phân tích hiệu suất</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {userData.reports.slice(0, 5).map((report: any, index: number) => {
+                  const reportPerformance = getPerformanceBadge(report.stats.taskCompletionRate)
+                  const reportColor = getPerformanceColor(report.stats.taskCompletionRate)
+
                   return (
                     <motion.div
                       key={report.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: index * 0.05 }}
+                      transition={{ duration: 0.3, delay: index * 0.1 }}
+                      className="p-4 border rounded-lg hover:bg-muted/30 transition-colors"
                     >
-                      <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          {/* Mobile Layout */}
-                          <div className="block lg:hidden">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="font-semibold text-base">
-                                    Tuần {report.weekNumber}/{report.year}
-                                  </h3>
-                                  <Badge 
-                                    variant={performanceBadge.variant}
-                                    className="text-xs"
-                                  >
-                                    {performanceBadge.label}
-                                  </Badge>
-                                </div>
-                                
-                                <div className="flex items-center gap-2 mb-2">
-                                  {report.isCompleted && (
-                                    <Badge variant="default" className="text-xs">
-                                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                                      Hoàn thành
-                                    </Badge>
-                                  )}
-                                  {report.isLocked && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      🔒 Đã khóa
-                                    </Badge>
-                                  )}
-                                </div>
-                                
-                                <p className="text-xs text-muted-foreground">
-                                  Cập nhật {formatDistanceToNow(new Date(report.updatedAt), {
-                                    addSuffix: true,
-                                    locale: vi
-                                  })}
-                                </p>
-                              </div>
-                              
-                              <div className="flex items-center gap-3">
-                                <SimplePieChart
-                                  completed={report.stats.completedTasks}
-                                  incomplete={report.stats.incompleteTasks}
-                                  size={40}
-                                  strokeWidth={4}
-                                  showPercentage={true}
-                                  showLabel={false}
-                                />
-                                {/* Admin chỉ có quyền xem, không sửa */}
-                                <Link href={`/admin/hierarchy/user/${userData.user.id}/report/${report.id}`}>
-                                  <Button variant="outline" size="sm" className="text-xs">
-                                    Xem
-                                  </Button>
-                                </Link>
-                              </div>
-                            </div>
-
-                            {/* Mobile stats grid */}
-                            <div className="grid grid-cols-4 gap-2 mb-3 text-center text-xs">
-                              <div>
-                                <div className="font-semibold">{report.stats.totalTasks}</div>
-                                <div className="text-muted-foreground">Tổng</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-green-600">{report.stats.completedTasks}</div>
-                                <div className="text-muted-foreground">Xong</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-red-600">{report.stats.incompleteTasks}</div>
-                                <div className="text-muted-foreground">Chưa</div>
-                              </div>
-                              <div>
-                                <div className={`font-semibold ${getPerformanceColor(report.stats.taskCompletionRate)}`}>
-                                  {report.stats.taskCompletionRate}%
-                                </div>
-                                <div className="text-muted-foreground">Tỷ lệ</div>
-                              </div>
-                            </div>
-
-                            {/* Progress Bar */}
-                            <div className="mb-3">
-                              <Progress value={report.stats.taskCompletionRate} className="h-2" />
-                            </div>
-
-                            {/* Work Days - Simplified for mobile */}
-                            <div className="mb-3 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg">
-                              <div className="text-xs font-medium text-gray-700 dark:text-gray-300 mb-2">Công việc theo ngày</div>
-                              <div className="grid grid-cols-7 gap-1 text-xs">
-                                {Object.entries(report.stats.tasksByDay).map(([day, count]) => (
-                                  <div key={day} className="text-center">
-                                    <div className="text-muted-foreground">
-                                      {day === 'monday' ? 'T2' : 
-                                       day === 'tuesday' ? 'T3' :
-                                       day === 'wednesday' ? 'T4' :
-                                       day === 'thursday' ? 'T5' :
-                                       day === 'friday' ? 'T6' :
-                                       day === 'saturday' ? 'T7' : 'CN'}
-                                    </div>
-                                    <div className="font-semibold text-xs">{count}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Incomplete Reasons - Collapsed for mobile */}
-                            {report.stats.incompleteReasons.length > 0 && (
-                              <div className="p-2 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-100 dark:border-orange-800">
-                                <div className="flex items-center gap-2 mb-1">
-                                  <AlertTriangle className="w-3 h-3 text-orange-500" />
-                                  <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
-                                    Lý do chưa hoàn thành ({report.stats.incompleteReasons.length})
-                                  </span>
-                                </div>
-                                <div className="text-xs text-orange-600 dark:text-orange-400">
-                                  {report.stats.incompleteReasons.slice(0, 2).map(reason => reason.reason).join(', ')}
-                                  {report.stats.incompleteReasons.length > 2 && '...'}
-                                </div>
-                              </div>
-                            )}
+                      <div className="flex items-center justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h3 className="font-medium">
+                              Tuần {report.weekNumber}/{report.year}
+                            </h3>
+                            <Badge className={reportPerformance.className}>
+                              {reportPerformance.label}
+                            </Badge>
+                            <Badge variant={report.isCompleted ? 'default' : 'secondary'}>
+                              {report.isCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}
+                            </Badge>
                           </div>
-
-                          {/* Desktop Layout - Hidden on mobile */}
-                          <div className="hidden lg:block">
-                            <div className="flex items-start justify-between mb-3">
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2">
-                                  <h3 className="font-semibold text-lg">
-                                    Tuần {report.weekNumber}/{report.year}
-                                  </h3>
-                                  <Badge 
-                                    variant={performanceBadge.variant}
-                                    className="text-xs"
-                                  >
-                                    {performanceBadge.label}
-                                  </Badge>
-                                  {report.isCompleted && (
-                                    <Badge variant="default" className="text-xs">
-                                      <CheckCircle2 className="w-3 h-3 mr-1" />
-                                      Hoàn thành
-                                    </Badge>
-                                  )}
-                                  {report.isLocked && (
-                                    <Badge variant="secondary" className="text-xs">
-                                      🔒 Đã khóa
-                                    </Badge>
-                                  )}
-                                </div>
-                                <p className="text-sm text-muted-foreground">
-                                  Cập nhật {formatDistanceToNow(new Date(report.updatedAt), {
-                                    addSuffix: true,
-                                    locale: vi
-                                  })}
-                                </p>
-                              </div>
-                              
-                              <div className="flex items-center gap-4">
-                                <SimplePieChart
-                                  completed={report.stats.completedTasks}
-                                  incomplete={report.stats.incompleteTasks}
-                                  size={60}
-                                  strokeWidth={6}
-                                  showLabel
-                                />
-                                
-                                {/* Admin chỉ có quyền xem chi tiết, không sửa */}
-                                <Link href={`/admin/hierarchy/user/${userData.user.id}/report/${report.id}`}>
-                                  <Button variant="outline" size="sm">
-                                    Xem chi tiết
-                                  </Button>
-                                </Link>
-                              </div>
-                            </div>
-
-                            {/* Desktop stats grid */}
-                            <div className="grid grid-cols-4 gap-4 text-center text-sm mb-4">
-                              <div>
-                                <div className="font-semibold">{report.stats.totalTasks}</div>
-                                <div className="text-muted-foreground">Tổng CV</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-green-600">{report.stats.completedTasks}</div>
-                                <div className="text-muted-foreground">CV hoàn thành</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-red-600">{report.stats.incompleteTasks}</div>
-                                <div className="text-muted-foreground">CV chưa hoàn thành</div>
-                              </div>
-                              <div>
-                                <div className={`font-semibold ${getPerformanceColor(report.stats.taskCompletionRate)}`}>
-                                  {report.stats.taskCompletionRate}%
-                                </div>
-                                <div className="text-muted-foreground">Tỷ lệ hoàn thành</div>
-                              </div>
-                            </div>
-
-                            {/* Progress Bar - Desktop */}
-                            <div className="mb-4">
-                              <div className="flex justify-between text-sm mb-1">
-                                <span>Tỷ lệ hoàn thành công việc</span>
-                                <span className={getPerformanceColor(report.stats.taskCompletionRate)}>
-                                  {report.stats.taskCompletionRate}%
-                                </span>
-                              </div>
-                              <Progress value={report.stats.taskCompletionRate} className="h-2" />
-                            </div>
-
-                            {/* Work Days - Detailed for desktop */}
-                            <div className="mb-4">
-                              <div className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Công việc theo ngày</div>
-                              <div className="grid grid-cols-7 gap-2 text-xs">
-                                {Object.entries(report.stats.tasksByDay).map(([day, count]) => (
-                                  <div key={day} className="text-center">
-                                    <div className="text-muted-foreground">
-                                      {day === 'monday' ? 'Thứ 2' : 
-                                       day === 'tuesday' ? 'Thứ 3' :
-                                       day === 'wednesday' ? 'Thứ 4' :
-                                       day === 'thursday' ? 'Thứ 5' :
-                                       day === 'friday' ? 'Thứ 6' :
-                                       day === 'saturday' ? 'Thứ 7' : 'CN'}
-                                    </div>
-                                    <div className="font-semibold">{count}</div>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-
-                            {/* Incomplete Reasons - Expanded for desktop */}
-                            {report.stats.incompleteReasons.length > 0 && (
-                              <div className="mt-4 p-4 bg-orange-50 dark:bg-orange-950/30 rounded-lg border border-orange-100 dark:border-orange-800">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <AlertTriangle className="w-4 h-4 text-orange-500" />
-                                  <span className="text-sm font-medium text-orange-700 dark:text-orange-300">
-                                    Lý do chưa hoàn thành ({report.stats.incompleteReasons.length})
-                                  </span>
-                                </div>
-                                <div className="text-sm text-orange-600 dark:text-orange-400">
-                                  {report.stats.incompleteReasons.map((reason, index) => (
-                                    <div key={index} className="flex justify-between">
-                                      <span>{reason.reason}</span>
-                                      <span className="font-semibold">{reason.count} lần</span>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            )}
+                          <div className="text-sm text-muted-foreground mb-2">
+                            {report.stats.completedTasks}/{report.stats.totalTasks} công việc hoàn thành
                           </div>
-                        </CardContent>
-                      </Card>
+                          <div className="flex justify-between text-xs mb-1">
+                            <span>Tiến độ báo cáo</span>
+                            <span className={reportColor.text}>
+                              {report.stats.taskCompletionRate}%
+                            </span>
+                          </div>
+                          <Progress value={report.stats.taskCompletionRate} className="h-2" />
+                        </div>
+                        <div className="ml-4">
+                          <Link
+                            href={`/admin/hierarchy/user/${userData.user.id}/report/${report.id}?returnTo=user-details&weekNumber=${selectedWeek}&year=${selectedYear}`}
+                          >
+                            <Button variant="outline" size="sm">
+                              <EyeIcon className="w-4 h-4 mr-2" />
+                              Chi tiết
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
                     </motion.div>
                   )
-                })
+                })}
+              </div>
+
+              {userData.reports.length > 5 && (
+                <div className="mt-4 text-center">
+                  <Link href={`/admin/hierarchy/user/${userData.user.id}/reports`}>
+                    <Button variant="outline">
+                      Xem tất cả báo cáo ({userData.reports.length})
+                    </Button>
+                  </Link>
+                </div>
               )}
-            </div>
-          </CardContent>
-        </Card>
+            </CardContent>
+          </Card>
+        )}
       </div>
     </MainLayout>
   )

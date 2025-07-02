@@ -1,34 +1,13 @@
 export function getCurrentWeek(): { weekNumber: number; year: number } {
   const now = new Date()
-  const year = now.getFullYear()
-  
-  // Get the first day of the year
-  const start = new Date(year, 0, 1)
-  
-  // Get the number of days since the beginning of the year
-  const diff = now.getTime() - start.getTime()
-  const oneDay = 1000 * 60 * 60 * 24
-  const dayOfYear = Math.floor(diff / oneDay) + 1
-  
-  // Calculate week number using ISO 8601 standard
-  const startDay = start.getDay() || 7 // Sunday = 7, Monday = 1
-  const weekNumber = Math.ceil((dayOfYear + startDay - 1) / 7)
-  
-  // Ensure week number is within valid range
-  let validWeekNumber = weekNumber
-  const validYear = year
-  
-  if (validWeekNumber > 52) {
-    validWeekNumber = Math.min(validWeekNumber, 52)
-  }
-  
-  if (validWeekNumber < 1) {
-    validWeekNumber = 1
-  }
+  const yearStart = new Date(now.getFullYear(), 0, 1)
+  const timeDiff = now.getTime() - yearStart.getTime()
+  const dayDiff = Math.floor(timeDiff / (1000 * 60 * 60 * 24))
+  const weekNumber = Math.ceil((dayDiff + yearStart.getDay() + 1) / 7)
   
   return {
-    weekNumber: validWeekNumber,
-    year: validYear
+    weekNumber: Math.min(weekNumber, 53), // Ensure max 53 weeks
+    year: now.getFullYear()
   }
 }
 

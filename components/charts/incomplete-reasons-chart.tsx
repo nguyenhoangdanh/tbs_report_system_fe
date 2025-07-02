@@ -1,9 +1,20 @@
 "use client"
 
-import { useMemo } from 'react'
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts'
+import React, { memo, useMemo } from 'react'
+import { 
+  PieChart, 
+  Pie, 
+  Cell, 
+  ResponsiveContainer, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip, 
+  Legend,
+} from 'recharts'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { useTheme } from 'next-themes'
 
 interface IncompleteReasonsChartProps {
@@ -12,168 +23,227 @@ interface IncompleteReasonsChartProps {
     count: number
     percentage: number
   }>
-  type?: 'pie' | 'bar'
+  type?: 'pie' | 'bar' | 'doughnut'
+  title?: string
+  height?: number
   className?: string
 }
 
-export function IncompleteReasonsChart({ 
+const COLORS = [
+  '#ef4444', // red-500
+  '#f97316', // orange-500
+  '#eab308', // yellow-500
+  '#22c55e', // green-500
+  '#3b82f6', // blue-500
+  '#8b5cf6', // violet-500
+  '#ec4899', // pink-500
+  '#06b6d4', // cyan-500
+]
+
+export const IncompleteReasonsChart = memo(({ 
   data, 
   type = 'pie', 
+  title = 'Lý do chưa hoàn thành',
+  height = 400,
   className 
-}: IncompleteReasonsChartProps) {
+}: IncompleteReasonsChartProps) => {
   const { theme } = useTheme()
-  
+
+  // Colors for light/dark mode
   const colors = useMemo(() => {
     const isDark = theme === 'dark'
     return {
-      text: isDark ? '#f9fafb' : '#111827',
-      grid: isDark ? '#374151' : '#e5e7eb',
-      pieColors: [
-        isDark ? '#ef4444' : '#dc2626',    // Red
-        isDark ? '#f59e0b' : '#d97706',    // Orange  
-        isDark ? '#eab308' : '#ca8a04',    // Yellow
-        isDark ? '#84cc16' : '#65a30d',    // Lime
-        isDark ? '#06b6d4' : '#0891b2',    // Cyan
-        isDark ? '#8b5cf6' : '#7c3aed',    // Violet
-        isDark ? '#ec4899' : '#db2777',    // Pink
-        isDark ? '#6b7280' : '#4b5563',    // Gray
-      ]
+      text: isDark ? '#f8fafc' : '#1e293b',
+      grid: isDark ? '#475569' : '#e2e8f0',
+      background: isDark ? '#1e293b' : '#ffffff',
+      pieColors: COLORS.map(color => 
+        isDark ? `${color}dd` : color
+      )
     }
   }, [theme])
 
-  // Process data - limit and group others
-  const processedData = useMemo(() => {
+  // Process data for charts
+  const chartData = useMemo(() => {
     if (!data || data.length === 0) return []
     
-    const topReasons = data.slice(0, 6) // Top 6 reasons
-    const others = data.slice(6)
-    
-    if (others.length > 0) {
-      const othersTotal = others.reduce((sum, item) => sum + item.count, 0)
-      const othersPercentage = others.reduce((sum, item) => sum + item.percentage, 0)
-      
-      return [
-        ...topReasons,
-        {
-          reason: 'Khác',
-          count: othersTotal,
-          percentage: othersPercentage
-        }
-      ]
-    }
-    
-    return topReasons
-  }, [data])
+    return data.map((item, index) => ({
+      name: item.reason.length > 20 ? item.reason.substring(0, 20) + '...' : item.reason,
+      fullName: item.reason,
+      value: item.count,
+      percentage: item.percentage,
+      fill: colors.pieColors[index % colors.pieColors.length]
+    }))
+  }, [data, colors.pieColors])
 
-  const CustomTooltip = ({ active, payload }: any) => {
+  // Custom tooltip with enhanced styling
+  const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
-      const data = payload[0].payload
+      const data = payload[0]
       return (
-        <div className="bg-background border border-border rounded-lg shadow-lg p-3 max-w-xs">
-          <p className="font-medium text-foreground mb-1">{data.reason}</p>
-          <p className="text-sm text-muted-foreground">
-            Số lần: {data.count} ({data.percentage}%)
-          </p>
+        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-xl p-4 min-w-[200px]">
+          <p className="font-semibold text-foreground mb-2">{data.payload.fullName}</p>
+          <div className="space-y-1 text-sm">
+            <p className="flex items-center justify-between">
+              <span className="text-muted-foreground">Số lượng:</span>
+              <span className="font-medium text-blue-600 dark:text-blue-400">{data.value}</span>
+            </p>
+            <p className="flex items-center justify-between">
+              <span className="text-muted-foreground">Tỷ lệ:</span>
+              <span className="font-medium text-purple-600 dark:text-purple-400">{data.payload.percentage}%</span>
+            </p>
+          </div>
         </div>
       )
     }
     return null
   }
 
+  // Custom label for pie chart
+  const renderLabel = ({ percentage, name }: any) => {
+    return percentage > 5 ? `${name}: ${percentage}%` : ''
+  }
+
   const renderChart = () => {
-    if (!processedData || processedData.length === 0) {
+    if (!chartData || chartData.length === 0) {
       return (
-        <div className="flex items-center justify-center h-96 text-muted-foreground">
-          <div className="text-center">
-            <div className="text-lg mb-2">📝</div>
-            <p>Không có dữ liệu lý do chưa hoàn thành</p>
+        <div className="flex items-center justify-center h-64 text-muted-foreground">
+          <div className="text-center space-y-3">
+            <div className="w-16 h-16 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
+              <span className="text-2xl">📊</span>
+            </div>
+            <p className="font-medium">Không có dữ liệu lý do chưa hoàn thành</p>
+            <p className="text-sm">Hãy kiểm tra lại tuần/tháng đã chọn</p>
           </div>
         </div>
       )
     }
 
-    if (type === 'pie') {
-      return (
-        <ResponsiveContainer width="100%" height={400}>
-          <PieChart>
-            <Pie
-              data={processedData}
-              cx="50%"
-              cy="50%"
-              outerRadius={140}
-              dataKey="count"
-              label={({ reason, percentage }) => 
-                `${reason.length > 15 ? reason.substring(0, 15) + '...' : reason}: ${percentage}%`
-              }
-              labelLine={false}
-            >
-              {processedData.map((entry, index) => (
-                <Cell 
-                  key={`cell-${index}`} 
-                  fill={colors.pieColors[index % colors.pieColors.length]} 
-                />
-              ))}
-            </Pie>
-            <Tooltip content={<CustomTooltip />} />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
-      )
-    }
+    switch (type) {
+      case 'pie':
+        return (
+          <ResponsiveContainer width="100%" height={height}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={renderLabel}
+                outerRadius={Math.min(height * 0.35, 120)}
+                fill="#8884d8"
+                dataKey="value"
+                stroke="none"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+              <Legend 
+                wrapperStyle={{ 
+                  fontSize: '12px',
+                  color: colors.text 
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        )
 
-    return (
-      <ResponsiveContainer width="100%" height={400}>
-        <BarChart 
-          data={processedData} 
-          layout="horizontal"
-          margin={{ top: 20, right: 30, left: 100, bottom: 5 }}
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-          <XAxis 
-            type="number" 
-            tick={{ fill: colors.text, fontSize: 12 }}
-            axisLine={{ stroke: colors.grid }}
-            tickLine={{ stroke: colors.grid }}
-          />
-          <YAxis 
-            type="category" 
-            dataKey="reason" 
-            tick={{ fill: colors.text, fontSize: 11 }}
-            width={90}
-            tickFormatter={(value) => value.length > 15 ? value.substring(0, 15) + '...' : value}
-            axisLine={{ stroke: colors.grid }}
-            tickLine={{ stroke: colors.grid }}
-          />
-          <Tooltip content={<CustomTooltip />} />
-          <Legend />
-          <Bar 
-            dataKey="count" 
-            fill={colors.pieColors[0]}
-            radius={[0, 4, 4, 0]}
-            name="Số lần"
-          />
-        </BarChart>
-      </ResponsiveContainer>
-    )
+      case 'doughnut':
+        return (
+          <ResponsiveContainer width="100%" height={height}>
+            <PieChart>
+              <Pie
+                data={chartData}
+                cx="50%"
+                cy="50%"
+                labelLine={false}
+                label={renderLabel}
+                outerRadius={Math.min(height * 0.35, 120)}
+                innerRadius={Math.min(height * 0.2, 60)}
+                fill="#8884d8"
+                dataKey="value"
+                stroke="none"
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Pie>
+              <Tooltip content={<CustomTooltip />} />
+              <Legend 
+                wrapperStyle={{ 
+                  fontSize: '12px',
+                  color: colors.text 
+                }}
+              />
+            </PieChart>
+          </ResponsiveContainer>
+        )
+
+      case 'bar':
+        return (
+          <ResponsiveContainer width="100%" height={height}>
+            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
+              <XAxis 
+                dataKey="name" 
+                tick={{ fill: colors.text, fontSize: 12 }}
+                axisLine={{ stroke: colors.grid }}
+                tickLine={{ stroke: colors.grid }}
+                angle={-45}
+                textAnchor="end"
+                height={80}
+                interval={0}
+              />
+              <YAxis 
+                tick={{ fill: colors.text, fontSize: 12 }}
+                axisLine={{ stroke: colors.grid }}
+                tickLine={{ stroke: colors.grid }}
+                label={{ 
+                  value: 'Số lượng', 
+                  angle: -90, 
+                  position: 'insideLeft',
+                  style: { textAnchor: 'middle', fill: colors.text }
+                }}
+              />
+              <Tooltip content={<CustomTooltip />} />
+              <Legend 
+                wrapperStyle={{ 
+                  fontSize: '12px',
+                  color: colors.text 
+                }}
+              />
+              <Bar 
+                dataKey="value" 
+                name="Số lượng lỗi"
+                radius={[4, 4, 0, 0]}
+              >
+                {chartData.map((entry, index) => (
+                  <Cell key={`cell-${index}`} fill={entry.fill} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )
+
+      default:
+        return null
+    }
   }
 
-  const totalIncomplete = processedData.reduce((sum, item) => sum + item.count, 0)
-
   return (
-    <Card className={className}>
-      <CardHeader className="pb-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-lg font-semibold">
-            Lý do chưa hoàn thành công việc
-          </CardTitle>
-          <Badge variant="outline">
-            Tổng: {totalIncomplete} lần
-          </Badge>
-        </div>
+    <Card className={`${className} border-0 shadow-sm bg-gradient-to-br from-background to-muted/20`}>
+      <CardHeader className="pb-4 border-b border-border/50">
+        <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+          <div className="w-2 h-6 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
+          {title}
+        </CardTitle>
       </CardHeader>
-      <CardContent className="p-0 pb-6">
+      <CardContent className="p-6">
         {renderChart()}
       </CardContent>
     </Card>
   )
-}
+})
+
+IncompleteReasonsChart.displayName = 'IncompleteReasonsChart'

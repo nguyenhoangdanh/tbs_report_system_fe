@@ -1,38 +1,27 @@
 import React from 'react'
+import { Loader2 } from 'lucide-react'
 
 interface AppLoadingProps {
   text?: string
-  size?: number
-  minimal?: boolean
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
 }
 
-export function AppLoading({
-  text = "Đang tải...",
-  size = 40,
-  minimal = false
+export function AppLoading({ 
+  text = 'Đang tải...', 
+  size = 'md',
+  className = '' 
 }: AppLoadingProps) {
-  if (minimal) {
-    return (
-      <div className="flex items-center justify-center p-4">
-        <div
-          className="animate-spin rounded-full border-2 border-green-600/20 border-t-green-600"
-          style={{ width: size, height: size }}
-        />
-      </div>
-    )
+  const sizeClasses = {
+    sm: 'w-4 h-4',
+    md: 'w-8 h-8',
+    lg: 'w-12 h-12'
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <div className="text-center space-y-4">
-        <div className="flex items-center justify-center">
-          <div
-            className="animate-spin rounded-full border-2 border-green-600/20 border-t-green-600"
-            style={{ width: size, height: size }}
-          />
-        </div>
-        <p className="text-sm text-muted-foreground">{text}</p>
-      </div>
+    <div className={`flex flex-col items-center justify-center min-h-[200px] ${className}`}>
+      <Loader2 className={`${sizeClasses[size]} animate-spin text-primary mb-2`} />
+      <p className="text-sm text-muted-foreground">{text}</p>
     </div>
   )
 }

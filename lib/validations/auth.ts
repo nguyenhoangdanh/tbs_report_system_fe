@@ -4,6 +4,7 @@ import { z } from 'zod'
 export const loginSchema = z.object({
   employeeCode: z.string().min(1, 'Mã nhân viên không được để trống'),
   password: z.string().min(1, 'Mật khẩu không được để trống'),
+  rememberMe: z.boolean().optional(),
 })
 
 export const registerSchema = z.object({

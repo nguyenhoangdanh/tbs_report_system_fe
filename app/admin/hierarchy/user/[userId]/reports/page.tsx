@@ -1,7 +1,7 @@
 "use client"
 
 import { Suspense, useState, useMemo } from 'react'
-import { useParams } from 'next/navigation'
+import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useUserReportsForAdmin } from '@/hooks/use-hierarchy'
 import { MainLayout } from '@/components/layout/main-layout'
@@ -31,9 +31,17 @@ import { vi } from 'date-fns/locale'
 function UserReportsContent() {
   const { user: currentUser } = useAuth()
   const params = useParams()
+  const searchParams = useSearchParams()
+  const router = useRouter()
   const userId = params?.userId as string
   
-  const [yearFilter, setYearFilter] = useState<number>(new Date().getFullYear())
+  // Extract query parameters
+  const weekNumberFromUrl = searchParams.get('weekNumber')
+  const yearFromUrl = searchParams.get('year')
+  
+  const [yearFilter, setYearFilter] = useState<number>(
+    yearFromUrl ? parseInt(yearFromUrl) : new Date().getFullYear()
+  )
   const [statusFilter, setStatusFilter] = useState<'all' | 'completed' | 'pending' | 'incomplete'>('all')
   const [page, setPage] = useState(1)
   const [limit] = useState(20)
@@ -166,21 +174,22 @@ function UserReportsContent() {
 
   return (
     <MainLayout
-      title={`Báo cáo của ${userData.firstName || 'N/A'} ${userData.lastName || ''}`}
-      subtitle={`${userData.employeeCode || 'N/A'} - ${userData.jobPosition?.department?.name || 'N/A'}`}
+      title={`Báo cáo của ${userData?.firstName || 'N/A'} ${userData?.lastName || ''}`}
+      subtitle={`${userData?.employeeCode || 'N/A'} - ${userData?.jobPosition?.department?.name || 'N/A'}`}
       showBreadcrumb
       breadcrumbItems={[
         { label: 'Dashboard', href: '/dashboard' },
         { label: 'Admin', href: '/admin' },
         { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
-        { label: `${userData.firstName || 'N/A'} ${userData.lastName || ''}`, href: `/admin/hierarchy/user/${userId}` },
+        { 
+          label: `${userData?.firstName || 'N/A'} ${userData?.lastName || ''}`, 
+          href: `/admin/hierarchy/user/${userId}`
+        },
         { label: 'Tất cả báo cáo' }
       ]}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Remove Debug Info */}
-
-        {/* Back Button */}
+        {/* Back Button - Fixed navigation */}
         <div className="mb-4 sm:mb-6">
           <Link href={`/admin/hierarchy/user/${userId}`}>
             <Button variant="outline" size="sm" className="flex items-center gap-2">
@@ -364,7 +373,13 @@ function UserReportsContent() {
                                   strokeWidth={4}
                                 />
                                 {/* Admin chỉ được xem, không được sửa */}
-                                <Link href={`/admin/hierarchy/user/${userId}/report/${report.id}`}>
+                                <Link 
+                                  href={`/admin/hierarchy/user/${userId}/report/${report.id}${
+                                    weekNumberFromUrl && yearFromUrl 
+                                      ? `?weekNumber=${weekNumberFromUrl}&year=${yearFromUrl}` 
+                                      : ''
+                                  }`}
+                                >
                                   <Button variant="outline" size="sm" className="text-xs">
                                     <Eye className="w-3 h-3 mr-1" />
                                     Xem
@@ -458,11 +473,16 @@ function UserReportsContent() {
                                   incomplete={incompleteTasks}
                                   size={60}
                                   strokeWidth={6}
-                                  showLabel
                                 />
                                 
                                 {/* Admin chỉ được xem, không được sửa */}
-                                <Link href={`/admin/hierarchy/user/${userId}/report/${report.id}`}>
+                                <Link 
+                                  href={`/admin/hierarchy/user/${userId}/report/${report.id}${
+                                    weekNumberFromUrl && yearFromUrl 
+                                      ? `?weekNumber=${weekNumberFromUrl}&year=${yearFromUrl}` 
+                                      : ''
+                                  }`}
+                                >
                                   <Button variant="outline" size="sm">
                                     <Eye className="w-4 h-4 mr-2" />
                                     Xem chi tiết
