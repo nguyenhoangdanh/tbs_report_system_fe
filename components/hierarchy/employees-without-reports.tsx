@@ -250,7 +250,7 @@ export function EmployeesWithoutReports({
           </CardContent>
         </Card>
 
-        <Card>
+        {/* <Card>
           <CardContent className="p-3 sm:p-4 lg:p-6 text-center">
             <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-12 lg:h-12 bg-green-50 rounded-lg flex items-center justify-center mx-auto mb-2 sm:mb-3">
               <Calendar className="w-3 h-3 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-green-600" />
@@ -258,7 +258,7 @@ export function EmployeesWithoutReports({
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-green-600">{summary.usersWithReports}</div>
             <div className="text-xs sm:text-sm text-muted-foreground">Đã nộp BC</div>
           </CardContent>
-        </Card>
+        </Card> */}
 
         <Card>
           <CardContent className="p-3 sm:p-4 lg:p-6 text-center">
@@ -270,7 +270,7 @@ export function EmployeesWithoutReports({
           </CardContent>
         </Card>
 
-        <Card>
+        {/* <Card>
           <CardContent className="p-3 sm:p-4 lg:p-6 text-center">
             <div className="w-6 h-6 sm:w-8 sm:h-8 lg:w-12 lg:h-12 bg-purple-50 rounded-lg flex items-center justify-center mx-auto mb-2 sm:mb-3">
               <Building className="w-3 h-3 sm:w-4 sm:h-4 lg:w-6 lg:h-6 text-purple-600" />
@@ -278,7 +278,7 @@ export function EmployeesWithoutReports({
             <div className="text-lg sm:text-xl lg:text-2xl font-bold text-purple-600">{summary.submissionRate}%</div>
             <div className="text-xs sm:text-sm text-muted-foreground">Tỷ lệ nộp</div>
           </CardContent>
-        </Card>
+        </Card> */}
       </div>
 
       {/* Mobile-Optimized Filters */}

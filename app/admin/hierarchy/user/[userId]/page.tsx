@@ -9,15 +9,13 @@ import { AppLoading } from '@/components/ui/app-loading'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, User, RefreshCw, Calendar, FileText, CheckCircle2, AlertTriangle, Clock, EyeIcon } from 'lucide-react'
+import { ArrowLeft, User, RefreshCw, EyeIcon } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
 import toast from 'react-hot-toast'
 import { getCurrentWeek } from '@/utils/week-utils'
 import { HierarchyService } from '@/services/hierarchy.service'
-import { UserDetailsCard } from '@/components/hierarchy/user-details-card'
 import type { UserDetails } from '@/types/hierarchy'
 import { getPerformanceBadge, getPerformanceColor } from '@/utils/performance-classification'
 import { Progress } from '@/components/ui/progress'
@@ -258,15 +256,15 @@ function UserDetailsContent() {
         { label: `${userData.user.firstName} ${userData.user.lastName}` }
       ]}
     >
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
+      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-8 py-2 sm:py-4 lg:py-8">
         {/* Back Button */}
-        <div className="mb-4 sm:mb-6">
-          <div className="flex items-center justify-between">
+        <div className="mb-3 sm:mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
             <Link href={getBackUrl()}>
-              <Button variant="outline" size="sm" className="flex items-center gap-2">
+              <Button variant="outline" size="sm" className="flex items-center gap-2 w-full sm:w-auto">
                 <ArrowLeft className="w-4 h-4" />
-                <span className="hidden sm:inline">Quay lại phòng ban</span>
                 <span className="sm:hidden">Quay lại</span>
+                <span className="hidden sm:inline">Quay lại phòng ban</span>
               </Button>
             </Link>
 
@@ -275,7 +273,7 @@ function UserDetailsContent() {
               size="sm"
               onClick={handleRefresh}
               disabled={isRefreshing}
-              className="flex items-center gap-2"
+              className="flex items-center gap-2 w-full sm:w-auto"
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               {isRefreshing ? 'Đang tải...' : 'Làm mới'}
@@ -283,77 +281,40 @@ function UserDetailsContent() {
           </div>
         </div>
 
-        {/* Week/Year Selector */}
-        {/* <Card className="mb-6">
-          <CardHeader>
-            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <CardTitle className="flex items-center gap-2">
-                <Calendar className="w-5 h-5" />
-                Chi tiết nhân viên - Tuần {selectedWeek}/{selectedYear}
-              </CardTitle>
-              <div className="flex flex-col sm:flex-row gap-2">
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium whitespace-nowrap">Tuần:</span>
-                  <Select value={selectedWeek.toString()} onValueChange={handleWeekChange}>
-                    <SelectTrigger className="w-20">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {Array.from({ length: 53 }, (_, i) => i + 1).map(week => (
-                        <SelectItem key={week} value={week.toString()}>{week}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-medium whitespace-nowrap">Năm:</span>
-                  <Select value={selectedYear.toString()} onValueChange={handleYearChange}>
-                    <SelectTrigger className="w-24">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {generateYearOptions().map(year => (
-                        <SelectItem key={year} value={year.toString()}>{year}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-          </CardHeader>
-        </Card> */}
-
         {/* Enhanced User Details with Ranking */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-bold text-lg">
+        <Card className="mb-4 sm:mb-6">
+          <CardHeader className="pb-4">
+            <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
+              <div className="flex flex-col sm:flex-row items-center sm:items-start gap-3 sm:gap-4">
+                <div className="w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0">
+                  <span className="text-white font-bold text-lg sm:text-xl">
                     {userData.user.firstName.charAt(0)}{userData.user.lastName.charAt(0)}
                   </span>
                 </div>
-                <div>
-                  <CardTitle className="text-2xl">
+                <div className="text-center sm:text-left">
+                  <CardTitle className="text-xl sm:text-2xl">
                     {userData.user.firstName} {userData.user.lastName}
                   </CardTitle>
-                  <div className="flex items-center gap-2 mt-2">
-                    <Badge variant="outline">{userData.user.employeeCode}</Badge>
-                    <Badge variant="secondary">{userData.user.role}</Badge>
+                  <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 mt-2">
+                    <Badge variant="outline" className="text-xs">{userData.user.employeeCode}</Badge>
+                    <Badge variant="secondary" className="text-xs">{userData.user.role}</Badge>
                     {userData.overallStats?.taskCompletionRate && (
-                      <Badge className={getPerformanceBadge(userData.overallStats.taskCompletionRate).className}>
+                      <Badge className={`${getPerformanceBadge(userData.overallStats.taskCompletionRate).className} text-xs`}>
                         {getPerformanceBadge(userData.overallStats.taskCompletionRate).label}
                       </Badge>
                     )}
                   </div>
-                  <p className="text-muted-foreground mt-1">
-                    {userData.user.jobPosition?.jobName} • {userData.user.jobPosition?.department?.name}
+                  <p className="text-muted-foreground mt-1 text-sm">
+                    {userData.user.jobPosition?.jobName}
+                  </p>
+                  <p className="text-muted-foreground text-sm">
+                    {userData.user.jobPosition?.department?.name}
                   </p>
                 </div>
               </div>
-              <div className="text-right">
+              <div className="text-center sm:text-right">
                 <div className="text-sm text-muted-foreground">Hiệu suất tổng thể</div>
-                <div className={`text-3xl font-bold ${userData.overallStats?.taskCompletionRate
+                <div className={`text-2xl sm:text-3xl font-bold ${userData.overallStats?.taskCompletionRate
                   ? getPerformanceColor(userData.overallStats.taskCompletionRate).text
                   : 'text-gray-400'
                   }`}>
@@ -362,32 +323,32 @@ function UserDetailsContent() {
               </div>
             </div>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             {/* Performance Overview */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-              <div className="text-center p-4 bg-blue-50 rounded-lg">
-                <div className="text-2xl font-bold text-blue-600">
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-4">
+              <div className="text-center p-3 sm:p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-blue-600">
                   {userData.overallStats?.totalReports || 0}
                 </div>
-                <div className="text-sm text-muted-foreground">Tổng báo cáo</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Tổng báo cáo</div>
               </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg">
-                <div className="text-2xl font-bold text-green-600">
+              <div className="text-center p-3 sm:p-4 bg-green-50 dark:bg-green-950/20 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-green-600">
                   {userData.overallStats?.completedReports || 0}
                 </div>
-                <div className="text-sm text-muted-foreground">Đã hoàn thành</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Đã hoàn thành</div>
               </div>
-              <div className="text-center p-4 bg-purple-50 rounded-lg">
-                <div className="text-2xl font-bold text-purple-600">
+              <div className="text-center p-3 sm:p-4 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-purple-600">
                   {userData.overallStats?.reportCompletionRate || 0}%
                 </div>
-                <div className="text-sm text-muted-foreground">Tỷ lệ hoàn thành BC</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Tỷ lệ hoàn thành BC</div>
               </div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg">
-                <div className="text-2xl font-bold text-orange-600">
+              <div className="text-center p-3 sm:p-4 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
+                <div className="text-xl sm:text-2xl font-bold text-orange-600">
                   {userData.overallStats?.totalTasks || 0}
                 </div>
-                <div className="text-sm text-muted-foreground">Tổng công việc</div>
+                <div className="text-xs sm:text-sm text-muted-foreground">Tổng công việc</div>
               </div>
             </div>
 
@@ -410,10 +371,10 @@ function UserDetailsContent() {
         {userData.reports && userData.reports.length > 0 && (
           <Card>
             <CardHeader>
-              <CardTitle>Báo cáo gần đây với phân tích hiệu suất</CardTitle>
+              <CardTitle className="text-lg sm:text-xl">Báo cáo gần đây với phân tích hiệu suất</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 {userData.reports.slice(0, 5).map((report: any, index: number) => {
                   const reportPerformance = getPerformanceBadge(report.stats.taskCompletionRate)
                   const reportColor = getPerformanceColor(report.stats.taskCompletionRate)
@@ -424,22 +385,24 @@ function UserDetailsContent() {
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.1 }}
-                      className="p-4 border rounded-lg hover:bg-muted/30 transition-colors"
+                      className="p-3 sm:p-4 border rounded-lg hover:bg-muted/30 transition-colors"
                     >
-                      <div className="flex items-center justify-between">
+                      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 sm:gap-0">
                         <div className="flex-1">
-                          <div className="flex items-center gap-3 mb-2">
-                            <h3 className="font-medium">
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 mb-2">
+                            <h3 className="font-medium text-sm sm:text-base">
                               Tuần {report.weekNumber}/{report.year}
                             </h3>
-                            <Badge className={reportPerformance.className}>
-                              {reportPerformance.label}
-                            </Badge>
-                            <Badge variant={report.isCompleted ? 'default' : 'secondary'}>
-                              {report.isCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}
-                            </Badge>
+                            <div className="flex flex-wrap gap-2">
+                              <Badge className={`${reportPerformance.className} text-xs`}>
+                                {reportPerformance.label}
+                              </Badge>
+                              <Badge variant={report.isCompleted ? 'default' : 'secondary'} className="text-xs">
+                                {report.isCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}
+                              </Badge>
+                            </div>
                           </div>
-                          <div className="text-sm text-muted-foreground mb-2">
+                          <div className="text-xs sm:text-sm text-muted-foreground mb-2">
                             {report.stats.completedTasks}/{report.stats.totalTasks} công việc hoàn thành
                           </div>
                           <div className="flex justify-between text-xs mb-1">
@@ -450,11 +413,11 @@ function UserDetailsContent() {
                           </div>
                           <Progress value={report.stats.taskCompletionRate} className="h-2" />
                         </div>
-                        <div className="ml-4">
+                        <div className="sm:ml-4">
                           <Link
                             href={`/admin/hierarchy/user/${userData.user.id}/report/${report.id}?returnTo=user-details&weekNumber=${selectedWeek}&year=${selectedYear}`}
                           >
-                            <Button variant="outline" size="sm">
+                            <Button variant="outline" size="sm" className="w-full sm:w-auto">
                               <EyeIcon className="w-4 h-4 mr-2" />
                               Chi tiết
                             </Button>
@@ -469,7 +432,7 @@ function UserDetailsContent() {
               {userData.reports.length > 5 && (
                 <div className="mt-4 text-center">
                   <Link href={`/admin/hierarchy/user/${userData.user.id}/reports`}>
-                    <Button variant="outline">
+                    <Button variant="outline" className="w-full sm:w-auto">
                       Xem tất cả báo cáo ({userData.reports.length})
                     </Button>
                   </Link>

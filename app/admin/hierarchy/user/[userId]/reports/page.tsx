@@ -367,8 +367,7 @@ function UserReportsContent() {
                               
                               <div className="flex items-center gap-3">
                                 <SimplePieChart
-                                  completed={completedTasks}
-                                  incomplete={incompleteTasks}
+                                  completedPercentage={totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0}
                                   size={40}
                                   strokeWidth={4}
                                 />
@@ -469,8 +468,7 @@ function UserReportsContent() {
 
                               <div className="flex items-center gap-4">
                                 <SimplePieChart
-                                  completed={completedTasks}
-                                  incomplete={incompleteTasks}
+                                  completedPercentage={completedTasks > 0 ? (completedTasks / totalTasks) * 100 : 0}
                                   size={60}
                                   strokeWidth={6}
                                 />

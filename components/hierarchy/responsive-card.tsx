@@ -159,8 +159,7 @@ export const ResponsiveCard = memo(function ResponsiveCard({
               {/* Pie Chart - Hidden on mobile, shown on larger screens */}
               <div className="hidden sm:block ml-4">
                 <SimplePieChart
-                  completed={completed}
-                  incomplete={incomplete}
+                  completedPercentage={reportSubmissionRate}
                   size={56}
                   strokeWidth={6}
                   className="drop-shadow-sm"

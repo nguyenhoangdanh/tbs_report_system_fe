@@ -87,8 +87,7 @@ export const OfficeDetailsCard = memo(function OfficeDetailsCard({
             <div className="flex items-center gap-4">
               <div className="text-center">
                 <SimplePieChart
-                  completed={summaryStats.totalUsersWithReports}
-                  incomplete={summaryStats.totalUsers - summaryStats.totalUsersWithReports}
+                  completedPercentage={summaryStats.averageSubmissionRate}
                   size={100}
                   strokeWidth={10}
                 />

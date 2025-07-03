@@ -7,14 +7,15 @@ import { MainLayout } from '@/components/layout/main-layout'
 import { Button } from '@/components/ui/button'
 import { ReportForm } from '@/components/reports/report-form'
 import { ReportsList } from '@/components/reports/reports-list'
-import { Plus, ArrowLeft } from 'lucide-react'
+import { ReportTemplate } from '@/components/reports/report-template'
+import { Plus, ArrowLeft, FileSpreadsheet, Edit } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { getCurrentWeek, isValidWeekForCreation } from '@/utils/week-utils' // Fix import
 import { useMyReports, useCurrentWeekReport, useCreateWeeklyReport, useUpdateReport, useDeleteReport, useReportByWeek } from '@/hooks/use-reports'
 import type { UpdateReportDto, WeeklyReport } from '@/types'
 
 type FilterTab = 'week' | 'month' | 'year'
-type ViewMode = 'list' | 'form'
+type ViewMode = 'list' | 'form' | 'template'
 
 function ReportsPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -286,6 +287,13 @@ function ReportsPage() {
   }, [user, selectedReport, updateReportMutation, createReportMutation, refetchReports, refetchCurrentWeek])
 
   const handleViewReport = useCallback((report: WeeklyReport) => {
+    setSelectedReport(report)
+    setCurrentWeekNumber(report.weekNumber)
+    setCurrentYear(report.year)
+    setViewMode('template') // Change to template view first
+  }, [])
+
+  const handleEditReport = useCallback((report: WeeklyReport) => {
     setSelectedReport(report)
     setCurrentWeekNumber(report.weekNumber)
     setCurrentYear(report.year)
@@ -607,9 +615,55 @@ function ReportsPage() {
             <ReportsList
               reports={filteredReports}
               onViewReport={handleViewReport}
+              onEditReport={handleEditReport}
               onDeleteReport={handleDeleteReport}
               isLoading={reportsLoading}
             />
+          </div>
+        ) : viewMode === 'template' ? (
+          <div className="space-y-4 sm:space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Button
+                  onClick={handleBackToList}
+                  variant="outline"
+                  size="sm"
+                  className="flex items-center gap-1 sm:gap-2"
+                >
+                  <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
+                  <span className="text-xs sm:text-sm">Trở về danh sách</span>
+                </Button>
+                
+                {selectedReport && (
+                  <Button
+                    onClick={() => handleEditReport(selectedReport)}
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center gap-1 sm:gap-2"
+                  >
+                    <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
+                    <span className="text-xs sm:text-sm">Chỉnh sửa</span>
+                  </Button>
+                )}
+              </div>
+
+              <Button
+                onClick={() => window.print()}
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-1 sm:gap-2 w-fit bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
+              >
+                <FileSpreadsheet className="w-3 h-3 sm:w-4 sm:h-4" />
+                <span className="text-xs sm:text-sm">Xuất Excel</span>
+              </Button>
+            </div>
+
+            {selectedReport && (
+              <ReportTemplate 
+                report={selectedReport}
+                className="print:max-w-none"
+              />
+            )}
           </div>
         ) : (
           <div className="space-y-4 sm:space-y-6">

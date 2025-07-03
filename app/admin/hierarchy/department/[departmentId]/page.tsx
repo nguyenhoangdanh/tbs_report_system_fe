@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { SimplePieChart } from '@/components/charts/simple-pie-chart'
 import { ArrowLeft, Building2, Search, Filter, RefreshCw, Calendar, Eye, User, CheckCircle, AlertTriangle } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
@@ -527,9 +526,6 @@ function DepartmentDetailsContent() {
         <Card>
           <CardHeader>
             <CardTitle>Chi tiết nhân viên với xếp loại cá nhân</CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Hiệu suất cá nhân được tính từ backend dựa trên task completion rate
-            </p>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-1 gap-3">

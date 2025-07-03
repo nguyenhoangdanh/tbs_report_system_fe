@@ -4,40 +4,37 @@ import React, { memo, useMemo } from "react";
 import { useTheme } from "next-themes";
 
 interface SimplePieChartProps {
-  completed: number;
-  incomplete: number;
+  // Remove unused props since backend provides the percentage directly
   size?: number;
   strokeWidth?: number;
   className?: string;
   showLabel?: boolean;
+  completedPercentage: number; // This comes directly from backend (e.g., averageSubmissionRate)
 }
 
 export const SimplePieChart = memo(
   ({
-    completed,
-    incomplete,
     size = 60,
     strokeWidth = 4,
     className = "",
     showLabel = true,
+    completedPercentage, // Use this value directly from backend API
   }: SimplePieChartProps) => {
     const { theme } = useTheme();
 
     const {
       radius,
       circumference,
-      completedPercentage,
       strokeDasharray,
       colors,
     } = useMemo(
       () => {
-        const total = completed + incomplete;
         const radius = (size - strokeWidth) / 2;
         const circumference = 2 * Math.PI * radius;
-        const completedPercentage = total > 0 ? (completed / total) * 100 : 0;
+        // Use the backend-calculated percentage directly
         const strokeDasharray = `${(completedPercentage / 100) * circumference} ${circumference}`;
 
-        // Enhanced color scheme with better contrast
+        // Color scheme based on the percentage value
         const colors = {
           background:
             theme === "dark"
@@ -61,12 +58,11 @@ export const SimplePieChart = memo(
         return {
           radius,
           circumference,
-          completedPercentage,
           strokeDasharray,
           colors,
         };
       },
-      [completed, incomplete, size, strokeWidth, theme]
+      [completedPercentage, size, strokeWidth, theme]
     );
 
     const center = size / 2;
@@ -87,7 +83,6 @@ export const SimplePieChart = memo(
             filter: "drop-shadow(0 1px 2px rgba(0, 0, 0, 0.1))",
           }}
         >
-          {/* Background circle with gradient */}
           <defs>
             <linearGradient
               id={`bg-gradient-${size}`}
@@ -131,7 +126,6 @@ export const SimplePieChart = memo(
             strokeWidth={strokeWidth}
           />
 
-          {/* Progress circle with enhanced styling */}
           <circle
             cx={center}
             cy={center}
@@ -148,7 +142,7 @@ export const SimplePieChart = memo(
           />
         </svg>
 
-        {/* Enhanced label with better typography */}
+        {/* Display the exact percentage from backend */}
         {showLabel && (
           <div className="absolute inset-0 flex items-center justify-center">
             <span
@@ -162,7 +156,7 @@ export const SimplePieChart = memo(
                     : "0 1px 2px rgba(255, 255, 255, 0.8)",
               }}
             >
-              {Math.round(completedPercentage)}%
+              {completedPercentage}%
             </span>
           </div>
         )}

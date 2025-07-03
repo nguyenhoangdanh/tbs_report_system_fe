@@ -485,8 +485,7 @@ function OfficeDetailsContent() {
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex items-center gap-3">
                             <SimplePieChart
-                              completed={dept.stats?.usersWithReports || 0}
-                              incomplete={(dept.stats?.totalUsers || 0) - (dept.stats?.usersWithReports || 0)}
+                              completedPercentage={dept.stats?.reportSubmissionRate || 0}
                               size={40}
                               strokeWidth={4}
                               className="sm:w-[60px] sm:h-[60px]"

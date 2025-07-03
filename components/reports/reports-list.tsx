@@ -15,6 +15,7 @@ import type { WeeklyReport } from '@/types'
 interface ReportsListProps {
   reports: WeeklyReport[]
   onViewReport: (report: WeeklyReport) => void
+  onEditReport: (report: WeeklyReport) => void // Add this missing prop
   onDeleteReport?: (reportId: string) => Promise<void>
   isLoading?: boolean
 }
@@ -147,6 +148,7 @@ ReportCard.displayName = 'ReportCard'
 export const ReportsList = memo(function ReportsList({
   reports,
   onViewReport,
+  onEditReport, // Add this parameter
   onDeleteReport,
   isLoading = false
 }: ReportsListProps) {

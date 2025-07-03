@@ -175,7 +175,7 @@ export const RankingSummaryCard = memo(function RankingSummaryCard({
           </div>
 
           {/* Summary Stats */}
-          <div className="pt-3 border-t border-blue-200 dark:border-blue-800">
+          {/* <div className="pt-3 border-t border-blue-200 dark:border-blue-800">
             <div className="grid grid-cols-3 gap-4 text-center">
               <div>
                 <div className="text-sm font-bold text-green-600">
@@ -196,7 +196,7 @@ export const RankingSummaryCard = memo(function RankingSummaryCard({
                 <div className="text-xs text-gray-600 dark:text-gray-400">Cần cải thiện</div>
               </div>
             </div>
-          </div>
+          </div> */}
         </div>
       </CardContent>
     </Card>

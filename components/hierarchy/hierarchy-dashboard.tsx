@@ -193,15 +193,14 @@ export function HierarchyDashboard() {
                   </div>
                 </div>
                 <SimplePieChart
-                  completed={summary.totalUsersWithReports}
-                  incomplete={summary.totalUsersWithoutReports}
+                  completedPercentage={summary.averageSubmissionRate}
                   size={56}
                   strokeWidth={4}
                 />
               </div>
             </CardContent>
           </Card>
-
+{/* 
           <Card className="hover:shadow-md transition-shadow duration-200">
             <CardContent className="p-6 text-center">
               <FileText className="w-12 h-12 text-purple-600 mx-auto mb-4" />
@@ -210,7 +209,7 @@ export function HierarchyDashboard() {
               </div>
               <div className="text-sm font-medium text-muted-foreground">Đã nộp báo cáo</div>
             </CardContent>
-          </Card>
+          </Card> */}
 
           <Card className="hover:shadow-md transition-shadow duration-200">
             <CardContent className="p-6 text-center">
@@ -244,9 +243,6 @@ export function HierarchyDashboard() {
             <CardTitle className="flex items-center gap-2">
               <BarChart3 className="w-5 h-5 text-blue-600" />
               Phân bố xếp loại văn phòng
-              <Badge variant="outline" className="ml-2">
-                Dựa trên hiệu suất trung bình phòng ban của mỗi văn phòng
-              </Badge>
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -256,7 +252,6 @@ export function HierarchyDashboard() {
                   {offices.filter((o: any) => o.stats.taskCompletionRate === 100).length}
                 </div>
                 <div className="text-sm text-purple-600 font-medium">GIỎI (100%)</div>
-                <div className="text-xs text-muted-foreground mt-1">Văn phòng xuất sắc</div>
               </div>
               <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
                 <div className="text-2xl font-bold text-green-500">
@@ -266,7 +261,6 @@ export function HierarchyDashboard() {
                   }).length}
                 </div>
                 <div className="text-sm text-green-500 font-medium">KHÁ (95-99%)</div>
-                <div className="text-xs text-muted-foreground mt-1">Văn phòng tốt</div>
               </div>
               <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
                 <div className="text-2xl font-bold text-yellow-500">
@@ -276,7 +270,6 @@ export function HierarchyDashboard() {
                   }).length}
                 </div>
                 <div className="text-sm text-yellow-500 font-medium">TB (90-94%)</div>
-                <div className="text-xs text-muted-foreground mt-1">Văn phòng trung bình</div>
               </div>
               <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
                 <div className="text-2xl font-bold text-orange-500">
@@ -286,14 +279,12 @@ export function HierarchyDashboard() {
                   }).length}
                 </div>
                 <div className="text-sm text-orange-500 font-medium">YẾU (85-89%)</div>
-                <div className="text-xs text-muted-foreground mt-1">Văn phòng cần cải thiện</div>
               </div>
               <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
                 <div className="text-2xl font-bold text-red-600">
                   {offices.filter((o: any) => (o.stats.taskCompletionRate || 0) < 85).length}
                 </div>
                 <div className="text-sm text-red-600 font-medium">KÉM (&lt;85%)</div>
-                <div className="text-xs text-muted-foreground mt-1">Văn phòng yêu cầu cải thiện ngay</div>
               </div>
             </div>
             <div className="mt-4 text-xs text-muted-foreground text-center">
@@ -761,16 +752,6 @@ export function HierarchyDashboard() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold">Báo Cáo Phân Cấp</h1>
-          <p className="text-muted-foreground">
-            Xem và quản lý báo cáo theo cấu trúc tổ chức
-          </p>
-        </div>
-      </div>
-
       {/* Week/Year Selector */}
       <Card>
         <CardHeader>

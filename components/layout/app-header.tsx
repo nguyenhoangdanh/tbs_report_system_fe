@@ -45,7 +45,7 @@ export function AppHeader({
 
   return (
     <header className="bg-card border-b border-border shadow-sm sticky top-0 z-40">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
         <div className="flex items-center justify-between gap-2 sm:gap-4">
           {/* Logo + Title */}
           <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">

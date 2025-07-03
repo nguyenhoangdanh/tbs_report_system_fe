@@ -191,16 +191,6 @@ function ReportDetailsContent() {
           </Link>
         </div>
 
-        {/* Admin Notice */}
-        <Alert className="mb-6">
-          <Info className="h-4 w-4" />
-          <AlertTitle>Chế độ xem cho Admin</AlertTitle>
-          <AlertDescription>
-            Bạn đang xem báo cáo của nhân viên {userInfo.firstName} {userInfo.lastName} với quyền quản trị. 
-            Bạn chỉ có thể xem, không thể chỉnh sửa báo cáo này.
-          </AlertDescription>
-        </Alert>
-
         {/* Report Header */}
         <Card className="mb-6">
           <CardHeader>

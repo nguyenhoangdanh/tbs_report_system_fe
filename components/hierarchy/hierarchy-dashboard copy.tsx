@@ -193,8 +193,7 @@ export function HierarchyDashboard() {
                   </div>
                 </div>
                 <SimplePieChart
-                  completed={summary.totalUsersWithReports}
-                  incomplete={summary.totalUsersWithoutReports}
+                  completedPercentage={summary.averageSubmissionRate}
                   size={56}
                   strokeWidth={4}
                 />
