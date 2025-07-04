@@ -8,13 +8,13 @@ import { motion } from "framer-motion";
 import { AuthLayout } from "@/components/auth/auth-layout";
 import { FormField } from "@/components/ui/form-field";
 import { AuthService } from "@/services/auth.service";
-import { toast } from "react-hot-toast";
 import Link from "next/link";
 import { forgotPasswordSchema, resetPasswordSchema, type ForgotPasswordFormData, type ResetPasswordFormData } from "@/lib/validations/auth";
 import type { ForgotPasswordResponse } from "@/types";
 import { AppLoading } from '@/components/ui/app-loading'
 import { SubmitButton } from '@/components/ui/submit-button'
 import { KeyRound } from "lucide-react";
+import { toast } from "react-toast-kit";
 
 function ForgotPasswordContent() {
   const [step, setStep] = useState<'verify' | 'reset'>('verify');

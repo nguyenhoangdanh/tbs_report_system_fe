@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { AlertTriangle, Search, RefreshCw, Users, Building, Calendar, Download, Filter, X } from 'lucide-react'
 import { AppLoading } from '@/components/ui/app-loading'
 import { motion } from 'framer-motion'
-import toast from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 import { useEmployeesWithoutReports } from '@/hooks/use-hierarchy'
 
 interface EmployeesWithoutReportsProps {

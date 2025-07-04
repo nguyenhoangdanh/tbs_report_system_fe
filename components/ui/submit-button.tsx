@@ -37,12 +37,14 @@ export function SubmitButton({
             {loading ? (
                 <>
                     <Loader className="animate-spin w-10 h-10" />
-                    <span>{typeof loading === 'string' ? loading : 'Đang xử lý...'}</span>
+                    <span style={{ opacity: loading ? 0.5 : 1, fontSize }}>
+                        {typeof loading === 'string' ? loading : 'Đang xử lý...'}
+                    </span>
                 </>
             ) : (
                 <>
                     {icon && <span className="mr-1">{icon}</span>}
-                    <span>{text}</span>
+                    <span style={{ opacity: loading ? 0.5 : 1, fontSize }}>{text}</span>
                 </>
             )}
         </Button>

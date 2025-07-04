@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { AuthService } from '@/services/auth.service'
 import { UserService } from '@/services/user.service'
-import toast from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 import { ChangePasswordDto, UpdateProfileDto } from '@/types'
 
 // Query keys for profile data

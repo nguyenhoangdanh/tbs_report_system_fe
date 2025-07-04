@@ -9,8 +9,9 @@ import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
 import { Plus, Save, Trash2, Copy, Edit3, BarChart3, Calendar } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { toast } from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 import type { TaskReport } from '@/types'
+import { SubmitButton } from '../ui/submit-button'
 
 interface TaskTableProps {
   tasks: TaskReport[]
@@ -405,23 +406,14 @@ export const TaskTable = memo(function TaskTable({
                 </Button>
               )}
               {onSave && (
-                <Button
-                  onClick={onSave}
+                <SubmitButton
                   disabled={isSaving}
+                  onClick={onSave}
+                  loading={isSaving}
+                  text='Lưu báo cáo'
+                  icon={<Save className="w-4 h-4" />}
                   className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700"
-                >
-                  {isSaving ? (
-                    <>
-                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
-                      Đang lưu...
-                    </>
-                  ) : (
-                    <>
-                      <Save className="w-4 h-4 mr-2" />
-                      Lưu báo cáo
-                    </>
-                  )}
-                </Button>
+              />
               )}
             </div>
           </div>

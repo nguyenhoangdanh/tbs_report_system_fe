@@ -3,9 +3,9 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLogin, useLogout, useChangePassword } from '@/hooks/use-auth'
-import toast from 'react-hot-toast'
 import { ChangePasswordDto, User } from '@/types'
 import { useProfile } from '@/hooks/use-profile'
+import { toast } from 'react-toast-kit'
 
 interface AuthContextType {
   user: User | null
@@ -91,7 +91,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       // Redirect to login
       router.replace('/login')
-      toast.success('Đã đăng xuất!')
+      toast.success('Đăng xuất thành công!')
     } catch (error: any) {
       console.error('[AUTH PROVIDER] Logout error:', error)
       

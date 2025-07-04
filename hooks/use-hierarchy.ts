@@ -16,7 +16,7 @@ import type {
   EmployeesReportingStatusResponse,
   EmployeeReportingFilters
 } from '@/types/hierarchy'
-import toast from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 import React from 'react'
 import { useEmployeeRanking, useDepartmentRanking, useOfficeRanking } from './use-ranking'
 

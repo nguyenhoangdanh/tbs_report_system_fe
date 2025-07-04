@@ -2,22 +2,30 @@
 
 import { useAuth } from '@/components/providers/auth-provider'
 import { useRouter } from 'next/navigation'
-import { useEffect, useState, Suspense } from 'react'
+import { useEffect, useState, Suspense, useMemo } from 'react'
+import { useForm, Controller } from 'react-hook-form'
+import { zodResolver } from '@hookform/resolvers/zod'
 import { motion } from 'framer-motion'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Button } from '@/components/ui/button'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { UserService } from '@/services/user.service'
-import { toast } from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 import type { JobPosition, Office } from '@/types'
-import { useProfileManagement } from '@/hooks/use-profile' // Changed import
+import { useProfileManagement } from '@/hooks/use-profile'
+import { FormField } from '@/components/ui/form-field'
+import { 
+  updateProfileSchema, 
+  changePasswordSchema, 
+  type UpdateProfileFormData, 
+  type ChangePasswordFormData 
+} from '@/lib/validations/profile'
 
 function ProfileContent() {
   const { user, isAuthenticated, isLoading } = useAuth()
-  const { updateProfile, changePassword, isUpdating, isChangingPassword } = useProfileManagement() // Use the new hook
+  const { updateProfile, changePassword, isUpdating, isChangingPassword } = useProfileManagement()
   const router = useRouter()
 
   const [activeTab, setActiveTab] = useState<'info' | 'password'>('info')
@@ -25,43 +33,49 @@ function ProfileContent() {
   const [offices, setOffices] = useState<Office[]>([])
   const [loadingData, setLoadingData] = useState(false)
 
-  const [editData, setEditData] = useState({
-    employeeCode: '',
-    firstName: '',
-    lastName: '',
-    email: '',
-    phone: '',
-    jobPositionId: '',
-    officeId: '',
-    role: 'USER',
+  // Profile form
+  const profileForm = useForm<UpdateProfileFormData>({
+    resolver: zodResolver(updateProfileSchema),
+    defaultValues: {
+      employeeCode: user?.employeeCode || '',
+      firstName: user?.firstName || '',
+      lastName: user?.lastName || '',
+      email: user?.email || '',
+      phone: user?.phone || '',
+      jobPositionId: user?.jobPosition.id || '',
+      officeId: user?.officeId || '',
+    },
+    mode: 'onChange', // Validate on change for better UX
   })
 
-  const [passwordData, setPasswordData] = useState({
-    currentPassword: '',
-    newPassword: '',
-    confirmPassword: '',
+  // Password form
+  const passwordForm = useForm<ChangePasswordFormData>({
+    resolver: zodResolver(changePasswordSchema),
+    defaultValues: {
+      currentPassword: '',
+      newPassword: '',
+      confirmPassword: '',
+    },
+    mode: 'onChange',
   })
+
+  // Watch office ID to filter job positions
+  const watchedOfficeId = profileForm.watch('officeId')
+
+  // Memoize filtered job positions to prevent unnecessary re-renders
+  const filteredJobPositions = useMemo(() => {
+    if (!watchedOfficeId) return jobPositions
+    return jobPositions.filter(jp => jp.department?.officeId === watchedOfficeId)
+  }, [jobPositions, watchedOfficeId])
+
+  // Check if user can edit role
+  const canEditRole = useMemo(() => user?.role === 'SUPERADMIN', [user?.role])
 
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       router.push('/login')
     }
   }, [isAuthenticated, isLoading, router])
-
-  useEffect(() => {
-    if (user) {
-      setEditData({
-        employeeCode: user.employeeCode || '',
-        firstName: user.firstName || '',
-        lastName: user.lastName || '',
-        email: user.email || '',
-        phone: user.phone || '',
-        jobPositionId: user.jobPositionId || '',
-        officeId: user.officeId || '',
-        role: user.role || 'USER',
-      })
-    }
-  }, [user])
 
   useEffect(() => {
     loadEditData()
@@ -84,30 +98,34 @@ function ProfileContent() {
     }
   }
 
-  const handleSaveProfile = async () => {
+  const handleSaveProfile = async (data: UpdateProfileFormData) => {
     try {
-      const updateData: any = {}
+      // Only send changed fields
+      const updateData: Partial<UpdateProfileFormData> = {}
       
-      if (editData.employeeCode !== user?.employeeCode) {
-        updateData.employeeCode = editData.employeeCode
+      if (data.employeeCode !== user?.employeeCode) {
+        updateData.employeeCode = data.employeeCode
       }
-      if (editData.firstName !== user?.firstName) {
-        updateData.firstName = editData.firstName
+      if (data.firstName !== user?.firstName) {
+        updateData.firstName = data.firstName
       }
-      if (editData.lastName !== user?.lastName) {
-        updateData.lastName = editData.lastName
+      if (data.lastName !== user?.lastName) {
+        updateData.lastName = data.lastName
       }
-      if (editData.email !== (user?.email || '')) {
-        updateData.email = editData.email || undefined
+      if (data.email !== (user?.email || '')) {
+        updateData.email = data.email || undefined
       }
-      if (editData.phone !== (user?.phone || '')) {
-        updateData.phone = editData.phone || undefined
+      if (data.phone !== (user?.phone || '')) {
+        updateData.phone = data.phone || undefined
       }
-      if (editData.jobPositionId !== user?.jobPositionId) {
-        updateData.jobPositionId = editData.jobPositionId
+      if (data.jobPositionId !== user?.jobPositionId) {
+        updateData.jobPositionId = data.jobPositionId
       }
-      if (editData.officeId !== user?.officeId) {
-        updateData.officeId = editData.officeId
+      if (data.officeId !== user?.officeId) {
+        updateData.officeId = data.officeId
+      }
+      if (canEditRole && data.role !== user?.role) {
+        updateData.role = data.role
       }
 
       if (Object.keys(updateData).length === 0) {
@@ -121,27 +139,16 @@ function ProfileContent() {
     }
   }
 
-  const handleChangePassword = async () => {
-    if (passwordData.newPassword !== passwordData.confirmPassword) {
-      toast.error('Mật khẩu xác nhận không khớp')
-      return
-    }
-
-    if (passwordData.newPassword.length < 6) {
-      toast.error('Mật khẩu mới phải có ít nhất 6 ký tự')
-      return
-    }
-
+  const handleChangePassword = async (data: ChangePasswordFormData) => {
     try {
       await changePassword({
-        currentPassword: passwordData.currentPassword,
-        newPassword: passwordData.newPassword,
+        currentPassword: data.currentPassword,
+        newPassword: data.newPassword,
       })
-      setPasswordData({
-        currentPassword: '',
-        newPassword: '',
-        confirmPassword: '',
-      })
+      
+      // Reset form after successful password change
+      passwordForm.reset()
+      toast.success('Đổi mật khẩu thành công')
     } catch (error: any) {
       toast.error(error.message || 'Đổi mật khẩu thất bại')
     }
@@ -161,8 +168,6 @@ function ProfileContent() {
   if (!user) {
     return null
   }
-
-  const canEditRole = user?.role === 'SUPERADMIN'
 
   return (
     <MainLayout
@@ -197,7 +202,7 @@ function ProfileContent() {
                     user.role === 'ADMIN' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
                     'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
                   }`}>
-                    {user.jobPosition.position.description || 'Chưa phân công'}
+                    {user.jobPosition?.position?.description || 'Chưa phân công'}
                   </span>
                 </div>
 
@@ -242,168 +247,211 @@ function ProfileContent() {
                       Cập nhật thông tin cá nhân của bạn. Các trường có dấu * là bắt buộc.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Employee Code */}
-                    <div className="space-y-2">
-                      <Label htmlFor="employeeCode">
-                        Mã nhân viên <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="employeeCode"
-                        value={editData.employeeCode}
-                        onChange={(e) => setEditData({ ...editData, employeeCode: e.target.value })}
-                        placeholder="CEO001, EMP001..."
+                  <CardContent>
+                    <form onSubmit={profileForm.handleSubmit(handleSaveProfile)} className="space-y-6">
+                      {/* Employee Code */}
+                      <Controller
+                        name="employeeCode"
+                        control={profileForm.control}
+                        render={({ field, fieldState }) => (
+                          <FormField
+                            label="Mã nhân viên"
+                            placeholder="CEO001, EMP001..."
+                            required
+                            {...field}
+                            error={fieldState.error?.message}
+                          />
+                        )}
                       />
-                    </div>
 
-                    {/* Name */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="firstName">Họ <span className="text-red-500">*</span></Label>
-                        <Input
-                          id="firstName"
-                          value={editData.firstName}
-                          onChange={(e) => setEditData({ ...editData, firstName: e.target.value })}
-                          placeholder="Nhập họ"
+                      {/* Name */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Controller
+                          name="firstName"
+                          control={profileForm.control}
+                          render={({ field, fieldState }) => (
+                            <FormField
+                              label="Họ"
+                              placeholder="Nhập họ"
+                              required
+                              {...field}
+                              error={fieldState.error?.message}
+                            />
+                          )}
+                        />
+                        <Controller
+                          name="lastName"
+                          control={profileForm.control}
+                          render={({ field, fieldState }) => (
+                            <FormField
+                              label="Tên"
+                              placeholder="Nhập tên"
+                              required
+                              {...field}
+                              error={fieldState.error?.message}
+                            />
+                          )}
                         />
                       </div>
+
+                      {/* Contact Info */}
+                      <Controller
+                        name="email"
+                        control={profileForm.control}
+                        render={({ field, fieldState }) => (
+                          <FormField
+                            label="Email"
+                            type="email"
+                            placeholder="your.email@company.com"
+                            description="Không bắt buộc"
+                            {...field}
+                            error={fieldState.error?.message}
+                          />
+                        )}
+                      />
+
+                      <Controller
+                        name="phone"
+                        control={profileForm.control}
+                        render={({ field, fieldState }) => (
+                          <FormField
+                            label="Số điện thoại"
+                            placeholder="0123456789"
+                            description="Không bắt buộc"
+                            maxLength={10}
+                            {...field}
+                            error={fieldState.error?.message}
+                          />
+                        )}
+                      />
+
+                      {/* Work Info */}
                       <div className="space-y-2">
-                        <Label htmlFor="lastName">Tên <span className="text-red-500">*</span></Label>
-                        <Input
-                          id="lastName"
-                          value={editData.lastName}
-                          onChange={(e) => setEditData({ ...editData, lastName: e.target.value })}
-                          placeholder="Nhập tên"
+                        <Label>Văn phòng <span className="text-red-500">*</span></Label>
+                        <Controller
+                          name="officeId"
+                          control={profileForm.control}
+                          render={({ field, fieldState }) => (
+                            <div>
+                              <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                disabled={loadingData}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue placeholder={loadingData ? "Đang tải..." : "Chọn văn phòng"} />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {offices.map((office) => (
+                                    <SelectItem key={office.id} value={office.id}>
+                                      <div className="flex items-center gap-2">
+                                        <span>{office.type === 'HEAD_OFFICE' ? '🏢' : '🏭'}</span>
+                                        {office.name}
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {fieldState.error && (
+                                <p className="text-xs text-red-600 mt-1">{fieldState.error.message}</p>
+                              )}
+                            </div>
+                          )}
                         />
                       </div>
-                    </div>
 
-                    {/* Contact Info */}
-                    <div className="space-y-2">
-                      <Label htmlFor="email">
-                        Email 
-                        <span className="text-muted-foreground ml-1">(không bắt buộc)</span>
-                      </Label>
-                      <Input
-                        id="email"
-                        type="email"
-                        value={editData.email}
-                        onChange={(e) => setEditData({ ...editData, email: e.target.value })}
-                        placeholder="your.email@company.com"
-                      />
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="phone">
-                        Số điện thoại
-                        <span className="text-muted-foreground ml-1">(không bắt buộc)</span>
-                      </Label>
-                      <Input
-                        id="phone"
-                        value={editData.phone}
-                        onChange={(e) => setEditData({ ...editData, phone: e.target.value })}
-                        placeholder="0123456789"
-                        maxLength={10}
-                      />
-                    </div>
-
-                    {/* Work Info */}
-                    <div className="space-y-2">
-                      <Label>Văn phòng <span className="text-red-500">*</span></Label>
-                      <Select
-                        value={editData.officeId}
-                        onValueChange={(value) => setEditData({ ...editData, officeId: value })}
-                        disabled={loadingData}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={loadingData ? "Đang tải..." : "Chọn văn phòng"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {offices.map((office) => (
-                            <SelectItem key={office.id} value={office.id}>
-                              <div className="flex items-center gap-2">
-                                <span>{office.type === 'HEAD_OFFICE' ? '🏢' : '🏭'}</span>
-                                {office.name}
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label>Vị trí công việc <span className="text-red-500">*</span></Label>
-                      <Select
-                        value={editData.jobPositionId}
-                        onValueChange={(value) => setEditData({ ...editData, jobPositionId: value })}
-                        disabled={loadingData}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder={loadingData ? "Đang tải..." : "Chọn vị trí công việc"} />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {jobPositions
-                            .filter(jp => !editData.officeId || jp.department?.officeId === editData.officeId)
-                            .map((jobPosition) => (
-                            <SelectItem key={jobPosition.id} value={jobPosition.id}>
-                              <div className="flex flex-col">
-                                <span className="font-medium">{jobPosition.jobName}</span>
-                                <span className="text-xs text-muted-foreground">
-                                  {jobPosition.department?.name} - {jobPosition.position?.name}
-                                </span>
-                              </div>
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    {/* Role (Only for Superadmin) */}
-                    {canEditRole && (
                       <div className="space-y-2">
-                        <Label>
-                          Vai trò 
-                          <span className="text-xs text-muted-foreground ml-2">(Chỉ Superadmin)</span>
-                        </Label>
-                        <Select
-                          value={editData.role}
-                          onValueChange={(value: 'SUPERADMIN' | 'ADMIN' | 'USER') => setEditData({ ...editData, role: value })}
+                        <Label>Vị trí công việc <span className="text-red-500">*</span></Label>
+                        <Controller
+                          name="jobPositionId"
+                          control={profileForm.control}
+                          render={({ field, fieldState }) => (
+                            <div>
+                              <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                                disabled={loadingData || !watchedOfficeId}
+                              >
+                                <SelectTrigger>
+                                  <SelectValue 
+                                    placeholder={
+                                      loadingData ? "Đang tải..." : 
+                                      !watchedOfficeId ? "Chọn văn phòng trước" :
+                                      "Chọn vị trí công việc"
+                                    } 
+                                  />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {filteredJobPositions.map((jobPosition) => (
+                                    <SelectItem key={jobPosition.id} value={jobPosition.id}>
+                                      <div className="flex flex-col">
+                                        <span className="font-medium">{jobPosition.jobName}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                          {jobPosition.department?.name} - {jobPosition.position?.name}
+                                        </span>
+                                      </div>
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              {fieldState.error && (
+                                <p className="text-xs text-red-600 mt-1">{fieldState.error.message}</p>
+                              )}
+                            </div>
+                          )}
+                        />
+                      </div>
+
+                      {/* Role (Only for Superadmin) */}
+                      {canEditRole && (
+                        <div className="space-y-2">
+                          <Label>
+                            Vai trò 
+                            <span className="text-xs text-muted-foreground ml-2">(Chỉ Superadmin)</span>
+                          </Label>
+                          <Controller
+                            name="role"
+                            control={profileForm.control}
+                            render={({ field }) => (
+                              <Select value={field.value} onValueChange={field.onChange}>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Chọn vai trò" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  <SelectItem value="USER">Nhân viên</SelectItem>
+                                  <SelectItem value="ADMIN">Quản lý</SelectItem>
+                                  <SelectItem value="SUPERADMIN">Tổng giám đốc</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            )}
+                          />
+                        </div>
+                      )}
+
+                      {/* Info Box */}
+                      <div className="bg-muted/50 p-4 rounded-lg">
+                        <h4 className="font-medium text-sm mb-2">Thông tin bổ sung:</h4>
+                        <div className="space-y-2 text-sm text-muted-foreground">
+                          <p>• <span className="font-medium">Phòng ban:</span> {user.jobPosition?.department?.name || 'Chưa phân công'}</p>
+                          <p>• <span className="font-medium">Chức vụ:</span> {user.jobPosition?.position?.name || 'Chưa phân công'}</p>
+                          <p>• <span className="font-medium">Loại văn phòng:</span> {
+                            user.office?.type === 'HEAD_OFFICE' ? 'Văn phòng chính' : 
+                            user.office?.type === 'FACTORY_OFFICE' ? 'Văn phòng nhà máy' : 'Chưa phân công'
+                          }</p>
+                          <p>• <span className="font-medium">Ngày tạo:</span> {new Date(user.createdAt).toLocaleDateString('vi-VN')}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-end">
+                        <Button
+                          type="submit"
+                          disabled={isUpdating || !profileForm.formState.isValid}
+                          className="bg-green-600 hover:bg-green-700"
                         >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Chọn vai trò" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="USER">Nhân viên</SelectItem>
-                            <SelectItem value="ADMIN">Quản lý</SelectItem>
-                            <SelectItem value="SUPERADMIN">Tổng giám đốc</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          {isUpdating ? 'Đang lưu...' : 'Lưu thay đổi'}
+                        </Button>
                       </div>
-                    )}
-
-                    {/* Info Box */}
-                    <div className="bg-muted/50 p-4 rounded-lg">
-                      <h4 className="font-medium text-sm mb-2">Thông tin bổ sung:</h4>
-                      <div className="space-y-2 text-sm text-muted-foreground">
-                        <p>• <span className="font-medium">Phòng ban:</span> {user.jobPosition?.department?.name || 'Chưa phân công'}</p>
-                        <p>• <span className="font-medium">Chức vụ:</span> {user.jobPosition?.position?.name || 'Chưa phân công'}</p>
-                        <p>• <span className="font-medium">Loại văn phòng:</span> {
-                          user.office?.type === 'HEAD_OFFICE' ? 'Văn phòng chính' : 
-                          user.office?.type === 'FACTORY_OFFICE' ? 'Văn phòng nhà máy' : 'Chưa phân công'
-                        }</p>
-                        <p>• <span className="font-medium">Ngày tạo:</span> {new Date(user.createdAt).toLocaleDateString('vi-VN')}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-end">
-                      <Button
-                        onClick={handleSaveProfile}
-                        disabled={isUpdating || !editData.firstName || !editData.lastName || !editData.employeeCode}
-                        className="bg-green-600 hover:bg-green-700"
-                      >
-                        {isUpdating ? 'Đang lưu...' : 'Lưu thay đổi'}
-                      </Button>
-                    </div>
+                    </form>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -422,70 +470,75 @@ function ProfileContent() {
                       Cập nhật mật khẩu để bảo mật tài khoản của bạn.
                     </CardDescription>
                   </CardHeader>
-                  <CardContent className="space-y-6">
-                    <div className="space-y-2">
-                      <Label htmlFor="currentPassword">
-                        Mật khẩu hiện tại <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="currentPassword"
-                        type="password"
-                        value={passwordData.currentPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, currentPassword: e.target.value })}
-                        placeholder="Nhập mật khẩu hiện tại"
+                  <CardContent>
+                    <form onSubmit={passwordForm.handleSubmit(handleChangePassword)} className="space-y-6">
+                      <Controller
+                        name="currentPassword"
+                        control={passwordForm.control}
+                        render={({ field, fieldState }) => (
+                          <FormField
+                            label="Mật khẩu hiện tại"
+                            type="password"
+                            placeholder="Nhập mật khẩu hiện tại"
+                            required
+                            showPasswordToggle
+                            {...field}
+                            error={fieldState.error?.message}
+                          />
+                        )}
                       />
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="newPassword">
-                        Mật khẩu mới <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="newPassword"
-                        type="password"
-                        value={passwordData.newPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, newPassword: e.target.value })}
-                        placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                      <Controller
+                        name="newPassword"
+                        control={passwordForm.control}
+                        render={({ field, fieldState }) => (
+                          <FormField
+                            label="Mật khẩu mới"
+                            type="password"
+                            placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                            required
+                            showPasswordToggle
+                            {...field}
+                            error={fieldState.error?.message}
+                          />
+                        )}
                       />
-                    </div>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="confirmPassword">
-                        Xác nhận mật khẩu mới <span className="text-red-500">*</span>
-                      </Label>
-                      <Input
-                        id="confirmPassword"
-                        type="password"
-                        value={passwordData.confirmPassword}
-                        onChange={(e) => setPasswordData({ ...passwordData, confirmPassword: e.target.value })}
-                        placeholder="Nhập lại mật khẩu mới"
+                      <Controller
+                        name="confirmPassword"
+                        control={passwordForm.control}
+                        render={({ field, fieldState }) => (
+                          <FormField
+                            label="Xác nhận mật khẩu mới"
+                            type="password"
+                            placeholder="Nhập lại mật khẩu mới"
+                            required
+                            showPasswordToggle
+                            {...field}
+                            error={fieldState.error?.message}
+                          />
+                        )}
                       />
-                    </div>
 
-                    <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg dark:bg-blue-950/30 dark:border-blue-800">
-                      <h4 className="font-medium text-sm mb-2 text-blue-800 dark:text-blue-300">Yêu cầu mật khẩu:</h4>
-                      <ul className="space-y-1 text-sm text-blue-700 dark:text-blue-400">
-                        <li>• Tối thiểu 6 ký tự</li>
-                        <li>• Nên kết hợp chữ cái, số và ký tự đặc biệt</li>
-                        <li>• Không sử dụng thông tin cá nhân dễ đoán</li>
-                      </ul>
-                    </div>
+                      <div className="bg-blue-50 border border-blue-200 p-4 rounded-lg dark:bg-blue-950/30 dark:border-blue-800">
+                        <h4 className="font-medium text-sm mb-2 text-blue-800 dark:text-blue-300">Yêu cầu mật khẩu:</h4>
+                        <ul className="space-y-1 text-sm text-blue-700 dark:text-blue-400">
+                          <li>• Tối thiểu 6 ký tự</li>
+                          <li>• Nên kết hợp chữ cái, số và ký tự đặc biệt</li>
+                          <li>• Không sử dụng thông tin cá nhân dễ đoán</li>
+                        </ul>
+                      </div>
 
-                    <div className="flex justify-end">
-                      <Button
-                        onClick={handleChangePassword}
-                        disabled={
-                          isChangingPassword || 
-                          !passwordData.currentPassword || 
-                          !passwordData.newPassword || 
-                          !passwordData.confirmPassword ||
-                          passwordData.newPassword !== passwordData.confirmPassword
-                        }
-                        className="bg-blue-600 hover:bg-blue-700"
-                      >
-                        {isChangingPassword ? 'Đang đổi...' : 'Đổi mật khẩu'}
-                      </Button>
-                    </div>
+                      <div className="flex justify-end">
+                        <Button
+                          type="submit"
+                          disabled={isChangingPassword || !passwordForm.formState.isValid}
+                          className="bg-blue-600 hover:bg-blue-700"
+                        >
+                          {isChangingPassword ? 'Đang đổi...' : 'Đổi mật khẩu'}
+                        </Button>
+                      </div>
+                    </form>
                   </CardContent>
                 </Card>
               </motion.div>

@@ -149,11 +149,6 @@ async function apiRequest<T>(endpoint: string, options: RequestInit = {}): Promi
       if (contentType?.includes('application/json')) {
         const responseData = await response.json()
         
-        // Debug logging for production
-        if (process.env.NODE_ENV === 'development') {
-          console.log(`[API] Raw response for ${endpoint}:`, responseData)
-        }
-        
         // Handle different response structures from backend
         // Case 1: Direct data (most common)
         if (responseData && typeof responseData === 'object') {

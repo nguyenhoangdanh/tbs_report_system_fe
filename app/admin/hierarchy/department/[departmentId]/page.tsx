@@ -15,7 +15,7 @@ import { ArrowLeft, Building2, Search, Filter, RefreshCw, Calendar, Eye, User, C
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 import { getCurrentWeek } from '@/utils/week-utils'
 import { RankingSummaryCard } from '@/components/hierarchy/ranking-summary-card'
 import { getPerformanceBadge, getPerformanceColor } from '@/utils/performance-classification'

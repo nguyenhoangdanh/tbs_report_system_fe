@@ -15,7 +15,7 @@ import { ArrowLeft, Building2, RefreshCw, Calendar, Eye, ChevronDown, ChevronUp 
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 import { HierarchyService } from '@/services/hierarchy.service'
 import { getCurrentWeek } from '@/utils/week-utils'
 import { RankingSummaryCard } from '@/components/hierarchy/ranking-summary-card'

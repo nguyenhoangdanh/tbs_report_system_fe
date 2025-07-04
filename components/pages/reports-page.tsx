@@ -9,7 +9,7 @@ import { ReportForm } from '@/components/reports/report-form'
 import { ReportsList } from '@/components/reports/reports-list'
 import { ReportTemplate } from '@/components/reports/report-template'
 import { Plus, ArrowLeft, FileSpreadsheet, Edit } from 'lucide-react'
-import { toast } from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 import { getCurrentWeek, isValidWeekForCreation } from '@/utils/week-utils' // Fix import
 import { useMyReports, useCurrentWeekReport, useCreateWeeklyReport, useUpdateReport, useDeleteReport, useReportByWeek } from '@/hooks/use-reports'
 import type { UpdateReportDto, WeeklyReport } from '@/types'
@@ -526,7 +526,7 @@ function ReportsPage() {
                 )}
 
                 {/* Fallback button if no weeks are available */}
-                {!weekAvailability.previous.shouldShow && 
+                {/* {!weekAvailability.previous.shouldShow && 
                  !weekAvailability.current.shouldShow && 
                  !weekAvailability.next.shouldShow && (
                   <Button
@@ -539,7 +539,7 @@ function ReportsPage() {
                     <span className="hidden sm:inline">Không có tuần nào khả dụng</span>
                     <span className="sm:hidden">Không khả dụng</span>
                   </Button>
-                )}
+                )} */}
               </div>
             </div>
 
@@ -639,7 +639,7 @@ function ReportsPage() {
                     onClick={() => handleEditReport(selectedReport)}
                     variant="outline"
                     size="sm"
-                    className="flex items-center gap-1 sm:gap-2"
+                    className="flex items-center gap-1 sm:gap-2 text-blue-600 border-blue-200 hover:bg-blue-50 dark:hover:bg-blue-950/20"
                   >
                     <Edit className="w-3 h-3 sm:w-4 sm:h-4" />
                     <span className="text-xs sm:text-sm">Chỉnh sửa</span>
@@ -647,15 +647,7 @@ function ReportsPage() {
                 )}
               </div>
 
-              <Button
-                onClick={() => window.print()}
-                variant="outline"
-                size="sm"
-                className="flex items-center gap-1 sm:gap-2 w-fit bg-green-50 hover:bg-green-100 border-green-200 text-green-700"
-              >
-                <FileSpreadsheet className="w-3 h-3 sm:w-4 sm:h-4" />
-                <span className="text-xs sm:text-sm">Xuất Excel</span>
-              </Button>
+              
             </div>
 
             {selectedReport && (

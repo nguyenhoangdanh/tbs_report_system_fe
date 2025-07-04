@@ -3,9 +3,8 @@
 import { AuthService } from '@/services/auth.service'
 import type { RegisterDto, ChangePasswordDto, User, AuthResponse, LoginDto, ForgotPasswordDto, ResetPasswordDto, ForgotPasswordResponse } from '@/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import toast from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 
 // Query keys for auth
 const AUTH_QUERY_KEYS = {

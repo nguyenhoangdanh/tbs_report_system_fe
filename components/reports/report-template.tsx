@@ -44,7 +44,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
 
       // Set column widths to EXACTLY match template in image 2
       worksheet.columns = [
-        { width: 21 },   // A: Logo/STT
+        { width: 7 },   // A: Logo/STT
         { width: 55 },  // B: KH-KQCV TUẦN (wider for text wrapping)
         { width: 7 },   // C: Thứ 2
         { width: 7 },   // D: Thứ 3
@@ -73,13 +73,13 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
           
           // Insert image in cell A1 with proper ExcelJS anchor format
           worksheet.addImage(imageId, {
-            tl: { col: 0, row: 0 }, // top-left position (A1)
-            ext: { width: 145, height: 52 }, // Set explicit width and height
+            tl: { col: 1, row: 0 }, // top-left position (A1)
+            ext: { width: 100, height: 25 }, // Set explicit width and height
             editAs: 'oneCell'
           });
           
           // Style the logo cell background
-          worksheet.getCell('A1').style = {
+          worksheet.getCell('B1').style = {
             fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } },
             border: {
               top: { style: 'thin' }, bottom: { style: 'thin' },
@@ -92,9 +92,9 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       } catch (logoError) {
         console.warn('Could not load logo, using text fallback:', logoError);
         // Fallback to text if logo can't be loaded
-        worksheet.getCell('A1').value = 'TBS';
-        worksheet.getCell('A1').style = {
-          font: { bold: true, size: 12, name: 'Arial', color: { argb: 'FFFFFFFF' } },
+        worksheet.getCell('B1').value = 'TBS';
+        worksheet.getCell('B1').style = {
+          font: { bold: true, size: 12, name: 'Time New Roman', color: { argb: 'FFFFFFFF' } },
           alignment: { horizontal: 'center', vertical: 'middle' },
           fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } },
           border: {
@@ -110,9 +110,10 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
 
       // Style title row (B1:L1) - light blue background like image 2
       worksheet.getCell('B1').style = {
-        font: { bold: true, size: 14, name: 'Arial' },
+        font: { bold: true, size: 14, name: 'Time New Roman' },
         alignment: { horizontal: 'center', vertical: 'middle' },
-        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCE5FF' } },
+        fill: { type: 'pattern', pattern: 'solid' },
+        // fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCE5FF' } },
         border: {
           top: { style: 'thin' }, bottom: { style: 'thin' },
           left: { style: 'thin' }, right: { style: 'thin' }
@@ -123,29 +124,35 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       worksheet.getRow(1).height = 40; // Increased for logo
 
       // Row 2: Employee info first line - HỌ TÊN and MSNV
-      worksheet.getCell('A2').value = 'HỌ TÊN:';
-      worksheet.getCell('B2').value = `${user?.firstName} ${user?.lastName}`;
-      worksheet.getCell('H2').value = 'MSNV:';
-      worksheet.getCell('I2').value = user?.employeeCode;
-      
+      // worksheet.getCell('A2').value = 'HỌ TÊN:';
+      // worksheet.getCell('B2').value = `${user?.firstName} ${user?.lastName}`;
+      // worksheet.getCell('H2').value = 'MSNV:';
+      // worksheet.getCell('I2').value = user?.employeeCode;
+      worksheet.getCell('B2').value = `HỌ TÊN: ${user?.firstName} ${user?.lastName}`;
+      worksheet.getCell('C2').value = `MSNV: ${user?.employeeCode}`;
+
       // Merge employee info cells like image 2
-      worksheet.mergeCells('B2:G2'); // Name spans B2:G2
-      worksheet.mergeCells('I2:L2'); // Employee code spans I2:L2
+      worksheet.mergeCells('C2:L2'); // Name spans B2:G2
+      // worksheet.mergeCells('I2:L2'); // Employee code spans I2:L2
 
       // Row 3: Employee info second line - CĐ-VTCV and BP/PB/LINE
-      worksheet.getCell('A3').value = 'CĐ - VTCV:';
-      worksheet.getCell('B3').value = `${user?.jobPosition?.position?.name} - ${user?.jobPosition?.jobName}`;
-      worksheet.getCell('H3').value = 'BP/PB/LINE/TÔNM:';
-      worksheet.getCell('I3').value = user?.jobPosition?.department?.office?.name;
+      // worksheet.getCell('A3').value = 'CĐ - VTCV:';
+      // worksheet.getCell('B3').value = `${user?.jobPosition?.position?.name} - ${user?.jobPosition?.jobName}`;
+      // worksheet.getCell('H3').value = 'BP/PB/LINE/TÔNM:';
+      // worksheet.getCell('I3').value = user?.jobPosition?.department?.office?.name;
+      worksheet.getCell('B3').value = `CD - VTCV: ${user?.jobPosition?.position?.name} - ${user?.jobPosition?.jobName}`;
+      worksheet.getCell('C3').value = `BP/PB/LINE/TỔ/NM: ${user?.jobPosition?.department?.office?.name}`;
 
       // Merge job info cells like image 2
-      worksheet.mergeCells('B3:G3'); // Job position spans B3:G3
-      worksheet.mergeCells('I3:L3'); // Office spans I3:L3
+      // worksheet.mergeCells('B3:G3'); // Job position spans B3:G3
+      // worksheet.mergeCells('I3:L3'); // Office spans I3:L3
+      worksheet.mergeCells('C3:L3'); // Job position spans C3:L3
+      // worksheet.mergeCells('I3:L3'); // Office spans I3:L3
 
       // Style employee info labels (bold)
-      ['A2', 'H2', 'A3', 'H3'].forEach(cellAddr => {
+      ['B2', 'I2', 'B3', 'I3'].forEach(cellAddr => {
         worksheet.getCell(cellAddr).style = {
-          font: { bold: true, size: 11, name: 'Arial' },
+          font: { bold: true, size: 11, name: 'Time New Roman' },
           alignment: { horizontal: 'left', vertical: 'middle' },
           border: {
             top: { style: 'thin' }, bottom: { style: 'thin' },
@@ -157,7 +164,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       // Style employee info values with text wrapping
       ['B2', 'I2', 'B3', 'I3'].forEach(cellAddr => {
         worksheet.getCell(cellAddr).style = {
-          font: { size: 11, name: 'Arial' },
+          font: { size: 11, name: 'Time New Roman' },
           alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
           border: {
             top: { style: 'thin' }, bottom: { style: 'thin' },
@@ -177,7 +184,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         const cell = worksheet.getCell(4, index + 1);
         cell.value = header;
         cell.style = {
-          font: { bold: true, size: 11, name: 'Arial' },
+          font: { bold: true, size: 11, name: 'Time New Roman' },
           alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
           fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCE5FF' } },
           border: {
@@ -208,8 +215,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
           task.sunday ? 'x' : '',      // CN
           task.isCompleted ? 'x' : '', // YES
           !task.isCompleted ? 'x' : '',// NO
-          !task.isCompleted && task.reasonNotDone ? task.reasonNotDone : 
-          task.isCompleted ? 'Đang kiểm thử' : ''  // Nguyên nhân
+          !task.isCompleted && task.reasonNotDone ? task.reasonNotDone : ''
         ];
 
         // Calculate dynamic row height based on text length
@@ -224,24 +230,25 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         // Style each cell in the row
         row.eachCell((cell, colNumber) => {
           let cellStyle: any = {
-            font: { size: 10, name: 'Arial' },
+            font: { size: 10, name: 'Time New Roman' },
             alignment: { 
               horizontal: colNumber === 2 || colNumber === 12 ? 'left' : 'center',
-              vertical: 'top', // Top alignment for better text display
+              vertical: 'middle', // Center alignment for better text display
               wrapText: colNumber === 2 || colNumber === 12 // Enable text wrapping for long content
             },
             border: {
               top: { style: 'thin' }, bottom: { style: 'thin' },
+
               left: { style: 'thin' }, right: { style: 'thin' }
             }
           };
 
           // Special styling for YES/NO columns like image 2
           if (colNumber === 10 && cell.value === 'x') { // YES column - green
-            cellStyle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } };
+            cellStyle.fill = { type: 'pattern', pattern: 'solid', };
             cellStyle.font = { ...cellStyle.font, bold: true, color: { argb: 'FF006400' } };
           } else if (colNumber === 11 && cell.value === 'x') { // NO column - red
-            cellStyle.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFC0CB' } };
+            cellStyle.fill = { type: 'pattern', pattern: 'solid',  };
             cellStyle.font = { ...cellStyle.font, bold: true, color: { argb: 'FF8B0000' } };
           }
 
@@ -250,21 +257,28 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       });
 
       // Summary section exactly like image 2
-      const summaryRowStart = 5 + tasks.length + 1;
-      
+      const summaryRowStart = 5 + tasks.length;
+
+      // worksheet.mergeCells(`A${summaryRowStart}:A${summaryRowStart+1}`);
       // Summary row 1 - merged across all columns
-      worksheet.getCell(`A${summaryRowStart}`).value = `SỐ ĐẦU VIỆC HOÀN THÀNH/CHƯA HOÀN THÀNH: ${completedTasks}/${totalTasks - completedTasks}`;
-      worksheet.mergeCells(`A${summaryRowStart}:L${summaryRowStart}`);
+      worksheet.getCell(`B${summaryRowStart}`).value = `SỐ ĐẦU VIỆC HOÀN THÀNH/CHƯA HOÀN THÀNH:`;
+      worksheet.getCell(`J${summaryRowStart}`).value = `${completedTasks}`;
+      worksheet.getCell(`K${summaryRowStart}`).value = `${totalTasks - completedTasks}`;
+      worksheet.mergeCells(`B${summaryRowStart}:I${summaryRowStart}`);
       
       // Summary row 2 - merged across all columns
-      worksheet.getCell(`A${summaryRowStart + 1}`).value = `(%) KẾT QUẢ CÔNG VIỆC HOÀN THÀNH: ${completionRate}%`;
-      worksheet.mergeCells(`A${summaryRowStart + 1}:L${summaryRowStart + 1}`);
+      worksheet.getCell(`B${summaryRowStart + 1}`).value = `(%) KẾT QUẢ CÔNG VIỆC HOÀN THÀNH:`;
+      worksheet.getCell(`J${summaryRowStart + 1}`).value = `${completionRate}%`;
+      worksheet.mergeCells(`B${summaryRowStart + 1}:I${summaryRowStart + 1}`);
+      worksheet.mergeCells(`J${summaryRowStart + 1}:K${summaryRowStart + 1}`);
+
+      worksheet.mergeCells(`A${summaryRowStart}:A${summaryRowStart + 1}`);
 
       // Style summary cells - bright yellow like image 2
       [summaryRowStart, summaryRowStart + 1].forEach(rowNum => {
-        const cell = worksheet.getCell(`A${rowNum}`);
+        const cell = worksheet.getCell(`B${rowNum}`);
         cell.style = {
-          font: { bold: true, size: 12, name: 'Arial' },
+          font: { bold: true, size: 12, name: 'Time New Roman' },
           alignment: { horizontal: 'center', vertical: 'middle' },
           fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
           border: {
@@ -298,21 +312,21 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
 
       // Style footer elements
       worksheet.getCell(`G${footerRowStart}`).style = {
-        font: { size: 10, name: 'Arial', italic: true },
+        font: { size: 10, name: 'Time New Roman', italic: true },
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
 
       // Style signature headers
       [`A${footerRowStart + 2}`, `E${footerRowStart + 2}`, `J${footerRowStart + 2}`].forEach(cellAddr => {
         worksheet.getCell(cellAddr).style = {
-          font: { size: 11, bold: true, name: 'Arial' },
+          font: { size: 11, bold: true, name: 'Time New Roman' },
           alignment: { horizontal: 'center', vertical: 'middle' }
         };
       });
 
       // Style signature name
       worksheet.getCell(`J${footerRowStart + 6}`).style = {
-        font: { size: 11, bold: true, name: 'Arial' },
+        font: { size: 11, bold: true, name: 'Time New Roman' },
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
 
@@ -342,7 +356,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
             <img 
               src="/images/logo.png" 
               alt="TBS Group Logo" 
-              className="w-8 h-8 sm:w-10 sm:h-10 object-contain"
+              className="w-10 h-10 sm:w-10 sm:h-10 object-contain"
               onError={(e) => {
                 // Fallback to text if image doesn't load
                 const target = e.target as HTMLImageElement;

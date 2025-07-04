@@ -142,7 +142,6 @@ function DashboardPage() {
             </MainLayout>
         )
     }
-    console.log('🔧 Dashboard data loaded:', dashboardStats)
 
     return (
         <MainLayout>
@@ -164,7 +163,7 @@ function DashboardPage() {
                     </motion.div>
 
                     {/* Current Week Alert */}
-                    {dashboardStats?.currentWeek?.incompleteTasksAnalysis && 
+                    {/* {dashboardStats?.currentWeek?.incompleteTasksAnalysis && 
                      dashboardStats.currentWeek.incompleteTasksAnalysis.totalIncompleteTasks > 0 && (
                         <motion.div
                             initial={{ opacity: 0, scale: 0.95 }}
@@ -203,7 +202,7 @@ function DashboardPage() {
                                 </CardContent>
                             </Card>
                         </motion.div>
-                    )}
+                    )} */}
 
                     {/* Stats Cards Grid - Enhanced with Rankings */}
                     <motion.div

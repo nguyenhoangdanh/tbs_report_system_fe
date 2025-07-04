@@ -15,7 +15,7 @@ import { ResponsiveCard } from '@/components/hierarchy/responsive-card'
 import { SimplePieChart } from '@/components/charts/simple-pie-chart'
 import { motion } from 'framer-motion'
 import { useQueryClient } from '@tanstack/react-query'
-import toast from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 import { getCurrentWeek } from '@/utils/week-utils'
 import { getPerformanceBadge, getPerformanceColor } from '@/utils/performance-classification'
 

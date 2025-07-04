@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, memo, useMemo, useCallback } from 'react'
+import { useState, memo, useMemo, useCallback, use } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Eye, Trash2, Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import { getCurrentWeek } from '@/lib/date-utils'
+import { getCurrentWeek, getNextWeek } from '@/lib/date-utils'
 import type { WeeklyReport } from '@/types'
 
 interface ReportsListProps {
@@ -158,12 +158,12 @@ export const ReportsList = memo(function ReportsList({
 
   // Memoize current week
   const currentWeek = useMemo(() => getCurrentWeek(), [])
-
-  // Memoize delete permission check
+  const nextWeek = useMemo(() => getNextWeek(), [])
   const canDeleteReport = useCallback((report: WeeklyReport): boolean => {
-    const isCurrentWeek = report.weekNumber === currentWeek.weekNumber && report.year === currentWeek.year
+    const isCurrentWeek = (report.weekNumber === currentWeek.weekNumber && report.year === currentWeek.year) 
+    || (report.weekNumber === nextWeek.weekNumber && report.year === nextWeek.year)
     return isCurrentWeek && !report.isLocked && !!onDeleteReport
-  }, [currentWeek, onDeleteReport])
+  }, [currentWeek, nextWeek, onDeleteReport])
 
   // Optimized delete handlers - now takes report and event
   const handleDeleteClick = useCallback((report: WeeklyReport, e: React.MouseEvent) => {

@@ -117,10 +117,10 @@ export function UserNav() {
               {user.jobPosition?.position?.description || user.role}
             </p>
           </div>
-          <svg 
+          <svg
             className={`w-3 h-3 sm:w-4 sm:h-4 text-muted-foreground transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`}
-            fill="none" 
-            stroke="currentColor" 
+            fill="none"
+            stroke="currentColor"
             viewBox="0 0 24 24"
           >
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
@@ -133,11 +133,11 @@ export function UserNav() {
         {isDropdownOpen && (
           <>
             {/* Backdrop */}
-            <div 
+            <div
               className="fixed inset-0 z-40"
               onClick={() => setIsDropdownOpen(false)}
             />
-            
+
             {/* Dropdown */}
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: -10 }}
@@ -146,6 +146,24 @@ export function UserNav() {
               transition={{ duration: 0.15 }}
               className="absolute right-0 top-full mt-2 w-64 sm:w-72 bg-card border border-border rounded-lg shadow-lg z-50 max-h-[calc(100vh-120px)] overflow-y-auto"
             >
+
+              {  /* User Info */}
+              <div className="flex items-center p-3 border-b border-border">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                  <span className="text-white text-sm sm:text-base font-medium">
+                    {userInitials}
+                  </span>
+                </div>
+                <div className="ml-3">
+                  <p className="text-sm font-medium text-foreground">
+                    {userFullName || user.employeeCode}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {user.jobPosition?.position?.description || user.role}
+                  </p>
+                </div>
+              </div>
+
               {/* Menu Items */}
               <div className="p-2">
                 {/* Personal Links */}
@@ -161,30 +179,33 @@ export function UserNav() {
                       <div className="text-xs text-muted-foreground truncate">Cập nhật hồ sơ</div>
                     </div>
                   </Link>
+                  {user.role !== 'SUPERADMIN' && user.role !== 'ADMIN' && (
+                    <div>
+                      <Link
+                        href="/dashboard"
+                        className="flex items-center space-x-3 w-full p-2 sm:p-3 text-left rounded-md hover:bg-accent transition-colors"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <span className="text-base sm:text-lg">🏠</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium truncate">Dashboard</div>
+                          <div className="text-xs text-muted-foreground truncate">Trang chủ cá nhân</div>
+                        </div>
+                      </Link>
 
-                  <Link
-                    href="/dashboard"
-                    className="flex items-center space-x-3 w-full p-2 sm:p-3 text-left rounded-md hover:bg-accent transition-colors"
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    <span className="text-base sm:text-lg">🏠</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">Dashboard</div>
-                      <div className="text-xs text-muted-foreground truncate">Trang chủ cá nhân</div>
+                      <Link
+                        href="/reports"
+                        className="flex items-center space-x-3 w-full p-2 sm:p-3 text-left rounded-md hover:bg-accent transition-colors"
+                        onClick={() => setIsDropdownOpen(false)}
+                      >
+                        <span className="text-base sm:text-lg">📝</span>
+                        <div className="min-w-0 flex-1">
+                          <div className="text-sm font-medium truncate">Báo cáo của tôi</div>
+                          <div className="text-xs text-muted-foreground truncate">Quản lý báo cáo cá nhân</div>
+                        </div>
+                      </Link>
                     </div>
-                  </Link>
-
-                  <Link
-                    href="/reports"
-                    className="flex items-center space-x-3 w-full p-2 sm:p-3 text-left rounded-md hover:bg-accent transition-colors"
-                    onClick={() => setIsDropdownOpen(false)}
-                  >
-                    <span className="text-base sm:text-lg">📝</span>
-                    <div className="min-w-0 flex-1">
-                      <div className="text-sm font-medium truncate">Báo cáo của tôi</div>
-                      <div className="text-xs text-muted-foreground truncate">Quản lý báo cáo cá nhân</div>
-                    </div>
-                  </Link>
+                  )}
                 </div>
 
                 {/* Admin Links */}

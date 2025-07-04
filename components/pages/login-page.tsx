@@ -64,6 +64,7 @@ export function LoginPage() {
             label="Mật khẩu"
             placeholder="••••••"
             required
+            showPasswordToggle={true}
             {...register('password')}
             error={errors.password?.message}
           />

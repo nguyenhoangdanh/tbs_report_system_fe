@@ -11,7 +11,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
-import { toast } from 'react-hot-toast';
+import { toast } from 'react-toast-kit'
 import type { User, Office, JobPosition, UserRole } from '@/types';
 
 interface EditUser{
@@ -32,7 +32,6 @@ function AdminUsersContent() {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [offices, setOffices] = useState<Office[]>([]);
   const [jobPositions, setJobPositions] = useState<JobPosition[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   const [editData, setEditData] = useState<EditUser>({
@@ -63,9 +62,7 @@ function AdminUsersContent() {
     } catch (error) {
       console.error('Failed to load data:', error);
       toast.error('Không thể tải dữ liệu');
-    } finally {
-      setLoading(false);
-    }
+    } 
   };
 
   const handleEditUser = (user: User) => {
@@ -178,16 +175,6 @@ function AdminUsersContent() {
   }
 
   return (
-    <MainLayout
-      title="Quản lý Users"
-      subtitle="Quản lý tất cả người dùng trong hệ thống"
-      showBreadcrumb
-      breadcrumbItems={[
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Admin', href: '/admin' },
-        { label: 'Quản lý Users' }
-      ]}
-    >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search */}
         <Card className="mb-6">
@@ -195,18 +182,43 @@ function AdminUsersContent() {
             <div className="flex items-center space-x-4">
               <div className="flex-1">
                 <Label htmlFor="search">Tìm kiếm</Label>
-                <Input
+                {/* <Input
                   id="search"
                   placeholder="Tìm theo mã NV, tên hoặc email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="mt-1"
+                /> */}
+              <div className="relative">
+                <Input
+                  id="search"
+                  placeholder="Tìm theo mã NV, tên hoặc email..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pr-10"
                 />
+                {searchTerm && (
+                  <Button
+                    variant="ghost"
+                    className="absolute right-6 top-1/2 -translate-y-1/2"
+                    onClick={() => setSearchTerm('')}
+                  >
+                    X
+                  </Button>
+                )}
+                <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5 text-muted-foreground"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                  </svg>
+                  <span className="sr-only">Tìm kiếm</span>
+                </div>
               </div>
-              <div className="flex items-end">
-                <Button onClick={loadData} variant="outline">
-                  Làm mới
-                </Button>
               </div>
             </div>
           </CardContent>
@@ -403,7 +415,6 @@ function AdminUsersContent() {
           </DialogContent>
         </Dialog>
       </div>
-    </MainLayout>
   );
 }
 

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { ReportService } from '@/services/report.service'
-import { toast } from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 import type { WeeklyReport, CreateWeeklyReportDto, PaginatedResponse } from '@/types'
 
 // Optimized query keys

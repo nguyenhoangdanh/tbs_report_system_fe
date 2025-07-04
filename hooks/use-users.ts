@@ -8,7 +8,7 @@ import type {
   UpdateProfileDto, 
   PaginatedResponse 
 } from '@/types'
-import toast from 'react-hot-toast'
+import { toast } from 'react-toast-kit'
 
 // Query keys for user data
 const USER_QUERY_KEYS = {
