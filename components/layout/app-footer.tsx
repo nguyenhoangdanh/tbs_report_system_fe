@@ -13,7 +13,18 @@ export function AppFooter() {
           {/* Logo and Description */}
           <div className="space-y-4">
             <div className="flex items-center space-x-3">
-              <Logo size={32} />
+              {/* <Logo size={32} /> */}
+              <img
+                src="/images/logo.png"
+                alt="TBS Group Logo"
+                className="w-12 h-12 sm:w-12 sm:h-12 object-contain"
+                onError={(e) => {
+                  // Fallback to text if image doesn't load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.nextElementSibling!.textContent = 'TBS';
+                }}
+              />
               <span className="text-lg font-bold text-foreground text-gradient-green">WeeklyReport</span>
             </div>
             <p className="text-sm text-muted-foreground max-w-md">

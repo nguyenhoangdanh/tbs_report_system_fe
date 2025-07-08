@@ -60,7 +60,7 @@ function ReportDetailsContent() {
         breadcrumbItems={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
-          { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
+          { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
           { label: 'Chi tiết báo cáo' }
         ]}
       >
@@ -103,7 +103,7 @@ function ReportDetailsContent() {
         breadcrumbItems={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
-          { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
+          { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
           { label: 'Chi tiết báo cáo' }
         ]}
       >
@@ -165,9 +165,9 @@ function ReportDetailsContent() {
       subtitle={`${userInfo.firstName} ${userInfo.lastName} - ${userInfo.employeeCode}`}
       showBreadcrumb
       breadcrumbItems={[
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Admin', href: '/admin' },
-        { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
+        // { label: 'Dashboard', href: '/dashboard' },
+        // { label: 'Admin', href: '/admin' },
+        { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
         { 
           label: `${userInfo.firstName} ${userInfo.lastName}`, 
           href: weekNumberFromUrl && yearFromUrl 

@@ -91,7 +91,6 @@ export class HierarchyService {
     }
     
     const query = params.toString() ? `?${params}` : ''
-    console.log('HierarchyService.getUserDetails URL:', `/hierarchy-reports/user/${userId}/details${query}`)
     
     return await api.get(`/hierarchy-reports/user/${userId}/details${query}`)
   }

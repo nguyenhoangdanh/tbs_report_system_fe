@@ -154,15 +154,19 @@ function OfficeDetailsContent() {
 
   // Generate role-appropriate breadcrumb and back URL
   const getBreadcrumbItems = () => {
-    const items = [{ label: 'Dashboard', href: '/dashboard' }]
+    const items = [];
+
+    // if (user?.role && !['SUPERADMIN', 'ADMIN'].includes(user.role)) {
+    //   items.push({ label: 'Dashboard', href: '/dashboard' })
+    // }
     
-    // Only show Admin breadcrumb for roles that can access admin area
-    if (user?.role && ['SUPERADMIN', 'ADMIN'].includes(user.role)) {
-      items.push({ label: 'Admin', href: '/admin' })
-    }
+    // // Only show Admin breadcrumb for roles that can access admin area
+    // if (user?.role && ['SUPERADMIN', 'ADMIN'].includes(user.role)) {
+    //   items.push({ label: 'Admin', href: '/admin/hierarchy' })
+    // }
     
     items.push({ 
-      label: 'Báo cáo phân cấp', 
+      label: 'Báo cáo KH & KQCV', 
       href: `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}` 
     })
     items.push({ 
@@ -197,7 +201,7 @@ function OfficeDetailsContent() {
     if (userRole === 'OFFICE_MANAGER') {
       return 'Về Dashboard'
     }
-    return 'Quay lại báo cáo phân cấp'
+    return 'Quay lại báo cáo KH & KQCV'
   }
 
   // Mobile utility functions

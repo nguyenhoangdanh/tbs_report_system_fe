@@ -98,7 +98,7 @@ function UserReportsContent() {
         breadcrumbItems={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
-          { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
+          { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
           { label: 'Báo cáo nhân viên' }
         ]}
       >
@@ -133,7 +133,7 @@ function UserReportsContent() {
         breadcrumbItems={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
-          { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
+          { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
           { label: 'Báo cáo nhân viên' }
         ]}
       >
@@ -178,9 +178,9 @@ function UserReportsContent() {
       subtitle={`${userData?.employeeCode || 'N/A'} - ${userData?.jobPosition?.department?.name || 'N/A'}`}
       showBreadcrumb
       breadcrumbItems={[
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Admin', href: '/admin' },
-        { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
+        // { label: 'Dashboard', href: '/dashboard' },
+        // { label: 'Admin', href: '/admin' },
+        { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
         { 
           label: `${userData?.firstName || 'N/A'} ${userData?.lastName || ''}`, 
           href: `/admin/hierarchy/user/${userId}`

@@ -758,7 +758,7 @@ export function HierarchyDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
-              Báo cáo phân cấp
+              Báo cáo KH & KQCV
             </CardTitle>
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="flex items-center gap-2">

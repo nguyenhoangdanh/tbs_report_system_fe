@@ -29,7 +29,7 @@ export function UserNav() {
       links.push({
         href: '/admin/hierarchy',
         icon: '📊',
-        label: 'Báo cáo phân cấp',
+        label: 'Báo cáo KH & KQCV',
         description: 'Xem báo cáo theo cấu trúc tổ chức'
       })
     }

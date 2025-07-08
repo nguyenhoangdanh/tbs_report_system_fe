@@ -1,7 +1,7 @@
 "use client";
 
 import { AuthProvider, useAuth } from "./auth-provider";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
@@ -13,7 +13,7 @@ import { Button } from "@/components/ui/button";
 const PUBLIC_ROUTES = [
   "/",
   "/login",
-  "/register",
+  "/register", 
   "/forgot-password",
   "/reset-password",
 ];
@@ -42,7 +42,7 @@ const ROLE_ROUTES = {
     "/admin/hierarchy",
     "/admin/hierarchy/department",
     "/dashboard",
-    "/reports",
+    "/reports", 
     "/profile",
   ],
   USER: ["/dashboard", "/reports", "/profile"],
@@ -60,14 +60,12 @@ const getDefaultRouteForUser = (user: any): string => {
       return "/admin/hierarchy";
 
     case "OFFICE_MANAGER":
-      // Navigate to specific office page
       const officeId = user.office?.id || user.officeId;
       return officeId
         ? `/admin/hierarchy/office/${officeId}`
         : "/admin/hierarchy";
 
     case "OFFICE_ADMIN":
-      // Navigate to specific department page
       const departmentId =
         user.jobPosition?.department?.id ||
         user.jobPosition?.departmentId;
@@ -126,84 +124,103 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
   const router = useRouter();
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
+  const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const navigationTimeoutRef = useRef<NodeJS.Timeout>();
 
   // Check if current route is public
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
-  const navigateToDefault = () => {
-    if (isNavigating || !user) return;
+  // Safe navigation function with debouncing
+  const safeNavigate = useCallback((path: string, reason: string) => {
+    if (isNavigating) {
+      return;
+    }
+
     setIsNavigating(true);
 
-    const defaultRoute = getDefaultRouteForUser(user);
-    console.log(
-      "[AUTH GUARD] Navigating to default route:",
-      defaultRoute,
-      "for user:",
-      user.role
-    );
+    // Clear any existing timeout
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+    }
 
-    router.replace(defaultRoute);
+    // Use replace for auth redirects to prevent back button issues
+    router.replace(path);
 
-    // Reset navigation state after a delay
-    setTimeout(() => setIsNavigating(false), 1000);
-  };
+    // Reset navigation state after delay
+    navigationTimeoutRef.current = setTimeout(() => {
+      setIsNavigating(false);
+    }, 1500);
+  }, [router, isNavigating]);
 
+  // Handle initial load completion
   useEffect(() => {
-    if (isLoading || isNavigating) return;
+    if (!isLoading && !initialLoadComplete) {
+      setInitialLoadComplete(true);
+    }
+  }, [isLoading, initialLoadComplete]);
 
-    console.log("[AUTH GUARD] Auth state:", {
-      isAuthenticated,
-      user: user
-        ? { role: user.role, office: user.office?.name, department: user.jobPosition?.department?.name }
-        : null,
-      pathname,
-      isPublicRoute,
-    });
+  // Main navigation logic
+  useEffect(() => {
+    // Don't do anything during initial load or if already navigating
+    if (isLoading || !initialLoadComplete || isNavigating) {
+      return;
+    }
+
 
     // Case 1: Unauthenticated user trying to access protected route
     if (!isAuthenticated && !isPublicRoute) {
-      console.log(
-        "[AUTH GUARD] Redirecting to login - unauthenticated user on protected route"
-      );
       const returnUrl = encodeURIComponent(pathname);
-      router.replace(`/login?returnUrl=${returnUrl}`);
+      safeNavigate(`/login?returnUrl=${returnUrl}`, 'Unauthenticated access to protected route');
       return;
     }
 
     // Case 2: Authenticated user trying to access auth pages
     if (isAuthenticated && user && (pathname === "/login" || pathname === "/register")) {
-      console.log("[AUTH GUARD] Redirecting authenticated user away from auth pages");
-      navigateToDefault();
+      const defaultRoute = getDefaultRouteForUser(user);
+      safeNavigate(defaultRoute, 'Authenticated user on auth page');
       return;
     }
 
     // Case 3: Authenticated user on root path - redirect to default
     if (isAuthenticated && user && pathname === "/") {
-      console.log("[AUTH GUARD] Redirecting from root to default route");
-      navigateToDefault();
+      const defaultRoute = getDefaultRouteForUser(user);
+      safeNavigate(defaultRoute, 'Authenticated user on root path');
       return;
     }
 
     // Case 4: Authenticated user - check permissions for protected routes
     if (isAuthenticated && user && !isPublicRoute) {
       const hasRouteAccess = hasAccess(user, pathname);
-      console.log("[AUTH GUARD] Access check:", {
-        pathname,
-        hasAccess: hasRouteAccess,
-        userRole: user.role,
-      });
-
+      
       if (!hasRouteAccess) {
-        console.log("[AUTH GUARD] Access denied - user does not have permission");
-        // Don't redirect immediately, show access denied screen
+        // Don't redirect, show access denied screen
         return;
       }
     }
-  }, [isLoading, isAuthenticated, pathname, user, router, isNavigating]);
 
-  // Show loading screen
-  if (isLoading || isNavigating) {
-    return <LoadingScreen user={user} pathname={pathname} />;
+  }, [
+    isLoading, 
+    initialLoadComplete, 
+    isAuthenticated, 
+    pathname, 
+    user, 
+    isPublicRoute, 
+    isNavigating,
+    safeNavigate
+  ]);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (navigationTimeoutRef.current) {
+        clearTimeout(navigationTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Show loading screen during initial load or navigation
+  if (isLoading || !initialLoadComplete || isNavigating) {
+    return <LoadingScreen user={user} pathname={pathname} isNavigating={isNavigating} />;
   }
 
   // Unauthenticated user on public route - allow access
@@ -211,9 +228,9 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
     return <>{children}</>;
   }
 
-  // Unauthenticated user on protected route - will be redirected by useEffect
+  // Unauthenticated user on protected route - show loading while redirecting
   if (!isAuthenticated && !isPublicRoute) {
-    return <LoadingScreen user={user} pathname={pathname} />;
+    return <LoadingScreen user={user} pathname={pathname} isNavigating={true} />;
   }
 
   // Authenticated user - check permissions
@@ -229,7 +246,10 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
         <AccessDeniedScreen
           user={user}
           pathname={pathname}
-          onNavigateHome={navigateToDefault}
+          onNavigateHome={() => {
+            const defaultRoute = getDefaultRouteForUser(user);
+            safeNavigate(defaultRoute, 'Navigate to home from access denied');
+          }}
         />
       );
     }
@@ -239,7 +259,7 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
   }
 
   // Fallback loading screen
-  return <LoadingScreen user={user} pathname={pathname} />;
+  return <LoadingScreen user={user} pathname={pathname} isNavigating={false} />;
 }
 
 // Main component that provides auth context
@@ -250,6 +270,7 @@ export function AuthGuard({ children }: AuthGuardProps) {
     setMounted(true);
   }, []);
 
+  // Prevent hydration mismatch
   if (!mounted) {
     return null;
   }
@@ -261,13 +282,15 @@ export function AuthGuard({ children }: AuthGuardProps) {
   );
 }
 
-// Helper components remain the same...
+// Enhanced loading screen
 function LoadingScreen({
   user,
   pathname,
+  isNavigating,
 }: {
   user: any;
   pathname: string;
+  isNavigating: boolean;
 }) {
   return (
     <div className="min-h-screen flex items-center justify-center bg-background">
@@ -276,8 +299,12 @@ function LoadingScreen({
           <div className="flex flex-col items-center space-y-4">
             <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin" />
             <div className="text-center space-y-2">
-              <Skeleton className="h-4 w-48 mx-auto" />
-              <Skeleton className="h-3 w-32 mx-auto" />
+              <h3 className="font-semibold">
+                {isNavigating ? 'Đang chuyển hướng...' : 'Đang tải...'}
+              </h3>
+              <p className="text-sm text-muted-foreground">
+                {isNavigating ? 'Vui lòng đợi' : 'Đang xác thực người dùng'}
+              </p>
             </div>
             {user && (
               <div className="w-full space-y-2 mt-4 p-3 bg-muted rounded-lg">
@@ -299,7 +326,7 @@ function LoadingScreen({
                   <span>{user.office?.name || "N/A"}</span>
                 </div>
                 <div className="text-xs text-muted-foreground mt-2">
-                  Đang truy cập: {pathname}
+                  {isNavigating ? 'Đang chuyển từ: ' : 'Đang truy cập: '}{pathname}
                 </div>
               </div>
             )}
@@ -310,6 +337,7 @@ function LoadingScreen({
   );
 }
 
+// Access Denied screen component
 function AccessDeniedScreen({
   user,
   pathname,

@@ -37,8 +37,6 @@ function UserDetailsContent() {
   const urlWeek = searchParams.get('weekNumber')
   const urlYear = searchParams.get('year')
 
-  console.log('[USER DETAILS PAGE] URL params:', { urlWeek, urlYear })
-
   const [selectedWeek, setSelectedWeek] = useState<number>(
     urlWeek ? parseInt(urlWeek) || currentWeek : currentWeek
   )
@@ -60,13 +58,11 @@ function UserDetailsContent() {
     params.set('year', selectedYear.toString())
     const newUrl = `/admin/hierarchy/user/${userId}?${params.toString()}`
 
-    console.log('[USER DETAILS PAGE] Updating URL to:', newUrl)
     router.replace(newUrl, { scroll: false })
   }, [selectedWeek, selectedYear, userId, router])
 
   // Update state when URL params change (from external navigation) - CRITICAL FIX
   useEffect(() => {
-    console.log('[USER DETAILS PAGE] URL params changed:', { urlWeek, urlYear })
 
     if (urlWeek && urlYear) {
       const parsedWeek = parseInt(urlWeek)
@@ -74,11 +70,9 @@ function UserDetailsContent() {
 
       // Only update if values are actually different to avoid loops
       if (parsedWeek >= 1 && parsedWeek <= 53 && parsedWeek !== selectedWeek) {
-        console.log('[USER DETAILS PAGE] Updating selectedWeek from', selectedWeek, 'to', parsedWeek)
         setSelectedWeek(parsedWeek)
       }
       if (parsedYear >= 2020 && parsedYear <= 2030 && parsedYear !== selectedYear) {
-        console.log('[USER DETAILS PAGE] Updating selectedYear from', selectedYear, 'to', parsedYear)
         setSelectedYear(parsedYear)
       }
     }
@@ -97,7 +91,6 @@ function UserDetailsContent() {
         year: selectedYear
       })
 
-      console.log('[USER DETAILS] API Response:', response)
       setUserData(response)
     } catch (err: any) {
       console.error('[USER DETAILS] Error:', err)
@@ -129,32 +122,6 @@ function UserDetailsContent() {
     }
   }
 
-  const handleWeekChange = (value: string) => {
-    const week = parseInt(value)
-    if (week >= 1 && week <= 53) {
-      setSelectedWeek(week)
-    }
-  }
-
-  const handleYearChange = (value: string) => {
-    const year = parseInt(value)
-    if (year >= 2020 && year <= 2030) {
-      setSelectedYear(year)
-    }
-  }
-
-  // Generate dynamic year options
-  const generateYearOptions = () => {
-    const years = []
-    const startYear = currentYear - 2
-    const endYear = currentYear + 2
-
-    for (let year = startYear; year <= endYear; year++) {
-      years.push(year)
-    }
-    return years
-  }
-
   // Generate back URL - với filter preservation
   const getBackUrl = () => {
     if (userData?.user?.jobPosition?.department) {
@@ -178,7 +145,7 @@ function UserDetailsContent() {
         breadcrumbItems={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
-          { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
+          { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
           { label: 'Chi tiết nhân viên' }
         ]}
       >
@@ -211,9 +178,9 @@ function UserDetailsContent() {
         title="Lỗi tải dữ liệu"
         showBreadcrumb
         breadcrumbItems={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Admin', href: '/admin' },
-          { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
+          // { label: 'Dashboard', href: '/dashboard' },
+          // { label: 'Admin', href: '/admin' },
+          { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
           { label: 'Chi tiết nhân viên' }
         ]}
       >
@@ -244,9 +211,9 @@ function UserDetailsContent() {
       subtitle={`${userData.user.employeeCode} - ${userData.user.jobPosition?.jobName || 'N/A'}`}
       showBreadcrumb
       breadcrumbItems={[
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Admin', href: '/admin' },
-        { label: 'Báo cáo phân cấp', href: `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}` },
+        // { label: 'Dashboard', href: '/dashboard' },
+        // { label: 'Admin', href: '/admin' },
+        { label: 'Báo cáo KH & KQCV', href: `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}` },
         {
           label: userData.user.jobPosition?.department?.name || 'Phòng ban',
           href: userData.user.jobPosition?.department?.id

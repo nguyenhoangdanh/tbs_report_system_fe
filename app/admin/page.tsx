@@ -35,7 +35,7 @@ export default function AdminPage() {
       roles: ['SUPERADMIN', 'ADMIN'],
     },
     {
-      title: 'Báo cáo phân cấp',
+      title: 'Báo cáo KH & KQCV',
       description: 'Xem báo cáo theo cấu trúc tổ chức',
       icon: BarChart3,
       href: '/admin/hierarchy',

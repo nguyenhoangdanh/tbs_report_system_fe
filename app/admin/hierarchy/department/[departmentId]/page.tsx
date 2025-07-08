@@ -165,7 +165,7 @@ function DepartmentDetailsContent() {
         breadcrumbItems={[
           { label: 'Dashboard', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
-          { label: 'Báo cáo phân cấp', href: '/admin/hierarchy' },
+          { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
           { label: 'Chi tiết phòng ban', href: '#' }
         ]}
       >
@@ -199,9 +199,9 @@ function DepartmentDetailsContent() {
         title="Lỗi tải dữ liệu"
         showBreadcrumb
         breadcrumbItems={[
-          { label: 'Dashboard', href: '/dashboard' },
-          { label: 'Admin', href: '/admin' },
-          { label: 'Báo cáo phân cấp', href: `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}` },
+          // { label: 'Dashboard', href: '/dashboard' },
+          // { label: 'Admin', href: '/admin' },
+          { label: 'Báo cáo KH & KQCV', href: `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}` },
           { label: 'Chi tiết phòng ban', href: '#' }
         ]}
       >
@@ -250,15 +250,14 @@ function DepartmentDetailsContent() {
 
   // Generate role-appropriate breadcrumb
   const getBreadcrumbItems = () => {
-    const items = [{ label: 'Dashboard', href: '/dashboard' }]
+    const items = []
     
-    // Only show Admin breadcrumb for roles that can access admin area
-    if (user?.role && ['SUPERADMIN', 'ADMIN'].includes(user.role)) {
-      items.push({ label: 'Admin', href: '/admin' })
-    }
-    
+    // // Only show Admin breadcrumb for roles that can access admin area
+    // if (user?.role && ['SUPERADMIN', 'ADMIN'].includes(user.role)) {
+    //   items.push({ label: 'Admin', href: '/admin' })
+    // }
     items.push({ 
-      label: 'Báo cáo phân cấp', 
+      label: 'Báo cáo KH & KQCV', 
       href: `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}` 
     })
     items.push({ 

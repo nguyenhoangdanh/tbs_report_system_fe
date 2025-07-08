@@ -15,7 +15,6 @@ export class AuthService {
    * Login user
    */
   static async login(data: LoginDto): Promise<AuthResponse> {
-    console.log('[AuthService] Login attempt:', data)
     const response = await api.post<AuthResponse>('/auth/login', data)
     return response
   }

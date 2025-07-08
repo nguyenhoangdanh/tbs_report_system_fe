@@ -763,7 +763,7 @@ export function HierarchyDashboard() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold">Báo Cáo Phân Cấp</h1>
+          <h1 className="text-2xl font-bold">Báo cáo KH & KQCV</h1>
           <p className="text-muted-foreground">
             Xem và quản lý báo cáo theo cấu trúc tổ chức
           </p>
@@ -776,7 +776,7 @@ export function HierarchyDashboard() {
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <CardTitle className="flex items-center gap-2">
               <Calendar className="w-5 h-5" />
-              Báo cáo phân cấp
+              Báo cáo KH & KQCV
             </CardTitle>
             <div className="flex flex-col sm:flex-row gap-2">
               <div className="flex items-center gap-2">

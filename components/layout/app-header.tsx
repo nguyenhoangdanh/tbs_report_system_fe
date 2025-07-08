@@ -53,7 +53,18 @@ export function AppHeader({
               href={getHomeLink()}
               className="flex-shrink-0 flex items-center gap-1 sm:gap-2 group"
             >
-              <Logo size={32} className="sm:w-10 sm:h-10" />
+              {/* <Logo size={32} className="sm:w-10 sm:h-10" /> */}
+              <img
+                src="/images/logo.png"
+                alt="TBS Group Logo"
+                className="w-12 h-12 sm:w-12 sm:h-12 object-contain"
+                onError={(e) => {
+                  // Fallback to text if image doesn't load
+                  const target = e.target as HTMLImageElement;
+                  target.style.display = 'none';
+                  target.nextElementSibling!.textContent = 'TBS';
+                }}
+              />
               <span className="text-lg sm:text-xl font-bold text-green-700 group-hover:text-green-800 transition-colors hidden xs:block">
                 WeeklyReport
               </span>
