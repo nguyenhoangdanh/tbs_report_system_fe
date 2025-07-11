@@ -12,7 +12,6 @@ export interface CreateTaskReportDto {
   thursday?: boolean
   friday?: boolean
   saturday?: boolean
-  sunday?: boolean
   isCompleted?: boolean
   reasonNotDone?: string
 }
@@ -31,7 +30,6 @@ export interface UpdateTaskDto {
   thursday?: boolean
   friday?: boolean
   saturday?: boolean
-  sunday?: boolean
   isCompleted?: boolean
   reasonNotDone?: string
 }

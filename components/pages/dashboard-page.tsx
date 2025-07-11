@@ -1,30 +1,73 @@
 'use client'
 
 import { useAuth } from '@/components/providers/auth-provider'
-import { useMemo, useCallback } from 'react'
+import { useMemo, useCallback, useEffect } from 'react'
 import { motion } from 'framer-motion'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { useDashboardData } from '@/hooks/use-statistics'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import { CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, Hourglass, FileText, Info, Zap } from 'lucide-react'
+import { CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, AlertTriangle, FileText, Info, Zap, Plus, Calendar } from 'lucide-react'
 import { AppLoading } from '@/components/ui/app-loading'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { RecentActivity } from '@/services/statistics.service'
+import { getCurrentWeek, formatWorkWeek, getWorkWeekRange, isInReportingPeriod } from '@/utils/week-utils'
+import { useCurrentWeekReport } from '@/hooks/use-reports'
+import Link from 'next/link'
 
 // --- Main DashboardPage ---
 function DashboardPage() {
-    const { user } = useAuth()
-    const { data: dashboardData, isLoading: isDashboardLoading, error } = useDashboardData()
+    const { user, isAuthenticated } = useAuth()
+    const { data: dashboardData, isLoading: isDashboardLoading, error, refetch } = useDashboardData()
+    const { data: currentWeekReport, refetch: refetchCurrentWeek } = useCurrentWeekReport()
 
-    // Always call useMemo hooks at the top level
+    // Refetch data when user changes
+    useEffect(() => {
+        if (isAuthenticated && user?.id) {
+            console.log('🔄 User changed, refetching dashboard data for:', user.id)
+            refetch()
+            refetchCurrentWeek()
+        }
+    }, [user?.id, isAuthenticated, refetch, refetchCurrentWeek])
+
+    // Work week info using the new logic with debug
+    const workWeekInfo = useMemo(() => {
+        if (!user?.id) return null
+        
+        const current = getCurrentWeek()
+        console.log('🔍 Frontend getCurrentWeek() for user', user.id, ':', current)
+        
+        const { displayInfo } = getWorkWeekRange(current.weekNumber, current.year)
+        const isReportingTime = isInReportingPeriod()
+        
+        return {
+            ...current,
+            ...displayInfo,
+            isReportingTime,
+            hasReport: !!currentWeekReport,
+            reportingStatus: isReportingTime ? 'active' : 'waiting'
+        }
+    }, [currentWeekReport, user?.id])
+
+    // Debug backend data with user context
+    useMemo(() => {
+        if (user?.id && dashboardData?.dashboardStats) {
+            console.log('🔍 Dashboard stats for user', user.id, ':', dashboardData.dashboardStats)
+            
+            if (dashboardData.dashboardStats.currentWeek) {
+                console.log('🔍 Backend current week for user', user.id, ':', dashboardData.dashboardStats.currentWeek)
+            }
+        }
+    }, [dashboardData, user?.id])
+
     const now = useMemo(() => new Date(), [])
     const currentYear = useMemo(() => now.getFullYear(), [now])
     const currentMonth = useMemo(() => now.getMonth() + 1, [now])
 
-    // Fixed data destructuring - handle the new optimized structure
+    // Fixed data destructuring with null checks
     const { 
         dashboardStats, 
         activities = [], 
@@ -33,12 +76,11 @@ function DashboardPage() {
         yearlyTaskStats 
     } = dashboardData || {}
 
-    // Enhanced week stats with proper interface
+    // Enhanced stats with user context
     const weeklyIncompleteReasons = useMemo(() => {
         return weeklyTaskStats?.incompleteReasonsAnalysis || []
     }, [weeklyTaskStats])
 
-    // Enhanced month and year stats with proper error handling
     const monthStat = useMemo(() => {
         if (!monthlyTaskStats?.monthlyStats || !Array.isArray(monthlyTaskStats.monthlyStats)) {
             return { month: currentMonth, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
@@ -57,7 +99,6 @@ function DashboardPage() {
         return stat || { year: currentYear, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
     }, [yearlyTaskStats, currentYear])
 
-    // Calculate overall stats
     const overallStats = useMemo(() => {
         const stats = {
             totalReports: dashboardStats?.totals?.totalReports || 0,
@@ -72,7 +113,7 @@ function DashboardPage() {
         }
     }, [dashboardStats])
 
-    // Utility functions
+    // Utility functions for activities
     const getActivityColor = useCallback((activity: RecentActivity) => {
         if (activity.isCompleted) return 'bg-green-500'
         if (activity.stats.incompleteTasks > 0) return 'bg-orange-500'
@@ -81,31 +122,29 @@ function DashboardPage() {
 
     const getActivityIcon = useCallback((activity: RecentActivity) => {
         if (activity.isCompleted) return <CheckCircle2 className="text-green-500 w-5 h-5" />
-        if (activity.stats.incompleteTasks > 0) return <Hourglass className="text-orange-500 w-5 h-5" />
+        if (activity.stats.incompleteTasks > 0) return <AlertTriangle className="text-orange-500 w-5 h-5" />
         return <FileText className="text-blue-500 w-5 h-5" />
     }, [])
 
     const getActivityTitle = useCallback((activity: RecentActivity) => {
-        return `Báo cáo tuần ${activity.weekNumber}/${activity.year}`
+        return formatWorkWeek(activity.weekNumber, activity.year, 'full')
     }, [])
 
     const getActivityDescription = useCallback((activity: RecentActivity) => {
         const { totalTasks, completedTasks, incompleteTasks } = activity.stats
         if (activity.isCompleted) {
-            return `Hoàn thành ${totalTasks} công việc`
+            return `Hoàn thành tất cả ${totalTasks} công việc`
         }
-        return `${completedTasks}/${totalTasks} công việc hoàn thành • ${incompleteTasks} chưa xong`
+        return `${completedTasks}/${totalTasks} công việc hoàn thành • ${incompleteTasks} chưa hoàn thành`
     }, [])
 
-    const getActivityStatus = useCallback((activity: RecentActivity) => {
-        if (activity.isCompleted) return 'completed'
-        if (activity.stats.incompleteTasks > 0) return 'pending'
-        return 'draft'
-    }, [])
-
-    // Handle loading and error states
-    if (!user) {
+    // Handle authentication and loading states
+    if (!isAuthenticated) {
         return <AppLoading text="Đang xác thực..." />
+    }
+
+    if (!user) {
+        return <AppLoading text="Đang tải thông tin người dùng..." />
     }
 
     if (isDashboardLoading) {
@@ -113,7 +152,7 @@ function DashboardPage() {
             <MainLayout>
                 <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
                     <div className="px-4 sm:px-6 py-6">
-                        <AppLoading text="Đang tải dữ liệu dashboard..." />
+                        <AppLoading text={`Đang tải dữ liệu cho ${user.firstName} ${user.lastName}...`} />
                     </div>
                 </div>
             </MainLayout>
@@ -131,12 +170,27 @@ function DashboardPage() {
                                     <h3 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
                                         Không thể tải dữ liệu dashboard
                                     </h3>
-                                    <p className="text-red-600 dark:text-red-400">
+                                    <p className="text-red-600 dark:text-red-400 mb-4">
                                         Vui lòng thử lại sau hoặc liên hệ quản trị viên
                                     </p>
+                                    <Button onClick={() => refetch()} variant="outline">
+                                        Thử lại
+                                    </Button>
                                 </div>
                             </CardContent>
                         </Card>
+                    </div>
+                </div>
+            </MainLayout>
+        )
+    }
+
+    if (!workWeekInfo) {
+        return (
+            <MainLayout>
+                <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                    <div className="px-4 sm:px-6 py-6">
+                        <AppLoading text="Đang tải thông tin tuần làm việc..." />
                     </div>
                 </div>
             </MainLayout>
@@ -147,7 +201,7 @@ function DashboardPage() {
         <MainLayout>
             <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
                 <div className="px-4 sm:px-6 py-6 space-y-8">
-                    {/* Header */}
+                    {/* Header with user-specific greeting */}
                     <motion.div
                         initial={{ opacity: 0, y: -20 }}
                         animate={{ opacity: 1, y: 0 }}
@@ -155,69 +209,108 @@ function DashboardPage() {
                         className="text-center space-y-2"
                     >
                         <h1 className="text-3xl font-bold text-foreground">
-                            Chào mừng, {user?.firstName} {user?.lastName}! 👋
+                            Chào mừng, {user.firstName} {user.lastName}! 👋
                         </h1>
                         <p className="text-muted-foreground">
-                            Đây là tổng quan về hoạt động báo cáo của bạn
+                            Tổng quan về hoạt động báo cáo công việc tuần
                         </p>
+                        <div className="text-xs text-muted-foreground">
+                            ID: {user.id} • {user.email}
+                        </div>
                     </motion.div>
 
-                    {/* Current Week Alert */}
-                    {/* {dashboardStats?.currentWeek?.incompleteTasksAnalysis && 
-                     dashboardStats.currentWeek.incompleteTasksAnalysis.totalIncompleteTasks > 0 && (
-                        <motion.div
-                            initial={{ opacity: 0, scale: 0.95 }}
-                            animate={{ opacity: 1, scale: 1 }}
-                            transition={{ duration: 0.5, delay: 0.2 }}
-                        >
-                            <Card className="border-amber-200 bg-gradient-to-r from-amber-50 to-orange-50 dark:from-amber-950/20 dark:to-orange-950/20">
-                                <CardContent className="p-6">
-                                    <div className="flex items-start gap-4">
-                                        <div className="w-12 h-12 bg-amber-100 dark:bg-amber-900 rounded-xl flex items-center justify-center flex-shrink-0">
-                                            <Info className="w-6 h-6 text-amber-600" />
+                    {/* Work Week Status Card */}
+                    <motion.div
+                        initial={{ opacity: 0, scale: 0.95 }}
+                        animate={{ opacity: 1, scale: 1 }}
+                        transition={{ duration: 0.5, delay: 0.2 }}
+                    >
+                        <Card className="border-2 border-primary/20 bg-gradient-to-r from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/20 dark:via-indigo-950/20 dark:to-purple-950/20">
+                            <CardContent className="p-6">
+                                <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
+                                    <div className="flex items-center gap-4 flex-1">
+                                        <div className="w-16 h-16 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl flex items-center justify-center shadow-xl">
+                                            <Calendar className="w-8 h-8 text-white" />
                                         </div>
-                                        <div className="flex-1">
-                                            <div className="flex items-center justify-between mb-3">
-                                                <h3 className="text-lg font-semibold text-amber-800 dark:text-amber-200">
-                                                    📋 Thông báo tuần hiện tại
+                                        <div className="flex-1 min-w-0">
+                                            <div className="flex items-center gap-3 mb-2">
+                                                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">
+                                                    {workWeekInfo.weekTitle}
                                                 </h3>
-                                                <Badge className="bg-amber-100 text-amber-700 border-amber-200">
-                                                    Tuần {dashboardStats.currentWeek.weekNumber}/{dashboardStats.currentWeek.year}
+                                                <Badge className={`${
+                                                    workWeekInfo.isReportingTime 
+                                                        ? 'bg-green-100 text-green-700 border-green-200' 
+                                                        : 'bg-blue-100 text-blue-700 border-blue-200'
+                                                }`}>
+                                                    {workWeekInfo.isReportingTime ? 'Đang báo cáo' : 'Chu kỳ chờ'}
                                                 </Badge>
                                             </div>
-                                            <p className="text-amber-700 dark:text-amber-300 mb-3">
-                                                Bạn có <strong>{dashboardStats.currentWeek.incompleteTasksAnalysis.totalIncompleteTasks}</strong> công việc 
-                                                chưa hoàn thành trong tổng số <strong>{weeklyTaskStats?.total || 'N/A'}</strong> công việc tuần này.
-                                            </p>
-                                            {dashboardStats.currentWeek.incompleteTasksAnalysis.reasons?.length > 0 && (
-                                                <div className="text-sm text-amber-600 dark:text-amber-400">
-                                                    <strong>Lý do chính:</strong> &quot;{dashboardStats.currentWeek.incompleteTasksAnalysis.reasons[0].reason}&quot;
-                                                    {dashboardStats.currentWeek.incompleteTasksAnalysis.reasons.length > 1 && 
-                                                        ` và ${dashboardStats.currentWeek.incompleteTasksAnalysis.reasons.length - 1} lý do khác`
-                                                    }
-                                                </div>
-                                            )}
+                                            <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
+                                                <p><strong>Khoảng thời gian:</strong> {workWeekInfo.dateRange}</p>
+                                                <p><strong>Ngày làm việc:</strong> {workWeekInfo.workDaysText}</p>
+                                                <p><strong>Ngày báo cáo:</strong> {workWeekInfo.resultDaysText}</p>
+                                            </div>
                                         </div>
                                     </div>
-                                </CardContent>
-                            </Card>
-                        </motion.div>
-                    )} */}
+                                    
+                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                        {workWeekInfo.hasReport ? (
+                                            <>
+                                                <Badge className="bg-green-100 text-green-700 border-green-200 px-4 py-2 text-center">
+                                                    ✅ Đã có báo cáo
+                                                </Badge>
+                                                <Link href="/reports?filter=week">
+                                                    <Button size="sm" className="w-full sm:w-auto">
+                                                        Xem báo cáo
+                                                    </Button>
+                                                </Link>
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Badge className="bg-orange-100 text-orange-700 border-orange-200 px-4 py-2 text-center">
+                                                    ⏳ Chưa có báo cáo
+                                                </Badge>
+                                                <Link href="/reports">
+                                                    <Button size="sm" className="w-full sm:w-auto flex items-center gap-2">
+                                                        <Plus className="w-4 h-4" />
+                                                        Tạo báo cáo
+                                                    </Button>
+                                                </Link>
+                                            </>
+                                        )}
+                                    </div>
+                                </div>
+                                
+                                {workWeekInfo.isReportingTime && (
+                                    <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
+                                        <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
+                                            <Info className="w-4 h-4" />
+                                            <span className="text-sm font-medium">
+                                                Đây là thời gian báo cáo (Thứ 2 - Thứ 5). Kết quả sẽ được đánh giá vào cuối thứ 5.
+                                            </span>
+                                        </div>
+                                    </div>
+                                )}
+                            </CardContent>
+                        </Card>
+                    </motion.div>
 
-                    {/* Stats Cards Grid - Enhanced with Rankings */}
+
+                    {/* Stats Cards Grid */}
                     <motion.div
                         className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-6"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
-                        transition={{ duration: 0.5, delay: 0.3 }}
+                        transition={{ duration: 0.5, delay: 0.4 }}
                     >
-                        {/* Weekly Stats with Performance Ranking */}
+                        {/* Weekly Stats */}
                         <StatsCard
                             title="Công việc tuần này"
+                            subtitle={`${workWeekInfo.weekTitle} • ${workWeekInfo.resultDaysText}`}
                             total={Number(weeklyTaskStats?.total) || 0}
                             completed={Number(weeklyTaskStats?.completed) || 0}
                             uncompleted={Number(weeklyTaskStats?.uncompleted) || 0}
-                            period={`Tuần ${weeklyTaskStats?.weekNumber || 'N/A'}/${weeklyTaskStats?.year || 'N/A'}`}
+                            period={workWeekInfo.weekTitle}
                             link="/reports"
                             linkFilter="week"
                             icon={<CalendarDays className="w-6 h-6 text-green-600 dark:text-green-400" />}
@@ -227,7 +320,7 @@ function DashboardPage() {
                             isLoading={!weeklyTaskStats}
                         />
 
-                        {/* Monthly Stats with Performance Ranking */}
+                        {/* Monthly Stats */}
                         <StatsCard
                             title="Công việc tháng này"
                             subtitle={`Tháng ${currentMonth}/${currentYear}`}
@@ -244,7 +337,7 @@ function DashboardPage() {
                             isLoading={!monthlyTaskStats}
                         />
 
-                        {/* Yearly Stats with Performance Ranking */}
+                        {/* Yearly Stats */}
                         <StatsCard
                             title="Công việc năm nay"
                             subtitle={`Năm ${currentYear}`}
@@ -277,7 +370,7 @@ function DashboardPage() {
                                     <div>
                                         <CardTitle className="text-xl text-foreground">Hoạt động gần đây</CardTitle>
                                         <p className="text-sm text-muted-foreground">
-                                            {Array.isArray(activities) ? activities.length : 0} hoạt động gần đây
+                                            {Array.isArray(activities) ? activities.length : 0} báo cáo gần đây
                                         </p>
                                     </div>
                                 </div>
@@ -288,7 +381,6 @@ function DashboardPage() {
                                         {activities.map((activity: RecentActivity, index: number) => {
                                             const activityTitle = getActivityTitle(activity)
                                             const activityDescription = getActivityDescription(activity)
-                                            const activityStatus = getActivityStatus(activity)
                                             const topReason = activity.stats.topIncompleteReasons?.[0]
                                             
                                             return (
@@ -321,7 +413,7 @@ function DashboardPage() {
                                                                 <div className="flex items-center gap-2 mb-1">
                                                                     <Zap className="w-4 h-4 text-orange-500" />
                                                                     <span className="text-xs font-medium text-orange-700 dark:text-orange-300">
-                                                                        {activity.stats.incompleteTasks} công việc chưa xong
+                                                                        {activity.stats.incompleteTasks} công việc chưa hoàn thành
                                                                     </span>
                                                                     {activity.stats.completionRate !== undefined && (
                                                                         <>
@@ -358,7 +450,6 @@ function DashboardPage() {
                                             <Clock3 className="w-8 h-8 text-muted-foreground" />
                                         </div>
                                         <h3 className="text-lg font-medium text-muted-foreground mb-2">Chưa có hoạt động nào</h3>
-                                        <p className="text-muted-foreground">Bắt đầu tạo báo cáo để theo dõi hoạt động của bạn</p>
                                     </div>
                                 )}
                             </CardContent>

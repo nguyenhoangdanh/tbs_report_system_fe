@@ -12,11 +12,11 @@ import { Trash2, Save } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'react-toast-kit'
 import { useUpdateTask, useDeleteTask } from '@/hooks/use-reports'
-import type { TaskReport } from '@/types'
+import type { Task } from '@/types'
 import { Checkbox } from '../ui/checkbox'
 
 interface TaskRowProps {
-  task: TaskReport
+  task: Task
   weekNumber: number
   year: number
   taskIndex: number
@@ -41,13 +41,12 @@ const TaskRow = memo(function TaskRow({
   const deleteTaskMutation = useDeleteTask()
 
   const weekdays = [
+    { key: 'friday', label: 'T6' },
+    { key: 'saturday', label: 'T7' },
     { key: 'monday', label: 'T2' },
     { key: 'tuesday', label: 'T3' },
     { key: 'wednesday', label: 'T4' },
     { key: 'thursday', label: 'T5' },
-    { key: 'friday', label: 'T6' },
-    { key: 'saturday', label: 'T7' },
-    { key: 'sunday', label: 'CN' }
   ]
 
   const handleDeleteConfirm = async () => {
@@ -85,7 +84,6 @@ const TaskRow = memo(function TaskRow({
         thursday: task.thursday,
         friday: task.friday,
         saturday: task.saturday,
-        sunday: task.sunday,
         isCompleted: task.isCompleted,
         reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone || undefined)
       }
@@ -191,7 +189,7 @@ const TaskRow = memo(function TaskRow({
                     <div key={key} className="flex flex-col items-center space-y-2">
                       <span className="text-xs font-medium text-muted-foreground">{label}</span>
                       <Checkbox
-                        checked={task[key as keyof TaskReport] as boolean}
+                        checked={task[key as keyof Task] as boolean}
                         onCheckedChange={(checked) => onTaskChange(task.id, key, checked)}
                         disabled={!isEditable}
                         className="data-[state=checked]:bg-green-600"

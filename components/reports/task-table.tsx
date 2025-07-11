@@ -10,11 +10,12 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Save, Trash2, Copy, Edit3, BarChart3, Calendar } from 'lucide-react'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'react-toast-kit'
-import type { TaskReport } from '@/types'
+import type { Task } from '@/types'
 import { SubmitButton } from '../ui/submit-button'
+import { formatWorkWeek } from '@/utils/week-utils'
 
 interface TaskTableProps {
-  tasks: TaskReport[]
+  tasks: Task[]
   weekNumber: number
   year: number
   isEditable: boolean
@@ -35,12 +36,12 @@ const TaskCard = memo(function TaskCard({
   onDuplicate,
   weekdays
 }: {
-  task: TaskReport
+  task: Task
   index: number
   isEditable: boolean
   onTaskChange: (taskId: string, field: string, value: any) => void
   onRemove: (taskId: string) => void
-  onDuplicate: (task: TaskReport) => void
+  onDuplicate: (task: Task) => void
   weekdays: Array<{ key: string; label: string; short: string }>
 }) {
   const [editingTask, setEditingTask] = useState(false)
@@ -159,7 +160,7 @@ const TaskCard = memo(function TaskCard({
                   {day.short}
                 </span>
                 <Checkbox
-                  checked={task[day.key as keyof TaskReport] as boolean}
+                  checked={task[day.key as keyof Task] as boolean}
                   onCheckedChange={(checked) => 
                     isEditable && handleDayToggle(day.key, !!checked)
                   }
@@ -187,7 +188,7 @@ const TaskCard = memo(function TaskCard({
               <span className={`text-sm font-medium ${
                 task.isCompleted ? 'text-green-600' : 'text-orange-600'
               }`}>
-                {task.isCompleted ? 'Đã xong' : 'Chưa xong'}
+                {task.isCompleted ? 'Hoan thành' : 'Chưa hoàn thành'}
               </span>
             </div>
           </div>
@@ -256,13 +257,12 @@ export const TaskTable = memo(function TaskTable({
 
   // Weekday headers
   const weekdays = useMemo(() => [
+    { key: 'friday', label: 'Thứ 6', short: 'T6' },
+    { key: 'saturday', label: 'Thứ 7', short: 'T7' },
     { key: 'monday', label: 'Thứ 2', short: 'T2' },
     { key: 'tuesday', label: 'Thứ 3', short: 'T3' },
     { key: 'wednesday', label: 'Thứ 4', short: 'T4' },
     { key: 'thursday', label: 'Thứ 5', short: 'T5' },
-    { key: 'friday', label: 'Thứ 6', short: 'T6' },
-    { key: 'saturday', label: 'Thứ 7', short: 'T7' },
-    { key: 'sunday', label: 'Chủ nhật', short: 'CN' }
   ], [])
 
   // Calculate statistics
@@ -274,6 +274,10 @@ export const TaskTable = memo(function TaskTable({
 
     return { total, completed, incomplete, completionRate }
   }, [tasks])
+
+  const weekDisplayTitle = useMemo(() => {
+    return formatWorkWeek(weekNumber, year, 'full');
+  }, [weekNumber, year]);
 
   const handleDeleteClick = useCallback((taskId: string) => {
     setTaskToDelete(taskId)
@@ -308,8 +312,8 @@ export const TaskTable = memo(function TaskTable({
     }
   }, [onTaskChange])
 
-  const duplicateTask = useCallback((task: TaskReport) => {
-    const newTask: TaskReport = {
+  const duplicateTask = useCallback((task: Task) => {
+    const newTask: Task = {
       id: `temp-${Date.now()}-${Math.random()}`,
       taskName: `${task.taskName} (Copy)`,
       monday: task.monday,
@@ -318,10 +322,11 @@ export const TaskTable = memo(function TaskTable({
       thursday: task.thursday,
       friday: task.friday,
       saturday: task.saturday,
-      sunday: task.sunday,
       isCompleted: false,
       reasonNotDone: '',
-      reportId: task.reportId
+      reportId: task.reportId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
     }
     
     onTaskChange(newTask.id, 'taskName', newTask.taskName)
@@ -353,10 +358,15 @@ export const TaskTable = memo(function TaskTable({
       <Card>
         <CardHeader className="space-y-4">
           <div className="flex flex-col space-y-4">
-            {/* Title */}
-            <CardTitle className="text-xl sm:text-2xl">
-              Báo cáo công việc tuần {weekNumber}/{year}
-            </CardTitle>
+            {/* Title with enhanced week info */}
+            <div>
+              <CardTitle className="text-xl sm:text-2xl">
+                Báo cáo công việc {weekDisplayTitle}
+              </CardTitle>
+              <p className="text-sm text-muted-foreground mt-2">
+                Kế hoạch: T6, T7, T2, T3, T4, T5 • Kết quả: T2, T3, T4, T5
+              </p>
+            </div>
             
             {/* Statistics - Mobile Optimized */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
@@ -380,7 +390,7 @@ export const TaskTable = memo(function TaskTable({
                 <div className="w-3 h-3 bg-orange-500 rounded-full flex-shrink-0"></div>
                 <div className="text-sm">
                   <div className="font-bold text-orange-600">{stats.incomplete}</div>
-                  <div className="text-orange-600/70 text-xs">Chưa xong</div>
+                  <div className="text-orange-600/70 text-xs">Chưa hoàn thành</div>
                 </div>
               </div>
               
@@ -530,7 +540,7 @@ export const TaskTable = memo(function TaskTable({
                     {weekdays.map((day) => (
                       <td key={day.key} className="border-r px-2 py-3 text-center">
                         <Checkbox
-                          checked={task[day.key as keyof TaskReport] as boolean}
+                          checked={task[day.key as keyof Task] as boolean}
                           onCheckedChange={(checked) => 
                             isEditable && handleDayToggle(task.id, day.key, !!checked)
                           }
@@ -639,7 +649,7 @@ export const TaskTable = memo(function TaskTable({
                     {stats.completed} hoàn thành
                   </span>
                   <span className="text-orange-600 font-medium">
-                    {stats.incomplete} chưa xong
+                    {stats.incomplete} chưa hoàn thành
                   </span>
                 </div>
                 <div className="flex items-center gap-2">

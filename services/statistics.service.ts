@@ -1,5 +1,6 @@
 import { api } from '@/lib/api'
 
+// Updated interface types to match backend exactly
 export interface DashboardStats {
   currentWeek: {
     weekNumber: number
@@ -7,15 +8,13 @@ export interface DashboardStats {
     hasReport: boolean
     isCompleted: boolean
     isLocked: boolean
+    isReportingPeriod: boolean
+    reportingPeriod: {
+      startDate: string
+      endDate: string
+    }
     incompleteTasksAnalysis: {
       totalIncompleteTasks: number
-      totalTasks: number
-      reasons: Array<{
-        reason: string
-        count: number
-        percentage: number
-        tasks: string[]
-      }>
       topReasons: Array<{
         reason: string
         count: number
@@ -33,37 +32,18 @@ export interface DashboardStats {
 }
 
 export interface UserReportStats {
-  monthlyStats: Array<{
-    year: number
-    _count: { id: number }
-  }>
-  weeklyTrend: Array<{
-    weekNumber: number
-    year: number
-    isCompleted: boolean
-    createdAt: string
-    totalTasks: number
-    completedTasks: number
-    incompleteTasks: number
-  }>
-  incompleteReasonsAnalysis: {
-    totalIncompleteTasks: number
-    topReasons: Array<{
-      reason: string
-      count: number
-      percentage: number
-      sampleTasks: Array<{
-        taskName: string
-        weekNumber: number
-        year: number
-      }>
-    }>
-  }
+  totalReports: number
+  completedReports: number
+  reportCompletionRate: number
+  totalTasks: number
+  completedTasks: number
+  taskCompletionRate: number
 }
 
 export interface WeeklyTaskStats {
   weekNumber: number
   year: number
+  isReportingPeriod: boolean
   completed: number
   uncompleted: number
   total: number
@@ -126,27 +106,18 @@ export interface YearlyTaskStats {
 }
 
 export interface RecentActivity {
-  id?: string
   reportId: string
   weekNumber: number
   year: number
-  title?: string
-  description?: string
-  status: 'completed' | 'pending' | 'draft'
   isCompleted: boolean
   isLocked: boolean
   createdAt: string
   updatedAt: string
-  incompleteTasksCount: number
-  mostCommonIncompleteReason?: string
-  incompleteTasksSample?: Array<{
-    taskName: string
-    reason: string
-  }>
   stats: {
     totalTasks: number
     completedTasks: number
     incompleteTasks: number
+    taskCompletionRate: number
     completionRate: number
     topIncompleteReasons: Array<{
       reason: string
@@ -156,12 +127,6 @@ export interface RecentActivity {
 }
 
 export interface IncompleteReasonsAnalysis {
-  filters: {
-    weekNumber?: number
-    year?: number
-    startDate?: string
-    endDate?: string
-  }
   totalIncompleteTasks: number
   totalReports: number
   reasonsAnalysis: Array<{
@@ -174,6 +139,12 @@ export interface IncompleteReasonsAnalysis {
       year: number
     }>
   }>
+  filters: {
+    weekNumber?: number
+    year?: number
+    startDate?: string
+    endDate?: string
+  }
   summary: {
     mostCommonReason: string
     diversityIndex: number
@@ -198,57 +169,53 @@ export interface OverviewStats {
 export interface CompletionRateStats {
   weekNumber: number
   year: number
-  totalReports: number
+  totalUsers: number
+  usersWithReports: number
   completedReports: number
   completionRate: number
-  filters: any
+  filters?: {
+    week?: number
+    year?: number
+    departmentId?: string
+  }
 }
 
 export interface MissingReportsStats {
   weekNumber: number
   year: number
   totalUsers: number
-  usersWithReports: number
-  missingReports: number
-  missingUsers: Array<{
+  usersWithoutReports: number
+  missingRate: number
+  users: Array<{
     id: string
     employeeCode: string
     firstName: string
     lastName: string
-    fullName: string
-    email: string
-    daysOverdue: number
+    office: string
+    department: string
+    position: string
   }>
 }
 
 export interface SummaryReport {
   weekNumber: number
   year: number
-  overview: OverviewStats
-  completionRate: CompletionRateStats
-  missingReports: {
-    count: number
-    users: Array<{
-      id: string
-      employeeCode: string
-      firstName: string
-      lastName: string
-      fullName: string
-      email: string
-      daysOverdue: number
-    }>
-  }
   summary: {
     totalUsers: number
-    submissionRate: number
-    completionRate: number
-    actionRequired: boolean
+    reportSubmissionRate: number
+    taskCompletionRate: number
+    missingReportsCount: number
+  }
+  details: {
+    dashboardStats: any
+    completionRate: CompletionRateStats
+    missingReports: MissingReportsStats
   }
 }
 
 export class StatisticsService {
   /**
-   * Get dashboard statistics for current user
+   * Get dashboard statistics
    */
   static async getDashboardStats(): Promise<DashboardStats> {
     return await api.get<DashboardStats>('/statistics/dashboard')
@@ -262,36 +229,77 @@ export class StatisticsService {
   }
 
   /**
-   * Get recent activities
-   */
-  static async getRecentActivities(): Promise<RecentActivity[]> {
-    return await api.get<RecentActivity[]>('/statistics/recent-activities')
-  }
-
-  /**
    * Get weekly task statistics
    */
-  static async getWeeklyTaskStats(): Promise<WeeklyTaskStats> {
-    return await api.get<WeeklyTaskStats>('/statistics/weekly-task-stats')
+  static async getWeeklyTaskStats(filters?: {
+    weekNumber?: number
+    year?: number
+  }): Promise<WeeklyTaskStats> {
+    const params = new URLSearchParams()
+    
+    if (filters?.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
+    
+    const query = params.toString() ? `?${params}` : ''
+    return await api.get<WeeklyTaskStats>(`/statistics/weekly-tasks${query}`)
   }
 
   /**
-   * Get monthly task statistics
+   * Get recent activities
+   */
+  static async getRecentActivities(filters?: {
+    limit?: number
+  }): Promise<RecentActivity[]> {
+    const params = new URLSearchParams()
+    
+    if (filters?.limit !== undefined) {
+      const limitNum = Number(filters.limit)
+      if (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100) {
+        params.append('limit', String(limitNum))
+      }
+    }
+    
+    const query = params.toString() ? `?${params}` : ''
+    return await api.get<RecentActivity[]>(`/statistics/recent-activities${query}`)
+  }
+
+  /**
+   * Get monthly task statistics - with proper number validation
    */
   static async getMonthlyTaskStats(year?: number): Promise<MonthlyTaskStats> {
-    const params = year ? `?year=${year}` : ''
-    return await api.get<MonthlyTaskStats>(`/statistics/monthly-task-stats${params}`)
+    const params = new URLSearchParams()
+    
+    // FIX: Validate year parameter
+    if (year !== undefined) {
+      const yearNum = Number(year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
+    
+    const query = params.toString() ? `?${params}` : ''
+    return await api.get<MonthlyTaskStats>(`/statistics/monthly-tasks${query}`)
   }
 
   /**
    * Get yearly task statistics
    */
   static async getYearlyTaskStats(): Promise<YearlyTaskStats> {
-    return await api.get<YearlyTaskStats>('/statistics/yearly-task-stats')
+    return await api.get<YearlyTaskStats>('/statistics/yearly-tasks')
   }
 
   /**
-   * Get incomplete reasons analysis
+   * Get incomplete reasons analysis - with proper validation
    */
   static async getIncompleteReasonsAnalysis(filters: {
     weekNumber?: number
@@ -300,14 +308,32 @@ export class StatisticsService {
     endDate?: string
   }): Promise<IncompleteReasonsAnalysis> {
     const params = new URLSearchParams()
-    if (filters.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters.year) params.append('year', filters.year.toString())
-    if (filters.startDate) params.append('startDate', filters.startDate)
-    if (filters.endDate) params.append('endDate', filters.endDate)
     
-    return await api.get<IncompleteReasonsAnalysis>(`/statistics/incomplete-reasons-analysis?${params}`)
+    // FIX: Validate numeric parameters
+    if (filters.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
+    }
+    if (filters.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
+    if (filters.startDate && typeof filters.startDate === 'string' && filters.startDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      params.append('startDate', filters.startDate)
+    }
+    if (filters.endDate && typeof filters.endDate === 'string' && filters.endDate.match(/^\d{4}-\d{2}-\d{2}$/)) {
+      params.append('endDate', filters.endDate)
+    }
+    
+    const query = params.toString() ? `?${params}` : ''
+    return await api.get<IncompleteReasonsAnalysis>(`/statistics/incomplete-reasons-analysis${query}`)
   }
 
+  // Admin endpoints
   /**
    * Get admin dashboard statistics
    */
@@ -317,23 +343,37 @@ export class StatisticsService {
     year?: number
   }): Promise<any> {
     const params = new URLSearchParams()
-    if (filters?.departmentId) params.append('departmentId', filters.departmentId)
-    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
+    
+    // FIX: Validate parameters
+    if (filters?.departmentId && typeof filters.departmentId === 'string') {
+      params.append('departmentId', filters.departmentId)
+    }
+    if (filters?.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
     
     const query = params.toString() ? `?${params}` : ''
-    return await api.get<any>(`/statistics/admin-dashboard${query}`)
+    return await api.get(`/statistics/admin/dashboard${query}`)
   }
 
   /**
-   * Get overall statistics overview
+   * Get overview statistics
    */
   static async getOverview(): Promise<OverviewStats> {
     return await api.get<OverviewStats>('/statistics/overview')
   }
 
   /**
-   * Get completion rate by department and week
+   * Get completion rate statistics - with proper validation
    */
   static async getCompletionRate(filters?: {
     week?: number
@@ -341,39 +381,77 @@ export class StatisticsService {
     departmentId?: string
   }): Promise<CompletionRateStats> {
     const params = new URLSearchParams()
-    if (filters?.week) params.append('week', filters.week.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
-    if (filters?.departmentId) params.append('departmentId', filters.departmentId)
+    
+    // FIX: Validate numeric parameters
+    if (filters?.week !== undefined) {
+      const weekNum = Number(filters.week)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('week', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
+    if (filters?.departmentId && typeof filters.departmentId === 'string') {
+      params.append('departmentId', filters.departmentId)
+    }
     
     const query = params.toString() ? `?${params}` : ''
     return await api.get<CompletionRateStats>(`/statistics/completion-rate${query}`)
   }
 
   /**
-   * Get employees who have not submitted reports
+   * Get missing reports statistics
    */
   static async getMissingReports(filters?: {
     week?: number
     year?: number
   }): Promise<MissingReportsStats> {
     const params = new URLSearchParams()
-    if (filters?.week) params.append('week', filters.week.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
+    
+    // FIX: Validate numeric parameters
+    if (filters?.week !== undefined) {
+      const weekNum = Number(filters.week)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('week', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
     
     const query = params.toString() ? `?${params}` : ''
     return await api.get<MissingReportsStats>(`/statistics/missing-reports${query}`)
   }
 
   /**
-   * Get comprehensive summary report
+   * Get summary report
    */
   static async getSummaryReport(filters?: {
     week?: number
     year?: number
   }): Promise<SummaryReport> {
     const params = new URLSearchParams()
-    if (filters?.week) params.append('week', filters.week.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
+    
+    // FIX: Validate numeric parameters
+    if (filters?.week !== undefined) {
+      const weekNum = Number(filters.week)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('week', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
     
     const query = params.toString() ? `?${params}` : ''
     return await api.get<SummaryReport>(`/statistics/summary-report${query}`)

@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'react-toast-kit'
-import type { User, Office, JobPosition, UserRole } from '@/types';
+import type { User, Office, JobPosition, UserRole, UpdateProfileDto } from '@/types';
 
 interface EditUser{
   employeeCode: string;
@@ -73,8 +73,8 @@ function AdminUsersContent() {
       lastName: user.lastName,
       email: user.email || '',
       phone: user.phone || '',
-      jobPositionId: user.jobPositionId,
-      officeId: user.officeId,
+      jobPositionId: user.jobPosition.id,
+      officeId: user.office.id,
       role: user.role as UserRole
     });
     setIsEditModalOpen(true);
@@ -85,7 +85,7 @@ function AdminUsersContent() {
 
     try {
       // Create properly typed update data
-      const updateData: Partial<User> = {
+      const updateData: Partial<UpdateProfileDto> = {
         employeeCode: editData.employeeCode,
         firstName: editData.firstName,
         lastName: editData.lastName,
@@ -154,7 +154,7 @@ function AdminUsersContent() {
         title="Quyền truy cập hạn chế"
         showBreadcrumb
         breadcrumbItems={[
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Trang chủ', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
           { label: 'Quản lý Users' }
         ]}
@@ -423,7 +423,7 @@ export default function AdminUsersPage() {
     <MainLayout
       showBreadcrumb
       breadcrumbItems={[
-        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Trang chủ', href: '/dashboard' },
         { label: 'Quản lý người dùng' }
       ]}
     >

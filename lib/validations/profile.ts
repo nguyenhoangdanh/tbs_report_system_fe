@@ -25,7 +25,6 @@ export const updateProfileSchema = z.object({
   phone: z
     .string()
     .regex(/^[0-9]{10}$/, 'Số điện thoại phải có đúng 10 chữ số')
-    .optional()
     .or(z.literal('')),
   jobPositionId: z
     .string()

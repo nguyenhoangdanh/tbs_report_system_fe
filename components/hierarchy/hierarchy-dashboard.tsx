@@ -1,837 +1,966 @@
 "use client"
 
-import { useState } from 'react'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { memo, useState, useCallback, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
+import { Badge } from '@/components/ui/badge'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { Building2, Users, BarChart3, AlertTriangle, Calendar, FileText, TrendingUp, RefreshCw, Trophy } from 'lucide-react'
-import { useCurrentWeekFilters, useMyHierarchyView } from '@/hooks/use-hierarchy'
 import { useAuth } from '@/components/providers/auth-provider'
-import { AppLoading } from '@/components/ui/app-loading'
-import { EmployeesWithoutReports } from './employees-without-reports'
-import { ResponsiveCard } from '@/components/hierarchy/responsive-card'
-import { SimplePieChart } from '@/components/charts/simple-pie-chart'
-import { motion } from 'framer-motion'
-import { useQueryClient } from '@tanstack/react-query'
-import { toast } from 'react-toast-kit'
+import { useMyHierarchyView, isManagementHierarchy, isStaffHierarchy } from '@/hooks/use-hierarchy'
 import { getCurrentWeek } from '@/utils/week-utils'
-import { getPerformanceBadge, getPerformanceColor } from '@/utils/performance-classification'
+import { HierarchyLoadingSkeleton } from './hierarchy-loading'
+import { ErrorMessage } from '@/components/ui/error-message'
+import { HierarchySummaryCards } from './hierarchy-summary-cards'
+import { PositionCard } from './position-card'
+import { PositionGroupsList } from './position-groups-list'
+import { PositionEmployeesList } from './position-employees-list'
+import {
+  Calendar,
+  RefreshCw,
+  Users,
+  Building2,
+  AlertTriangle,
+  BarChart3,
+  Filter,
+  Crown,
+  Shield,
+  UserCheck,
+  Eye
+} from 'lucide-react'
 
-// Define interfaces for type safety
-interface OfficeData {
-  id: string
-  name: string
-  type: string
-  description?: string
-  stats: {
-    totalDepartments: number
-    totalUsers: number
-    usersWithReports: number
-    usersWithCompletedReports: number
-    usersWithoutReports: number
-    totalTasks: number
-    completedTasks: number
-    reportSubmissionRate: number
-    reportCompletionRate: number
-    taskCompletionRate: number
-    topIncompleteReasons: Array<{
-      reason: string
-      count: number
-    }>
-  }
+// Filter types
+type FilterPeriod = 'week' | 'month' | 'year'
+
+interface HierarchyFilters {
+  period: FilterPeriod
+  weekNumber?: number
+  month?: number
+  year: number
+  periodWeeks?: number
 }
 
-interface DepartmentData {
-  id: string
-  name: string
-  description?: string
-  stats: {
-    totalUsers: number
-    usersWithReports: number
-    usersWithCompletedReports: number
-    usersWithoutReports: number
-    totalTasks: number
-    completedTasks: number
-    reportSubmissionRate: number
-    reportCompletionRate: number
-    taskCompletionRate: number
-    topIncompleteReasons: Array<{
-      reason: string
-      count: number
-    }>
-  }
+// Position stats interface
+interface PositionStats {
+  totalUsers: number
+  usersWithReports: number
+  usersWithCompletedReports: number
+  usersWithoutReports: number
+  submissionRate: number
+  totalTasks: number
+  completedTasks: number
+  averageCompletionRate: number
+  needsImprovementCount: number
+  positionRanking?: "EXCELLENT" | "GOOD" | "AVERAGE" | "POOR"
+  rankingDistribution?: any
+  users: any[] // Required property for PositionGroupsList
 }
 
-interface UserData {
-  id: string
-  employeeCode: string
-  firstName: string
-  lastName: string
-  email: string
-  jobPosition: {
+// Position data interface  
+interface PositionData {
+  position?: {
+    id: string
+    name: string
+    level?: number
+    description?: string
+    isManagement?: boolean
+  }
+  jobPosition?: {
     id: string
     jobName: string
-    positionName: string
-  }
-  reportStatus: {
-    hasReport: boolean
-    reportId?: string
-    isCompleted: boolean
-    isLocked: boolean
-    totalTasks: number
-    completedTasks: number
-    workDaysCount: number
-    taskCompletionRate: number
-    incompleteReasons: Array<{
-      taskName: string
-      reason: string
-    }>
-  }
-}
-
-export function HierarchyDashboard() {
-  const { user } = useAuth()
-  const currentWeekData = useCurrentWeekFilters()
-  const currentWeekInfo = getCurrentWeek()
-
-  const defaultWeek = currentWeekData.weekNumber ?? currentWeekInfo.weekNumber
-  const defaultYear = currentWeekData.year ?? currentWeekInfo.year
-
-  const [selectedWeek, setSelectedWeek] = useState<number>(defaultWeek)
-  const [selectedYear, setSelectedYear] = useState<number>(defaultYear)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [activeTab, setActiveTab] = useState('overview')
-  const queryClient = useQueryClient()
-
-  // Use the hierarchy hook to fetch data from backend
-  const {
-    data: hierarchyData,
-    isLoading,
-    error,
-    refetch
-  } = useMyHierarchyView({
-    weekNumber: selectedWeek,
-    year: selectedYear
-  })
-
-  const handleRefresh = async () => {
-    setIsRefreshing(true)
-    try {
-      await refetch()
-      toast.success('Dữ liệu đã được cập nhật')
-    } catch (error) {
-      toast.error('Có lỗi khi cập nhật dữ liệu')
-    } finally {
-      setIsRefreshing(false)
+    code?: string
+    description?: string
+    department?: {
+      id: string
+      name: string
+      office?: {
+        id: string
+        name: string
+      }
+    }
+    position?: {
+      id: string
+      name: string
     }
   }
+  stats: PositionStats
+  userCount: number
+  departmentBreakdown?: Array<{
+    id: string
+    name: string
+    userCount: number
+    usersWithReports: number
+  }>
+  users?: Array<{
+    id: string
+    employeeCode: string
+    firstName: string
+    lastName: string
+    fullName?: string
+    email: string
+    office: {
+      id: string
+      name: string
+      type?: string
+    }
+    jobPosition: {
+      id: string
+      jobName: string
+      department: {
+        id: string
+        name: string
+        office?: {
+          id: string
+          name: string
+        }
+      }
+    }
+    stats: {
+      hasReport: boolean
+      isCompleted: boolean
+      totalTasks: number
+      completedTasks: number
+      taskCompletionRate: number
+    }
+  }>
+}
 
-  if (!user) {
-    return <AppLoading text="Đang xác thực..." />
+// Tab interface
+interface TabConfig {
+  id: string
+  label: string
+  icon: any
+  show: boolean
+  positions?: PositionData[]
+  isManagement?: boolean
+}
+
+// User permissions utility
+const useUserPermissions = (userRole?: string) => {
+  return useMemo(() => {
+    if (!userRole) return {
+      canViewPositions: false,
+      canViewJobPositions: false,
+      canViewRanking: false,
+      userLevel: 'NONE',
+      viewScope: 'NONE'
+    }
+
+    const isSuperAdmin = userRole === 'SUPERADMIN'
+    const isAdmin = userRole === 'ADMIN'
+    const isUser = userRole === 'USER'
+
+    if (isSuperAdmin || isAdmin) {
+      return {
+        canViewPositions: true,
+        canViewJobPositions: true,
+        canViewRanking: true,
+        userLevel: 'ADMIN',
+        viewScope: 'ALL',
+        excludeFromStats: true
+      }
+    }
+
+    if (isUser) {
+      return {
+        canViewPositions: true, // USER có thể xem positions nếu họ có management role
+        canViewJobPositions: true,
+        canViewRanking: true,
+        userLevel: 'USER',
+        viewScope: 'DEPARTMENT_OR_SAME_LEVEL',
+        excludeFromStats: false
+      }
+    }
+
+    return {
+      canViewPositions: false,
+      canViewJobPositions: false,
+      canViewRanking: false,
+      userLevel: 'NONE',
+      viewScope: 'NONE'
+    }
+  }, [userRole])
+}
+
+// Data extraction utility - KHỚP CHÍNH XÁC VỚI BACKEND RESPONSE
+const useHierarchyData = (hierarchyData: any, userPermissions: any) => {
+  return useMemo(() => {
+    if (!hierarchyData) {
+      return { positions: [], jobPositions: [], summary: null }
+    }
+
+    let positions: PositionData[] = []
+    let jobPositions: PositionData[] = []
+
+    console.log('Processing hierarchy data:', {
+      viewType: hierarchyData.viewType,
+      groupBy: hierarchyData.groupBy,
+      hasPositions: !!hierarchyData.positions,
+      hasJobPositions: !!hierarchyData.jobPositions,
+      positionsLength: hierarchyData.positions?.length || 0,
+      jobPositionsLength: hierarchyData.jobPositions?.length || 0
+    })
+
+    // Transform data to match expected structure - FIX user data mapping
+    const transformPositionData = (item: any): PositionData => {
+      // Debug raw item structure
+      console.log('Transforming position item:', {
+        position: item.position,
+        jobPosition: item.jobPosition,
+        stats: item.stats,
+        users: item.users?.slice(0, 2) // Log first 2 users for debugging
+      })
+
+      return {
+        ...item,
+        stats: {
+          ...item.stats,
+          needsImprovementCount: item.stats.needsImprovementCount || 0,
+          users: item.users || [] // Make sure users are included
+        },
+        users: item.users || [] // Ensure users are at top level too
+      }
+    }
+
+    // Handle MIXED view - CHÍNH XÁC THEO BACKEND
+    if (hierarchyData.viewType === 'mixed' && hierarchyData.groupBy === 'mixed') {
+      console.log('Processing mixed view')
+      
+      if (userPermissions.canViewPositions && Array.isArray(hierarchyData.positions)) {
+        positions = hierarchyData.positions.map(transformPositionData)
+        console.log('Transformed management positions:', positions.length)
+        console.log('First position users sample:', positions[0]?.users?.slice(0, 2))
+      }
+      
+      if (userPermissions.canViewJobPositions && Array.isArray(hierarchyData.jobPositions)) {
+        jobPositions = hierarchyData.jobPositions.map(transformPositionData)
+        console.log('Transformed job positions:', jobPositions.length)
+        console.log('First job position users sample:', jobPositions[0]?.users?.slice(0, 2))
+      }
+      
+      return {
+        positions,
+        jobPositions,
+        summary: hierarchyData.summary
+      }
+    }
+
+    // Handle MANAGEMENT-only view
+    else if (hierarchyData.viewType === 'management' && hierarchyData.groupBy === 'position') {
+      console.log('Processing management-only view')
+      
+      if (userPermissions.canViewPositions && Array.isArray(hierarchyData.positions)) {
+        positions = hierarchyData.positions.map(transformPositionData)
+        console.log('Transformed management positions:', positions.length)
+      }
+      
+      return {
+        positions,
+        jobPositions: [],
+        summary: hierarchyData.summary
+      }
+    }
+
+    // Handle STAFF-only view
+    else if (hierarchyData.viewType === 'staff' && hierarchyData.groupBy === 'jobPosition') {
+      console.log('Processing staff-only view')
+      
+      if (userPermissions.canViewJobPositions && Array.isArray(hierarchyData.jobPositions)) {
+        jobPositions = hierarchyData.jobPositions.map(transformPositionData)
+        console.log('Transformed job positions:', jobPositions.length)
+      }
+      
+      return {
+        positions: [],
+        jobPositions,
+        summary: hierarchyData.summary
+      }
+    }
+
+    // Handle EMPTY view
+    else if (hierarchyData.viewType === 'empty') {
+      console.log('Processing empty view')
+      return {
+        positions: [],
+        jobPositions: [],
+        summary: hierarchyData.summary || {
+          totalPositions: 0,
+          totalJobPositions: 0,
+          totalUsers: 0,
+          totalUsersWithReports: 0,
+          averageSubmissionRate: 0,
+          averageCompletionRate: 0
+        }
+      }
+    }
+
+    // Unknown format - log cho debugging
+    else {
+      console.error('Unknown hierarchy data format:', {
+        viewType: hierarchyData.viewType,
+        groupBy: hierarchyData.groupBy,
+        availableKeys: Object.keys(hierarchyData)
+      })
+      
+      return {
+        positions: [],
+        jobPositions: [],
+        summary: hierarchyData.summary || null
+      }
+    }
+  }, [hierarchyData, userPermissions])
+}
+
+// Filters component
+const FiltersComponent = memo(({
+  filters,
+  onFiltersChange
+}: {
+  filters: HierarchyFilters
+  onFiltersChange: (filters: HierarchyFilters) => void
+}) => {
+  const currentWeek = getCurrentWeek()
+  const currentYear = new Date().getFullYear()
+
+  const yearOptions = useMemo(() => [
+    currentYear - 2,
+    currentYear - 1,
+    currentYear,
+    currentYear + 1
+  ], [currentYear])
+
+  const monthOptions = useMemo(() =>
+    Array.from({ length: 12 }, (_, i) => ({
+      value: i + 1,
+      label: `Tháng ${i + 1}`
+    }))
+    , [])
+
+  const weekOptions = useMemo(() =>
+    Array.from({ length: 53 }, (_, i) => ({
+      value: i + 1,
+      label: `Tuần ${i + 1}`
+    }))
+    , [])
+
+  const handleFilterChange = useCallback((key: keyof HierarchyFilters, value: any) => {
+    onFiltersChange({
+      ...filters,
+      [key]: value
+    })
+  }, [filters, onFiltersChange])
+
+  return (
+    <div className="flex flex-col lg:flex-row lg:items-center gap-4 p-4 bg-muted/30 rounded-lg border">
+      <div className="flex items-center gap-2">
+        <Filter className="w-4 h-4 text-muted-foreground" />
+        <span className="text-sm font-medium">Bộ lọc:</span>
+      </div>
+
+      {/* Week Selection */}
+      {filters.period === 'week' && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Tuần:</span>
+          <Select
+            value={filters.weekNumber?.toString()}
+            onValueChange={(value) => handleFilterChange('weekNumber', parseInt(value))}
+          >
+            <SelectTrigger className="w-28">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {weekOptions.map(week => (
+                <SelectItem key={week.value} value={week.value.toString()}>
+                  {week.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Month Selection */}
+      {filters.period === 'month' && (
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-muted-foreground">Tháng:</span>
+          <Select
+            value={filters.month?.toString()}
+            onValueChange={(value) => handleFilterChange('month', parseInt(value))}
+          >
+            <SelectTrigger className="w-32">
+              <SelectValue placeholder="Tháng" />
+            </SelectTrigger>
+            <SelectContent>
+              {monthOptions.map(month => (
+                <SelectItem key={month.value} value={month.value.toString()}>
+                  {month.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      )}
+
+      {/* Year Selection */}
+      <div className="flex items-center gap-2">
+        <span className="text-sm text-muted-foreground">Năm:</span>
+        <Select
+          value={filters.year.toString()}
+          onValueChange={(value) => handleFilterChange('year', parseInt(value))}
+        >
+          <SelectTrigger className="w-24">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {yearOptions.map(year => (
+              <SelectItem key={year} value={year.toString()}>
+                {year}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
+    </div>
+  )
+})
+
+FiltersComponent.displayName = 'FiltersComponent'
+
+// Overview Tab Component
+const OverviewTab = memo(({
+  positions,
+  jobPositions,
+  userPermissions,
+  filterDisplayText
+}: {
+  positions: PositionData[]
+  jobPositions: PositionData[]
+  userPermissions: any
+  filterDisplayText: string
+}) => {
+  // Group management positions by position name
+  const managementPositions = useMemo(() => {
+    return positions.filter(pos => pos.position?.isManagement === true)
+  }, [positions])
+
+  // Group job positions by department
+  const jobPositionsByDept = useMemo(() => {
+    const grouped = new Map<string, PositionData[]>()
+
+    jobPositions.forEach(jobPos => {
+      const deptName = jobPos.jobPosition?.department?.name || 'Khác'
+      if (!grouped.has(deptName)) {
+        grouped.set(deptName, [])
+      }
+      grouped.get(deptName)!.push(jobPos)
+    })
+
+    return grouped
+  }, [jobPositions])
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="space-y-6"
+    >
+      {/* Management Positions Overview */}
+      {managementPositions.length > 0 && userPermissions.canViewPositions && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Crown className="w-5 h-5 text-blue-600" />
+            Cấp Quản Lý ({managementPositions.length})
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {managementPositions.map((position, index) => {
+              const totalUsers = position.stats?.totalUsers || 0
+              const avgCompletion = position.stats?.averageCompletionRate || 0
+
+              return (
+                <Card key={position.position?.id || `mgmt-${index}`} className="border-l-4 border-l-blue-500">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between mb-2">
+                      <h4 className="font-medium text-sm">
+                        {position.position?.name || 'Vị trí quản lý'}
+                      </h4>
+                      <Badge variant="outline" className="text-xs">
+                        Quản lý
+                      </Badge>
+                    </div>
+                    {/* Bỏ hiển thị level */}
+                    <div className="space-y-1">
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Nhân viên:</span>
+                        <span className="text-sm font-medium">{totalUsers}</span>
+                      </div>
+                      <div className="flex justify-between items-center">
+                        <span className="text-xs text-muted-foreground">Hoàn thành:</span>
+                        <span className="text-sm font-medium text-blue-600">{Math.round(avgCompletion)}%</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Job Positions Overview */}
+      {jobPositions.length > 0 && userPermissions.canViewJobPositions && (
+        <div>
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Users className="w-5 h-5 text-green-600" />
+            Vị trí công việc ({jobPositions.length})
+          </h3>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {jobPositions.slice(0, 6).map((jobPos, index) => (
+              <motion.div
+                key={jobPos.jobPosition?.id || `job-${index}`}
+                className="p-4 border rounded-lg transition-all duration-200 hover:shadow-md"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <h4 className="font-medium truncate text-sm">
+                    {jobPos.jobPosition?.jobName || 'Vị trí công việc'}
+                  </h4>
+                  <Badge variant="secondary" className="text-xs">
+                    {jobPos.userCount || 0}
+                  </Badge>
+                </div>
+                <div className="text-xs text-muted-foreground mb-1">
+                  {jobPos.jobPosition?.department?.name || 'Phòng ban'}
+                </div>
+                <div className="text-xs text-green-600">
+                  {jobPos.stats?.usersWithReports || 0}/{jobPos.userCount || 0} đã nộp
+                  ({Math.round(jobPos.stats?.submissionRate || 0)}%)
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          {jobPositions.length > 6 && (
+            <div className="mt-4 text-center">
+              <Badge variant="outline">
+                Còn {jobPositions.length - 6} vị trí khác
+              </Badge>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Empty State */}
+      {positions.length === 0 && jobPositions.length === 0 && (
+        <div className="text-center py-12">
+          <AlertTriangle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Không có dữ liệu</h3>
+          <p className="text-muted-foreground">
+            Không tìm thấy dữ liệu cho {filterDisplayText}
+          </p>
+        </div>
+      )}
+    </motion.div>
+  )
+})
+
+OverviewTab.displayName = 'OverviewTab'
+
+// Main component
+const HierarchyDashboard = memo(() => {
+  const { user } = useAuth()
+  const currentWeekInfo = useMemo(() => getCurrentWeek(), [])
+  const userPermissions = useUserPermissions(user?.role)
+
+  // Filter state
+  const [filters, setFilters] = useState<HierarchyFilters>({
+    period: 'week',
+    weekNumber: currentWeekInfo.weekNumber,
+    year: currentWeekInfo.year,
+    periodWeeks: 4
+  })
+
+  const [activeTab, setActiveTab] = useState<string>('overview')
+
+  // API filters
+  const apiFilters = useMemo(() => {
+    const baseFilters: any = {
+      year: filters.year,
+    }
+
+    if (filters.period === 'week' && filters.weekNumber) {
+      baseFilters.weekNumber = filters.weekNumber
+    } else if (filters.period === 'month' && filters.month) {
+      baseFilters.month = filters.month
+    }
+
+    return baseFilters
+  }, [filters])
+
+  // Data hooks - Force fresh data
+  const {
+    data: hierarchyData,
+    isLoading: hierarchyLoading,
+    error: hierarchyError,
+    refetch: refetchHierarchy
+  } = useMyHierarchyView(apiFilters)
+
+  // Event handlers - FIX: Remove duplicate declarations
+  const handleFiltersChange = useCallback((newFilters: HierarchyFilters) => {
+    setFilters(newFilters)
+    // Force immediate refetch when filters change
+    setTimeout(() => {
+      refetchHierarchy()
+    }, 100)
+  }, [refetchHierarchy])
+
+  const handleRefresh = useCallback(() => {
+    // Clear any cached data and force refetch
+    refetchHierarchy()
+  }, [refetchHierarchy])
+
+  // Extract data based on response type
+  const { positions, jobPositions, summary } = useHierarchyData(hierarchyData, userPermissions)
+
+  // Debug logging
+  console.log('Final extracted data:')
+  console.log('- Positions:', positions.length)
+  console.log('- Job Positions:', jobPositions.length)
+  console.log('- User Permissions:', userPermissions)
+
+  // Separate management positions and job positions
+  const managementPositions = useMemo(() => {
+    const mgmtPos = positions.filter(pos => {
+      // Kiểm tra cả isManagement từ API và tên chức danh
+      const isManagement = pos.position?.isManagement === true
+      const hasManagementInName = pos.position?.name?.toLowerCase().includes('trưởng') ||
+                                  pos.position?.name?.toLowerCase().includes('giám đốc') ||
+                                  pos.position?.name?.toLowerCase().includes('phó')
+      
+      return isManagement || hasManagementInName
+    })
+    console.log('Management positions filtered:', mgmtPos.length)
+    return mgmtPos
+  }, [positions])
+
+  const employeeJobPositions = useMemo(() => {
+    // JobPositions thường là nhân viên thường
+    console.log('Employee job positions:', jobPositions.length)
+    return jobPositions
+  }, [jobPositions])
+
+  // Generate tab configuration based on available data
+  const availableTabs = useMemo((): TabConfig[] => {
+    const tabs: TabConfig[] = [
+      {
+        id: 'overview',
+        label: 'Tổng quan',
+        icon: BarChart3,
+        show: true
+      }
+    ]
+
+    console.log('Generating tabs for:')
+    console.log('- Management positions:', managementPositions.length)
+    console.log('- Employee job positions:', employeeJobPositions.length)
+
+    // Add management position tabs (group by position name)
+    if (managementPositions.length > 0 && userPermissions.canViewPositions) {
+      const managementByPosition = new Map<string, PositionData[]>()
+      
+      managementPositions.forEach(pos => {
+        const positionName = pos.position?.name || 'Vị trí quản lý'
+        if (!managementByPosition.has(positionName)) {
+          managementByPosition.set(positionName, [])
+        }
+        managementByPosition.get(positionName)!.push(pos)
+      })
+
+      // Add each management position as a separate tab
+      Array.from(managementByPosition.entries())
+        .sort(([a], [b]) => a.localeCompare(b))
+        .forEach(([positionName, positionList]) => {
+          tabs.push({
+            id: `position-${positionName.toLowerCase().replace(/\s+/g, '-')}`,
+            label: `${positionName} (${positionList.length})`,
+            icon: Crown,
+            show: true,
+            positions: positionList,
+            isManagement: true
+          })
+        })
+    }
+
+    // Add job positions tab for employee level
+    if (employeeJobPositions.length > 0 && userPermissions.canViewJobPositions) {
+      tabs.push({
+        id: 'jobPositions',
+        label: `Vị trí công việc (${employeeJobPositions.length})`,
+        icon: Users,
+        show: true,
+        positions: employeeJobPositions,
+        isManagement: false
+      })
+    }
+
+    console.log('Generated tabs:', tabs.map(t => ({ id: t.id, label: t.label, show: t.show })))
+    return tabs.filter(tab => tab.show)
+  }, [managementPositions, employeeJobPositions, userPermissions])
+
+  // Format filter display
+  const filterDisplayText = useMemo(() => {
+    const { period, weekNumber, month, year } = filters
+
+    if (period === 'week' && weekNumber) {
+      return `Tuần ${weekNumber}/${year}`
+    } else if (period === 'month' && month) {
+      return `Tháng ${month}/${year}`
+    } else {
+      return `Năm ${year}`
+    }
+  }, [filters])
+
+  // User level display
+  const userLevelDisplay = useMemo(() => {
+    switch (userPermissions.userLevel) {
+      case 'ADMIN':
+        return 'Quản trị viên/Tổng giám đốc - Xem tất cả'
+      case 'USER':
+        return 'Nhân viên - Xem theo cấp độ chức vụ'
+      default:
+        return 'Không có quyền xem'
+    }
+  }, [userPermissions.userLevel])
+
+  // Auto-set active tab if current doesn't exist
+  const effectiveActiveTab = useMemo(() => {
+    const availableTabIds = availableTabs.map(tab => tab.id)
+    if (!availableTabIds.includes(activeTab)) {
+      return availableTabIds[0] || 'overview'
+    }
+    return activeTab
+  }, [activeTab, availableTabs])
+
+  // Loading state
+  if (hierarchyLoading) {
+    return <HierarchyLoadingSkeleton />
   }
 
-  if (isLoading) {
-    return <AppLoading text="Đang tải dữ liệu hierarchy..." />
-  }
-
-  if (error) {
+  // Error state - Enhanced with more debugging info
+  if (hierarchyError) {
+    console.error('Hierarchy error details:', {
+      error: hierarchyError,
+      hierarchyData,
+      apiFilters
+    })
+    
     return (
-      <Card className="border-red-200 bg-red-50">
+      <ErrorMessage
+        message="Không thể tải dữ liệu hierarchy" 
+        details={`${hierarchyError.message}${hierarchyData ? ` | viewType: ${hierarchyData.viewType}` : ''}`}
+        onRetry={handleRefresh}
+      />
+    )
+  }
+
+  // No permission state
+  if (!userPermissions.canViewPositions && !userPermissions.canViewJobPositions) {
+    return (
+      <Card>
         <CardContent className="p-8 text-center">
-          <BarChart3 className="w-16 h-16 text-red-600 mx-auto mb-4" />
-          <h2 className="text-xl font-semibold text-red-800 mb-2">Không thể tải dữ liệu</h2>
-          <p className="text-red-600">{(error as any)?.message || 'Có lỗi xảy ra'}</p>
+          <AlertTriangle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+          <h3 className="text-lg font-semibold mb-2">Không có quyền truy cập</h3>
+          <p className="text-muted-foreground mb-4">
+            Bạn không có quyền xem thống kê hierarchy
+          </p>
+          <div className="text-sm text-muted-foreground">
+            Cấp độ: {userLevelDisplay}
+          </div>
         </CardContent>
       </Card>
     )
   }
 
-  // Render offices overview using backend data
-  const renderOfficesOverview = (data: any) => {
-    if (!data?.offices || data.offices.length === 0) {
-      return (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <Building2 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Không có văn phòng nào</h2>
-            <p className="text-gray-500">Chưa có dữ liệu văn phòng cho tuần {selectedWeek}/{selectedYear}</p>
-          </CardContent>
-        </Card>
-      )
-    }
-
-    const { offices, summary } = data
-
-    return (
-      <div className="space-y-6">
-        {/* Summary Cards using backend data */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-6">
-          <Card className="hover:shadow-md transition-shadow duration-200">
-            <CardContent className="p-6 text-center">
-              <Building2 className="w-12 h-12 text-blue-600 mx-auto mb-4" />
-              <div className="text-3xl font-bold text-blue-600 mb-2">
-                {summary.totalOffices}
-              </div>
-              <div className="text-sm font-medium text-muted-foreground">Văn phòng</div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow duration-200">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="text-3xl font-bold text-emerald-600 mb-2">
-                    {summary.totalUsers}
-                  </div>
-                  <div className="text-sm font-medium text-muted-foreground mb-3">
-                    Tổng nhân viên
-                  </div>
-                  <div className="text-xs text-emerald-600 bg-emerald-50 px-2 py-1 rounded">
-                    {summary.totalUsersWithReports} đã nộp BC
-                  </div>
-                </div>
-                <SimplePieChart
-                  completedPercentage={summary.averageSubmissionRate}
-                  size={56}
-                  strokeWidth={4}
-                />
-              </div>
-            </CardContent>
-          </Card>
-{/* 
-          <Card className="hover:shadow-md transition-shadow duration-200">
-            <CardContent className="p-6 text-center">
-              <FileText className="w-12 h-12 text-purple-600 mx-auto mb-4" />
-              <div className="text-3xl font-bold text-purple-600 mb-2">
-                {summary.totalUsersWithReports}
-              </div>
-              <div className="text-sm font-medium text-muted-foreground">Đã nộp báo cáo</div>
-            </CardContent>
-          </Card> */}
-
-          <Card className="hover:shadow-md transition-shadow duration-200">
-            <CardContent className="p-6 text-center">
-              <TrendingUp className="w-12 h-12 text-orange-600 mx-auto mb-4" />
-              <div className={`text-3xl font-bold mb-2 ${getPerformanceColor(summary.averageCompletionRate).text}`}>
-                {summary.averageCompletionRate}%
-              </div>
-              <div className="text-sm font-medium text-muted-foreground">Hoàn thành TB</div>
-            </CardContent>
-          </Card>
-
-          <Card className="hover:shadow-md transition-shadow duration-200">
-            <CardContent className="p-6 text-center">
-              <Trophy className="w-12 h-12 text-yellow-600 mx-auto mb-4" />
-              <div className="text-3xl font-bold text-yellow-600 mb-2">
-                {summary.averageSubmissionRate}%
-              </div>
-              <div className="text-sm font-medium text-muted-foreground mb-2">Tỷ lệ nộp TB</div>
-              <div className="mt-2">
-                <Badge className={getPerformanceBadge(summary.averageSubmissionRate).className}>
-                  {getPerformanceBadge(summary.averageSubmissionRate).label}
-                </Badge>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Performance Distribution Summary - corrected to show office-level distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-blue-600" />
-              Phân bố xếp loại văn phòng
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div className="text-center p-4 bg-purple-50 rounded-lg border border-purple-200">
-                <div className="text-2xl font-bold text-purple-600">
-                  {offices.filter((o: any) => o.stats.taskCompletionRate === 100).length}
-                </div>
-                <div className="text-sm text-purple-600 font-medium">GIỎI (100%)</div>
-              </div>
-              <div className="text-center p-4 bg-green-50 rounded-lg border border-green-200">
-                <div className="text-2xl font-bold text-green-500">
-                  {offices.filter((o: any) => {
-                    const rate = o.stats.taskCompletionRate || 0;
-                    return rate >= 95 && rate < 100;
-                  }).length}
-                </div>
-                <div className="text-sm text-green-500 font-medium">KHÁ (95-99%)</div>
-              </div>
-              <div className="text-center p-4 bg-yellow-50 rounded-lg border border-yellow-200">
-                <div className="text-2xl font-bold text-yellow-500">
-                  {offices.filter((o: any) => {
-                    const rate = o.stats.taskCompletionRate || 0;
-                    return rate >= 90 && rate < 95;
-                  }).length}
-                </div>
-                <div className="text-sm text-yellow-500 font-medium">TB (90-94%)</div>
-              </div>
-              <div className="text-center p-4 bg-orange-50 rounded-lg border border-orange-200">
-                <div className="text-2xl font-bold text-orange-500">
-                  {offices.filter((o: any) => {
-                    const rate = o.stats.taskCompletionRate || 0;
-                    return rate >= 85 && rate < 90;
-                  }).length}
-                </div>
-                <div className="text-sm text-orange-500 font-medium">YẾU (85-89%)</div>
-              </div>
-              <div className="text-center p-4 bg-red-50 rounded-lg border border-red-200">
-                <div className="text-2xl font-bold text-red-600">
-                  {offices.filter((o: any) => (o.stats.taskCompletionRate || 0) < 85).length}
-                </div>
-                <div className="text-sm text-red-600 font-medium">KÉM (&lt;85%)</div>
-              </div>
-            </div>
-            <div className="mt-4 text-xs text-muted-foreground text-center">
-              * Xếp loại văn phòng dựa trên hiệu suất trung bình của tất cả phòng ban trong văn phòng đó
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Enhanced Offices List with Rankings */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <CardTitle className="flex items-center gap-2">
-                <Building2 className="w-5 h-5" />
-                Chi tiết các văn phòng với xếp loại hiệu suất
-                <Badge variant="outline" className="ml-2">
-                  Tuần {selectedWeek}/{selectedYear}
-                </Badge>
-              </CardTitle>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                {isRefreshing ? 'Đang tải...' : 'Làm mới'}
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="mb-4 text-sm text-muted-foreground">
-              Hiệu suất văn phòng = Trung bình hiệu suất của tất cả phòng ban trong văn phòng đó
-            </div>
-            <div className="grid grid-cols-1 gap-4">
-              {offices.map((office: any, index: number) => {
-                const performanceBadge = getPerformanceBadge(office.stats.taskCompletionRate)
-                const performanceColor = getPerformanceColor(office.stats.taskCompletionRate)
-
-                return (
-                  <motion.div
-                    key={office.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                    className="h-full"
-                  >
-                    <ResponsiveCard
-                      title={office.name}
-                      subtitle={office.description}
-                      badges={[
-                        {
-                          label: performanceBadge.label,
-                          variant: performanceBadge.variant,
-                          className: performanceBadge.className
-                        }
-                      ]}
-                      stats={[
-                        {
-                          label: 'Phòng ban',
-                          value: office.stats.totalDepartments,
-                          color: 'text-blue-600'
-                        },
-                        {
-                          label: 'Nhân viên',
-                          value: office.stats.totalUsers
-                        },
-                        {
-                          label: 'Đã nộp BC',
-                          value: office.stats.usersWithReports,
-                          color: 'text-green-600'
-                        },
-                        {
-                          label: 'BC hoàn thành',
-                          value: office.stats.usersWithCompletedReports,
-                          color: 'text-purple-600'
-                        },
-                        {
-                          label: 'Tỷ lệ HT',
-                          value: `${office.stats.taskCompletionRate}%`,
-                          color: performanceColor.text
-                        }
-                      ]}
-                      completed={office.stats.usersWithReports}
-                      total={office.stats.totalUsers}
-                      completionRate={office.stats.taskCompletionRate}
-                      reportSubmissionRate={office.stats.reportSubmissionRate}
-                      detailsUrl={`/admin/hierarchy/office/${office.id}?weekNumber=${selectedWeek}&year=${selectedYear}`}
-                    />
-                  </motion.div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  const renderOfficeDetails = (data: any) => {
-    if (!data?.office) {
-      return <div>Không có dữ liệu văn phòng</div>
-    }
-
-    const { office, departments, summary } = data
-    const performanceBadge = getPerformanceBadge(summary.averageCompletionRate)
-    const performanceColor = getPerformanceColor(summary.averageCompletionRate)
-
-    return (
-      <div className="space-y-6">
-        {/* Office Overview using backend data */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="w-5 h-5" />
-                  {office.name}
-                </CardTitle>
-                <p className="text-muted-foreground mt-1">{office.description}</p>
-              </div>
-              <div className="text-right">
-                <Badge className={performanceBadge.className}>
-                  {performanceBadge.label}
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{summary.totalDepartments}</div>
-                <div className="text-sm text-muted-foreground">Phòng ban</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold">{summary.totalUsers}</div>
-                <div className="text-sm text-muted-foreground">Nhân viên</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{summary.totalUsersWithReports}</div>
-                <div className="text-sm text-muted-foreground">Đã nộp BC</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{summary.averageSubmissionRate}%</div>
-                <div className="text-sm text-muted-foreground">Tỷ lệ nộp TB</div>
-              </div>
-              <div className="text-center">
-                <div className={`text-2xl font-bold ${performanceColor.text}`}>
-                  {summary.averageCompletionRate}%
-                </div>
-                <div className="text-sm text-muted-foreground">Điểm xếp loại</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Departments List using backend data */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Chi tiết các phòng ban với xếp loại</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-4">
-              {departments?.map((dept: any, index: number) => {
-                const deptPerformanceBadge = getPerformanceBadge(dept.stats.taskCompletionRate)
-                const deptPerformanceColor = getPerformanceColor(dept.stats.taskCompletionRate)
-
-                return (
-                  <motion.div
-                    key={dept.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.3, delay: index * 0.1 }}
-                  >
-                    <ResponsiveCard
-                      title={dept.name}
-                      subtitle={dept.description}
-                      badges={[
-                        {
-                          label: deptPerformanceBadge.label,
-                          variant: deptPerformanceBadge.variant,
-                          className: deptPerformanceBadge.className
-                        }
-                      ]}
-                      stats={[
-                        { label: 'Nhân viên', value: dept.stats.totalUsers },
-                        { label: 'Đã nộp BC', value: dept.stats.usersWithReports, color: 'text-green-600' },
-                        { label: 'BC hoàn thành', value: dept.stats.usersWithCompletedReports, color: 'text-blue-600' },
-                        {
-                          label: 'Tỷ lệ HT',
-                          value: `${dept.stats.taskCompletionRate}%`,
-                          color: deptPerformanceColor.text
-                        }
-                      ]}
-                      completed={dept.stats.usersWithReports}
-                      total={dept.stats.totalUsers}
-                      completionRate={dept.stats.taskCompletionRate}
-                      reportSubmissionRate={dept.stats.reportSubmissionRate}
-                      detailsUrl={`/admin/hierarchy/department/${dept.id}?weekNumber=${selectedWeek}&year=${selectedYear}`}
-                    />
-                  </motion.div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  const renderDepartmentDetails = (data: any) => {
-    if (!data?.department) {
-      return <div>Không có dữ liệu phòng ban</div>
-    }
-
-    const { department, users, summary } = data
-    const deptPerformanceBadge = getPerformanceBadge(summary.averageTaskCompletion)
-    const deptPerformanceColor = getPerformanceColor(summary.averageTaskCompletion)
-
-    return (
-      <div className="space-y-6">
-        {/* Department Overview using backend data */}
-        <Card>
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  {department.name}
-                </CardTitle>
-                <p className="text-muted-foreground mt-1">{department.description}</p>
-                <p className="text-sm text-muted-foreground">
-                  Thuộc: {department.office?.name}
-                </p>
-              </div>
-              <div className="text-right">
-                <Badge className={deptPerformanceBadge.className}>
-                  {deptPerformanceBadge.label}
-                </Badge>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <div className="text-center">
-                <div className="text-2xl font-bold">{summary.totalUsers}</div>
-                <div className="text-sm text-muted-foreground">Nhân viên</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-green-600">{summary.usersWithReports}</div>
-                <div className="text-sm text-muted-foreground">Đã nộp BC</div>
-              </div>
-              <div className="text-center">
-                <div className="text-2xl font-bold text-blue-600">{summary.completedReports}</div>
-                <div className="text-sm text-muted-foreground">BC hoàn thành</div>
-              </div>
-              <div className="text-center">
-                <div className={`text-2xl font-bold ${deptPerformanceColor.text}`}>
-                  {summary.averageTaskCompletion}%
-                </div>
-                <div className="text-sm text-muted-foreground">HT công việc TB</div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Users List using backend data */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Chi tiết nhân viên với xếp loại cá nhân</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-1 gap-3">
-              {users?.map((userData: any, index: number) => {
-                const userCompletionRate = userData.reportStatus?.taskCompletionRate || 0
-                const userPerformanceBadge = getPerformanceBadge(userCompletionRate)
-                const userPerformanceColor = getPerformanceColor(userCompletionRate)
-
-                return (
-                  <div key={userData.id} className="p-4 border rounded-lg hover:bg-muted/30 transition-colors">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <div className="font-medium">
-                          {userData.firstName} {userData.lastName}
-                        </div>
-                        <div className="text-sm text-muted-foreground">
-                          {userData.employeeCode} • {userData.jobPosition?.jobName}
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {userData.reportStatus?.hasReport ? 'Đã nộp' : 'Chưa nộp'} •
-                          {userData.reportStatus?.isCompleted ? ' Hoàn thành' : ' Chưa hoàn thành'}
-                        </div>
-                      </div>
-                      <div className="text-right flex items-center gap-3">
-                        <div>
-                          <div className={`font-semibold text-lg ${userPerformanceColor.text}`}>
-                            {userCompletionRate}%
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {userData.reportStatus?.completedTasks || 0}/{userData.reportStatus?.totalTasks || 0} công việc
-                          </div>
-                        </div>
-                        <Badge className={userPerformanceBadge.className}>
-                          {userPerformanceBadge.label}
-                        </Badge>
-                      </div>
-                    </div>
-                  </div>
-                )
-              })}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
-
-  const renderUserDetails = (data: any) => {
-    if (!data?.user) {
-      return <div>Không có dữ liệu người dùng</div>
-    }
-
-    return (
-      <div className="space-y-6">
-        <Card>
-          <CardHeader>
-            <CardTitle>Thông tin cá nhân</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h3 className="font-semibold">
-                  {data.user.firstName} {data.user.lastName}
-                </h3>
-                <p className="text-muted-foreground">
-                  {data.user.employeeCode} • {data.user.jobPosition?.positionName}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold">{data.overallStats?.totalReports || 0}</div>
-                  <div className="text-sm text-muted-foreground">Tổng báo cáo</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{data.overallStats?.completedReports || 0}</div>
-                  <div className="text-sm text-muted-foreground">Đã hoàn thành</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{data.overallStats?.reportCompletionRate || 0}%</div>
-                  <div className="text-sm text-muted-foreground">Tỷ lệ hoàn thành</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-purple-600">{data.overallStats?.taskCompletionRate || 0}%</div>
-                  <div className="text-sm text-muted-foreground">Hoàn thành công việc</div>
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Recent Reports using backend data */}
-        {data.reports && data.reports.length > 0 && (
-          <Card>
-            <CardHeader>
-              <CardTitle>Báo cáo gần đây</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {data.reports.slice(0, 5).map((report: any) => {
-                  const reportPerformanceColor = getPerformanceColor(report.stats.taskCompletionRate)
-
-                  return (
-                    <div key={report.id} className="p-3 border rounded-lg">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <div className="font-medium">
-                            Tuần {report.weekNumber}/{report.year}
-                          </div>
-                          <div className="text-sm text-muted-foreground">
-                            {report.stats.completedTasks}/{report.stats.totalTasks} công việc hoàn thành
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <div className={`font-semibold ${reportPerformanceColor.text}`}>
-                            {report.stats.taskCompletionRate}%
-                          </div>
-                          <Badge variant={report.isCompleted ? 'default' : 'secondary'}>
-                            {report.isCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}
-                          </Badge>
-                        </div>
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-    )
-  }
-
-  // Render based on user role with proper null checking using backend data
-  const renderContent = () => {
-    if (!hierarchyData) {
-      return (
-        <Card>
-          <CardContent className="p-8 text-center">
-            <BarChart3 className="w-16 h-16 text-gray-400 mx-auto mb-4" />
-            <h2 className="text-xl font-semibold text-gray-900 mb-2">Không có dữ liệu</h2>
-            <p className="text-gray-500">Không thể tải dữ liệu hierarchy cho tuần {selectedWeek}/{selectedYear}</p>
-          </CardContent>
-        </Card>
-      )
-    }
-
-    switch (user.role) {
-      case 'SUPERADMIN':
-      case 'ADMIN':
-        // Check if we have offices data from backend
-        if ('offices' in hierarchyData && Array.isArray(hierarchyData.offices)) {
-          return renderOfficesOverview(hierarchyData)
-        }
-        return <div>Không có dữ liệu offices</div>
-
-      case 'OFFICE_MANAGER':
-        // Check if we have office details from backend
-        if ('office' in hierarchyData && 'departments' in hierarchyData) {
-          return renderOfficeDetails(hierarchyData)
-        }
-        return <div>Không có dữ liệu office details</div>
-
-      case 'OFFICE_ADMIN':
-        // Check if we have department details from backend
-        if ('department' in hierarchyData && 'users' in hierarchyData) {
-          return renderDepartmentDetails(hierarchyData)
-        }
-        return <div>Không có dữ liệu department details</div>
-
-      case 'USER':
-        // Check if we have user details from backend
-        if ('user' in hierarchyData) {
-          return renderUserDetails(hierarchyData)
-        }
-        return <div>Không có dữ liệu user details</div>
-
-      default:
-        return <div>Không có quyền truy cập</div>
-    }
-  }
-
-  // Generate dynamic year options
-  const generateYearOptions = () => {
-    const years = []
-    const startYear = defaultYear - 2
-    const endYear = defaultYear + 2
-
-    for (let year = startYear; year <= endYear; year++) {
-      years.push(year)
-    }
-    return years
-  }
-
   return (
     <div className="space-y-6">
-      {/* Week/Year Selector */}
+      {/* Header */}
       <Card>
         <CardHeader>
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-            <CardTitle className="flex items-center gap-2">
-              <Calendar className="w-5 h-5" />
-              Báo cáo KH & KQCV
-            </CardTitle>
-            <div className="flex flex-col sm:flex-row gap-2">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium whitespace-nowrap">Tuần:</span>
-                <Select value={selectedWeek.toString()} onValueChange={(value) => setSelectedWeek(parseInt(value))}>
-                  <SelectTrigger className="w-20">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Array.from({ length: 53 }, (_, i) => i + 1).map(week => (
-                      <SelectItem key={week} value={week.toString()}>
-                        {week}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+          <div className="flex flex-col gap-4">
+            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+              <div>
+                <CardTitle className="text-xl sm:text-2xl flex items-center gap-3">
+                  <BarChart3 className="w-6 h-6 text-blue-600" />
+                  Báo cáo Hierarchy
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  {userLevelDisplay}
+                </p>
+                {/* Debug info - remove in production */}
+                <div className="text-xs text-muted-foreground mt-1">
+                  Debug: {hierarchyData?.viewType || 'N/A'} | 
+                  Positions: {positions.length} | 
+                  JobPositions: {jobPositions.length} |
+                  Tabs: {availableTabs.length}
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-medium whitespace-nowrap">Năm:</span>
-                <Select value={selectedYear.toString()} onValueChange={(value) => setSelectedYear(parseInt(value))}>
-                  <SelectTrigger className="w-24">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {generateYearOptions().map(year => (
-                      <SelectItem key={year} value={year.toString()}>
-                        {year}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
+
+              <div className="flex items-center gap-3">
+                <Badge variant="outline" className="flex items-center gap-2">
+                  <Calendar className="w-3 h-3" />
+                  {filterDisplayText}
+                </Badge>
+
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleRefresh}
+                  className="flex items-center gap-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span className="hidden sm:inline">Làm mới</span>
+                </Button>
               </div>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleRefresh}
-                disabled={isRefreshing}
-                className="flex items-center gap-2"
-              >
-                <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
-                Làm mới
-              </Button>
             </div>
+
+            <FiltersComponent
+              filters={filters}
+              onFiltersChange={handleFiltersChange}
+            />
           </div>
         </CardHeader>
       </Card>
 
-      {/* Main Content */}
-      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2">
-          <TabsTrigger value="overview" className="flex items-center gap-2">
-            <BarChart3 className="w-4 h-4" />
-            <span className="hidden sm:inline">Tổng quan</span>
-          </TabsTrigger>
-          <TabsTrigger value="missing-reports" className="flex items-center gap-2">
-            <AlertTriangle className="w-4 h-4" />
-            <span className="hidden sm:inline">Chưa nộp BC</span>
-          </TabsTrigger>
-        </TabsList>
+      {/* Summary Cards */}
+      {summary && (
+        <HierarchySummaryCards summary={summary} />
+      )}
 
-        <TabsContent value="overview" className="space-y-6">
-          {renderContent()}
-        </TabsContent>
+      {/* Dynamic Tabs */}
+      {availableTabs.length > 1 ? (
+        <Card>
+          <CardHeader>
+            <Tabs value={effectiveActiveTab} onValueChange={setActiveTab}>
+              {/* Responsive TabsList */}
+              <div className="relative">
+                <TabsList className={`grid w-full ${availableTabs.length <= 4 ? `grid-cols-${availableTabs.length}` : 'grid-cols-4 lg:grid-cols-6'} gap-1 h-auto p-1`}>
+                  {availableTabs.map(tab => {
+                    const IconComponent = tab.icon
+                    return (
+                      <TabsTrigger
+                        key={tab.id}
+                        value={tab.id}
+                        className="flex items-center gap-2 px-2 py-2 text-xs sm:text-sm min-w-0"
+                      >
+                        <IconComponent className="w-4 h-4 flex-shrink-0" />
+                        <span className="truncate hidden sm:inline">
+                          {tab.label}
+                        </span>
+                        <span className="truncate sm:hidden">
+                          {tab.label.split(' ')[0]}
+                        </span>
+                      </TabsTrigger>
+                    )
+                  })}
+                </TabsList>
+              </div>
 
-        <TabsContent value="missing-reports">
-          <EmployeesWithoutReports
-            weekNumber={selectedWeek}
-            year={selectedYear}
-          />
-        </TabsContent>
-      </Tabs>
+              {/* Overview Tab */}
+              <TabsContent value="overview" className="mt-6">
+                <OverviewTab
+                  positions={managementPositions}
+                  jobPositions={employeeJobPositions}
+                  userPermissions={userPermissions}
+                  filterDisplayText={filterDisplayText}
+                />
+              </TabsContent>
+
+              {/* Management Position Tabs */}
+              {availableTabs
+                .filter(tab => tab.id.startsWith('position-') && tab.isManagement)
+                .map(tab => (
+                  <TabsContent key={tab.id} value={tab.id} className="mt-6">
+                    <motion.div
+                      initial={{ opacity: 0, y: 20 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.3 }}
+                      className="space-y-4"
+                    >
+                      <div className="flex items-center justify-between mb-4">
+                        <h3 className="text-lg font-semibold flex items-center gap-2">
+                          <tab.icon className="w-5 h-5" />
+                          {tab.label}
+                        </h3>
+                        <Badge variant="outline">
+                          Cấp quản lý
+                        </Badge>
+                      </div>
+
+                      <PositionGroupsList
+                        positions={tab.positions || []}
+                        filterDisplayText={filterDisplayText}
+                        isManagement={true}
+                      />
+                    </motion.div>
+                  </TabsContent>
+                ))}
+
+              {/* Job Positions Tab */}
+              <TabsContent value="jobPositions" className="mt-6">
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3 }}
+                  className="space-y-4"
+                >
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold flex items-center gap-2">
+                      <Users className="w-5 h-5" />
+                      Vị trí công việc
+                    </h3>
+                    <Badge variant="outline">
+                      {employeeJobPositions.length} vị trí
+                    </Badge>
+                  </div>
+
+                  <PositionGroupsList
+                    positions={employeeJobPositions}
+                    filterDisplayText={filterDisplayText}
+                    isJobPosition={true}
+                  />
+                </motion.div>
+              </TabsContent>
+            </Tabs>
+          </CardHeader>
+        </Card>
+      ) : (
+        // Show overview directly if only one tab
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold flex items-center gap-2">
+              <BarChart3 className="w-5 h-5" />
+              Tổng quan
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <OverviewTab
+              positions={managementPositions}
+              jobPositions={employeeJobPositions}
+              userPermissions={userPermissions}
+              filterDisplayText={filterDisplayText}
+            />
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
-}
+})
+
+HierarchyDashboard.displayName = 'HierarchyDashboard'
 
 export default HierarchyDashboard

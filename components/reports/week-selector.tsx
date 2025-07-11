@@ -5,8 +5,8 @@ import { Button } from '@/components/ui/button'
 import { ChevronLeft, Calendar } from 'lucide-react'
 import { 
   getCurrentWeek, 
-  getWeekRange,
-  getAvailableWeeksForReporting
+  formatWorkWeek,
+  getAvailableWeeks
 } from '@/utils/week-utils'
 import { useRouter } from 'next/navigation'
 
@@ -15,16 +15,6 @@ interface WeekSelectorProps {
   year: number
   onWeekChange: (weekNumber: number, year: number) => void
   disabled?: boolean
-}
-
-// Add interface for navigation button
-interface NavigationButton {
-  key: string
-  label: string
-  description: string
-  variant: 'outline' | 'default'
-  className: string
-  onClick: () => void
 }
 
 const WeekSelector = memo(function WeekSelector({
@@ -38,7 +28,7 @@ const WeekSelector = memo(function WeekSelector({
   // Memoize week calculations with availability info
   const { currentWeek, availableWeeks, weekTypeInfo, dateRange } = useMemo(() => {
     const current = getCurrentWeek()
-    const availableWeeksData = getAvailableWeeksForReporting()
+    const availableWeeksData = getAvailableWeeks(current.weekNumber, current.year)
     
     const selectedWeekInfo = availableWeeksData.find(w => 
       w.weekNumber === weekNumber && w.year === year
@@ -46,23 +36,19 @@ const WeekSelector = memo(function WeekSelector({
     
     let typeInfo = null
     if (selectedWeekInfo) {
-      if (selectedWeekInfo.isCurrent) {
+      if (selectedWeekInfo.isValid) {
         typeInfo = { label: '📍 Tuần hiện tại', color: 'text-green-600' }
-      } else if (selectedWeekInfo.isPast) {
-        typeInfo = { label: '⏮️ Tuần trước', color: 'text-orange-600' }
-      } else if (selectedWeekInfo.isFuture) {
-        typeInfo = { label: '⏭️ Tuần tiếp theo', color: 'text-blue-600' }
       }
     }
     
     // Calculate date range for current selected week
-    const weekRangeInfo = getWeekRange(weekNumber, year)
+    const weekRangeInfo = formatWorkWeek(weekNumber, year, 'range')
     
     return {
       currentWeek: current,
       availableWeeks: availableWeeksData,
       weekTypeInfo: typeInfo,
-      dateRange: weekRangeInfo.display
+      dateRange: weekRangeInfo
     }
   }, [weekNumber, year])
 
@@ -138,11 +124,9 @@ const WeekSelector = memo(function WeekSelector({
         buttons.push({
           key: `quick-${week.weekNumber}-${week.year}`,
           label: `Tuần ${week.weekNumber}`,
-          variant: week.isCurrent ? 'default' : 'outline',
-          className: week.isCurrent 
+          variant: week.isValid ? 'default' : 'outline',
+          className: week.isValid 
             ? 'bg-green-600 hover:bg-green-700 text-white'
-            : week.isPast
-            ? 'text-orange-600 border-orange-200 hover:bg-orange-50'
             : 'text-blue-600 border-blue-200 hover:bg-blue-50',
           onClick: () => handleQuickNavigation(week)
         })
@@ -235,10 +219,8 @@ const WeekSelector = memo(function WeekSelector({
               className={`text-xs px-2 py-1 rounded cursor-pointer transition-colors ${
                 week.weekNumber === weekNumber && week.year === year
                   ? 'bg-primary text-primary-foreground'
-                  : week.isCurrent
+                  : week.isValid
                   ? 'bg-green-100 text-green-700 hover:bg-green-200'
-                  : week.isPast
-                  ? 'bg-orange-100 text-orange-700 hover:bg-orange-200'
                   : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
               }`}
               onClick={() => handleQuickNavigation(week)}

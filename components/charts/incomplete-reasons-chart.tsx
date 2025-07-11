@@ -1,246 +1,172 @@
 "use client"
 
-import React, { memo, useMemo } from 'react'
-import { 
-  PieChart, 
-  Pie, 
-  Cell, 
-  ResponsiveContainer, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  Legend,
-} from 'recharts'
+import React, { memo } from 'react'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { useTheme } from 'next-themes'
+import { Badge } from '@/components/ui/badge'
+import { AlertTriangle, Users, FileText } from 'lucide-react'
+
+interface IncompleteReason {
+  reason: string
+  count: number
+  affectedUsers?: number
+  percentage: number
+  sampleTasks?: Array<{
+    taskName: string
+    userName?: string
+    department?: string
+    office?: string
+  }>
+}
 
 interface IncompleteReasonsChartProps {
-  data: Array<{
-    reason: string
-    count: number
-    percentage: number
-  }>
-  type?: 'pie' | 'bar' | 'doughnut'
+  data: IncompleteReason[]
   title?: string
-  height?: number
+  showDetails?: boolean
+  maxItems?: number
   className?: string
 }
 
-const COLORS = [
-  '#ef4444', // red-500
-  '#f97316', // orange-500
-  '#eab308', // yellow-500
-  '#22c55e', // green-500
-  '#3b82f6', // blue-500
-  '#8b5cf6', // violet-500
-  '#ec4899', // pink-500
-  '#06b6d4', // cyan-500
-]
-
 export const IncompleteReasonsChart = memo(({ 
   data, 
-  type = 'pie', 
   title = 'Lý do chưa hoàn thành',
-  height = 400,
-  className 
+  showDetails = true,
+  maxItems = 10,
+  className = '' 
 }: IncompleteReasonsChartProps) => {
-  const { theme } = useTheme()
-
-  // Colors for light/dark mode
-  const colors = useMemo(() => {
-    const isDark = theme === 'dark'
-    return {
-      text: isDark ? '#f8fafc' : '#1e293b',
-      grid: isDark ? '#475569' : '#e2e8f0',
-      background: isDark ? '#1e293b' : '#ffffff',
-      pieColors: COLORS.map(color => 
-        isDark ? `${color}dd` : color
-      )
-    }
-  }, [theme])
-
-  // Process data for charts
-  const chartData = useMemo(() => {
-    if (!data || data.length === 0) return []
-    
-    return data.map((item, index) => ({
-      name: item.reason.length > 20 ? item.reason.substring(0, 20) + '...' : item.reason,
-      fullName: item.reason,
-      value: item.count,
-      percentage: item.percentage,
-      fill: colors.pieColors[index % colors.pieColors.length]
-    }))
-  }, [data, colors.pieColors])
-
-  // Custom tooltip with enhanced styling
-  const CustomTooltip = ({ active, payload, label }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0]
-      return (
-        <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-xl p-4 min-w-[200px]">
-          <p className="font-semibold text-foreground mb-2">{data.payload.fullName}</p>
-          <div className="space-y-1 text-sm">
-            <p className="flex items-center justify-between">
-              <span className="text-muted-foreground">Số lượng:</span>
-              <span className="font-medium text-blue-600 dark:text-blue-400">{data.value}</span>
-            </p>
-            <p className="flex items-center justify-between">
-              <span className="text-muted-foreground">Tỷ lệ:</span>
-              <span className="font-medium text-purple-600 dark:text-purple-400">{data.payload.percentage}%</span>
-            </p>
+  if (!data || data.length === 0) {
+    return (
+      <Card className={className}>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <AlertTriangle className="h-5 w-5" />
+            {title}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center justify-center h-32 text-gray-500">
+            Không có dữ liệu về lý do chưa hoàn thành
           </div>
-        </div>
-      )
-    }
-    return null
+        </CardContent>
+      </Card>
+    )
   }
 
-  // Custom label for pie chart
-  const renderLabel = ({ percentage, name }: any) => {
-    return percentage > 5 ? `${name}: ${percentage}%` : ''
-  }
-
-  const renderChart = () => {
-    if (!chartData || chartData.length === 0) {
-      return (
-        <div className="flex items-center justify-center h-64 text-muted-foreground">
-          <div className="text-center space-y-3">
-            <div className="w-16 h-16 mx-auto rounded-full bg-muted/50 flex items-center justify-center">
-              <span className="text-2xl">📊</span>
-            </div>
-            <p className="font-medium">Không có dữ liệu lý do chưa hoàn thành</p>
-            <p className="text-sm">Hãy kiểm tra lại tuần/tháng đã chọn</p>
-          </div>
-        </div>
-      )
-    }
-
-    switch (type) {
-      case 'pie':
-        return (
-          <ResponsiveContainer width="100%" height={height}>
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={renderLabel}
-                outerRadius={Math.min(height * 0.35, 120)}
-                fill="#8884d8"
-                dataKey="value"
-                stroke="none"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ 
-                  fontSize: '12px',
-                  color: colors.text 
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        )
-
-      case 'doughnut':
-        return (
-          <ResponsiveContainer width="100%" height={height}>
-            <PieChart>
-              <Pie
-                data={chartData}
-                cx="50%"
-                cy="50%"
-                labelLine={false}
-                label={renderLabel}
-                outerRadius={Math.min(height * 0.35, 120)}
-                innerRadius={Math.min(height * 0.2, 60)}
-                fill="#8884d8"
-                dataKey="value"
-                stroke="none"
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Pie>
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ 
-                  fontSize: '12px',
-                  color: colors.text 
-                }}
-              />
-            </PieChart>
-          </ResponsiveContainer>
-        )
-
-      case 'bar':
-        return (
-          <ResponsiveContainer width="100%" height={height}>
-            <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-              <XAxis 
-                dataKey="name" 
-                tick={{ fill: colors.text, fontSize: 12 }}
-                axisLine={{ stroke: colors.grid }}
-                tickLine={{ stroke: colors.grid }}
-                angle={-45}
-                textAnchor="end"
-                height={80}
-                interval={0}
-              />
-              <YAxis 
-                tick={{ fill: colors.text, fontSize: 12 }}
-                axisLine={{ stroke: colors.grid }}
-                tickLine={{ stroke: colors.grid }}
-                label={{ 
-                  value: 'Số lượng', 
-                  angle: -90, 
-                  position: 'insideLeft',
-                  style: { textAnchor: 'middle', fill: colors.text }
-                }}
-              />
-              <Tooltip content={<CustomTooltip />} />
-              <Legend 
-                wrapperStyle={{ 
-                  fontSize: '12px',
-                  color: colors.text 
-                }}
-              />
-              <Bar 
-                dataKey="value" 
-                name="Số lượng lỗi"
-                radius={[4, 4, 0, 0]}
-              >
-                {chartData.map((entry, index) => (
-                  <Cell key={`cell-${index}`} fill={entry.fill} />
-                ))}
-              </Bar>
-            </BarChart>
-          </ResponsiveContainer>
-        )
-
-      default:
-        return null
-    }
-  }
+  const displayData = data.slice(0, maxItems)
+  const totalCount = data.reduce((sum, item) => sum + item.count, 0)
 
   return (
-    <Card className={`${className} border-0 shadow-sm bg-gradient-to-br from-background to-muted/20`}>
-      <CardHeader className="pb-4 border-b border-border/50">
-        <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-          <div className="w-2 h-6 bg-gradient-to-b from-orange-500 to-red-500 rounded-full" />
+    <Card className={className}>
+      <CardHeader>
+        <CardTitle className="flex items-center gap-2">
+          <AlertTriangle className="h-5 w-5" />
           {title}
+          <Badge variant="outline" className="ml-auto">
+            {totalCount} tasks
+          </Badge>
         </CardTitle>
       </CardHeader>
-      <CardContent className="p-6">
-        {renderChart()}
+      <CardContent>
+        <div className="space-y-4">
+          {displayData.map((item, index) => (
+            <div key={index} className="space-y-2">
+              {/* Reason Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                    {index + 1}. {item.reason}
+                  </span>
+                  {item.affectedUsers && (
+                    <Badge variant="outline" className="text-xs">
+                      <Users className="h-3 w-3 mr-1" />
+                      {item.affectedUsers} người
+                    </Badge>
+                  )}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span className="text-sm font-bold">
+                    {item.count} ({item.percentage}%)
+                  </span>
+                </div>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div 
+                  className={`h-2 rounded-full transition-all duration-500 ${
+                    index === 0 ? 'bg-red-500' :
+                    index === 1 ? 'bg-orange-500' :
+                    index === 2 ? 'bg-yellow-500' : 'bg-gray-400'
+                  }`}
+                  style={{ width: `${item.percentage}%` }}
+                />
+              </div>
+
+              {/* Sample Tasks */}
+              {showDetails && item.sampleTasks && item.sampleTasks.length > 0 && (
+                <div className="pl-4 border-l-2 border-gray-200 dark:border-gray-700">
+                  <div className="text-xs text-gray-600 dark:text-gray-400 mb-1">
+                    Ví dụ một số task:
+                  </div>
+                  <div className="space-y-1">
+                    {item.sampleTasks.slice(0, 3).map((task, taskIndex) => (
+                      <div key={taskIndex} className="flex items-center gap-2 text-xs">
+                        <FileText className="h-3 w-3 text-gray-400" />
+                        <span className="text-gray-700 dark:text-gray-300 truncate flex-1">
+                          {task.taskName}
+                        </span>
+                        {task.userName && (
+                          <span className="text-gray-500 text-xs">
+                            - {task.userName}
+                          </span>
+                        )}
+                        {task.department && (
+                          <Badge variant="outline" className="text-xs">
+                            {task.department}
+                          </Badge>
+                        )}
+                      </div>
+                    ))}
+                    {item.sampleTasks.length > 3 && (
+                      <div className="text-xs text-gray-500 italic">
+                        ... và {item.sampleTasks.length - 3} task khác
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
+          ))}
+
+          {data.length > maxItems && (
+            <div className="text-center pt-4 border-t border-gray-200 dark:border-gray-700">
+              <span className="text-sm text-gray-500">
+                Còn {data.length - maxItems} lý do khác...
+              </span>
+            </div>
+          )}
+        </div>
+
+        {/* Summary */}
+        <div className="mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <div className="grid grid-cols-2 gap-4 text-center">
+            <div>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">
+                {data.length}
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Loại lý do khác nhau
+              </div>
+            </div>
+            <div>
+              <div className="text-2xl font-bold text-orange-600 dark:text-orange-400">
+                {totalCount}
+              </div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">
+                Tổng tasks chưa hoàn thành
+              </div>
+            </div>
+          </div>
+        </div>
       </CardContent>
     </Card>
   )

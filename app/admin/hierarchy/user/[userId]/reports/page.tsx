@@ -3,30 +3,21 @@
 import { Suspense, useState, useMemo } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
-import { useUserReportsForAdmin } from '@/hooks/use-hierarchy'
 import { MainLayout } from '@/components/layout/main-layout'
 import { AppLoading } from '@/components/ui/app-loading'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { Progress } from '@/components/ui/progress'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { SimplePieChart } from '@/components/charts/simple-pie-chart'
-import { 
-  ArrowLeft, 
-  User, 
-  FileText, 
-  Calendar, 
-  CheckCircle2, 
-  Clock, 
-  AlertTriangle,
-  Filter,
-  Eye
-} from 'lucide-react'
+import { ArrowLeft, FileText, Filter, CheckCircle2, Clock, Eye, BarChart3, Calendar, Users } from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { getPerformanceBadge, getPerformanceColor, classifyPerformance } from '@/utils/performance-classification'
+import { Progress } from '@/components/ui/progress'
+import { SimplePieChart } from '@/components/charts/simple-pie-chart'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
+import { safeNumber, safeString, safeArray } from '@/utils/type-guards'
 
 function UserReportsContent() {
   const { user: currentUser } = useAuth()
@@ -72,18 +63,6 @@ function UserReportsContent() {
     })
   }, [reportsData?.reports, statusFilter])
 
-  const getPerformanceColor = useMemo(() => (rate: number) => {
-    if (rate >= 90) return 'text-green-600'
-    if (rate >= 70) return 'text-yellow-600'
-    return 'text-red-600'
-  }, [])
-
-  const getPerformanceBadge = useMemo(() => (rate: number) => {
-    if (rate >= 90) return { label: 'Xuất sắc', variant: 'default' as const }
-    if (rate >= 70) return { label: 'Tốt', variant: 'secondary' as const }
-    return { label: 'Cần cải thiện', variant: 'destructive' as const }
-  }, [])
-
   if (!currentUser) {
     return <AppLoading text="Đang xác thực..." />
   }
@@ -96,7 +75,7 @@ function UserReportsContent() {
         title="Không có quyền truy cập"
         showBreadcrumb
         breadcrumbItems={[
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Trang chủ', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
           { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
           { label: 'Báo cáo nhân viên' }
@@ -105,7 +84,7 @@ function UserReportsContent() {
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <Card className="border-red-200 bg-red-50">
             <CardContent className="p-8 text-center">
-              <User className="w-16 h-16 text-red-600 mx-auto mb-4" />
+              <Users className="w-16 h-16 text-red-600 mx-auto mb-4" />
               <h2 className="text-xl font-semibold text-red-800 mb-2">Không có quyền truy cập</h2>
               <p className="text-red-600">Bạn không có quyền xem báo cáo của nhân viên này.</p>
             </CardContent>
@@ -131,7 +110,7 @@ function UserReportsContent() {
         title="Lỗi tải dữ liệu"
         showBreadcrumb
         breadcrumbItems={[
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Trang chủ', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
           { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
           { label: 'Báo cáo nhân viên' }
@@ -172,14 +151,15 @@ function UserReportsContent() {
     totalTasks: 0
   }
 
+  const overallTaskCompletion = summary.taskCompletionRate || 0
+  const taskPerformance = getPerformanceBadge(overallTaskCompletion)
+
   return (
     <MainLayout
       title={`Báo cáo của ${userData?.firstName || 'N/A'} ${userData?.lastName || ''}`}
       subtitle={`${userData?.employeeCode || 'N/A'} - ${userData?.jobPosition?.department?.name || 'N/A'}`}
       showBreadcrumb
       breadcrumbItems={[
-        // { label: 'Dashboard', href: '/dashboard' },
-        // { label: 'Admin', href: '/admin' },
         { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
         { 
           label: `${userData?.firstName || 'N/A'} ${userData?.lastName || ''}`, 
@@ -189,7 +169,7 @@ function UserReportsContent() {
       ]}
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-8">
-        {/* Back Button - Fixed navigation */}
+        {/* Back Button */}
         <div className="mb-4 sm:mb-6">
           <Link href={`/admin/hierarchy/user/${userId}`}>
             <Button variant="outline" size="sm" className="flex items-center gap-2">
@@ -200,53 +180,78 @@ function UserReportsContent() {
           </Link>
         </div>
 
-        {/* User Summary */}
-        <Card className="mb-6">
-          <CardHeader>
-            <div className="flex items-center justify-between">
+        {/* Enhanced User Summary */}
+        <Card className="mb-6 overflow-hidden">
+          <div className="bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 text-white p-6">
+            <div className="flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6">
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center">
-                  <span className="text-white font-medium">
-                    {(userData.firstName || 'U').charAt(0)}{(userData.lastName || 'N').charAt(0)}
+                <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center">
+                  <span className="text-xl font-medium">
+                    {safeString(userData?.firstName, 'U').charAt(0)}{safeString(userData?.lastName, 'N').charAt(0)}
                   </span>
                 </div>
                 <div>
-                  <CardTitle>{userData.firstName || 'N/A'} {userData.lastName || ''}</CardTitle>
-                  <div className="flex items-center gap-2 mt-1">
-                    <Badge variant="outline" className="text-xs">{userData.employeeCode || 'N/A'}</Badge>
-                    <Badge variant="secondary" className="text-xs">{userData.role || 'N/A'}</Badge>
+                  <h1 className="text-2xl font-bold mb-2">
+                    {safeString(userData?.firstName, 'N/A')} {safeString(userData?.lastName, '')}
+                  </h1>
+                  <div className="flex flex-wrap items-center gap-2 text-sm opacity-90">
+                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                      {safeString(userData?.employeeCode, 'N/A')}
+                    </Badge>
+                    <Badge variant="secondary" className="bg-white/20 text-white border-white/30">
+                      {safeString(userData?.role, 'N/A')}
+                    </Badge>
                   </div>
                 </div>
               </div>
-              <div className="text-right">
-                <div className="text-sm text-muted-foreground">Tổng báo cáo</div>
-                <div className="text-2xl font-bold">{summary.totalReports || 0}</div>
+              
+              <div className="flex items-center gap-6">
+                <div className="text-center">
+                  <div className="text-3xl font-bold mb-1">{safeNumber(summary?.totalReports, 0)}</div>
+                  <div className="text-sm opacity-80">Tổng báo cáo</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold mb-1 text-green-300">{safeNumber(summary?.completedReports, 0)}</div>
+                  <div className="text-sm opacity-80">Hoàn thành</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-3xl font-bold mb-1">{overallTaskCompletion}%</div>
+                  <div className="text-sm opacity-80">Hiệu suất TB</div>
+                  <Badge className={`${taskPerformance.className} mt-1`}>
+                    {taskPerformance.label}
+                  </Badge>
+                </div>
               </div>
             </div>
-          </CardHeader>
-          <CardContent>
+          </div>
+          
+          <CardContent className="p-6">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div className="text-center p-3 bg-blue-50 rounded-lg">
-                <div className="text-lg font-bold text-blue-600">{summary.totalReports || 0}</div>
+                <BarChart3 className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                <div className="text-lg font-bold text-blue-600">{safeNumber(summary?.totalReports, 0)}</div>
                 <div className="text-xs text-muted-foreground">Tổng báo cáo</div>
               </div>
               <div className="text-center p-3 bg-green-50 rounded-lg">
-                <div className="text-lg font-bold text-green-600">{summary.completedReports || 0}</div>
+                <CheckCircle2 className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                <div className="text-lg font-bold text-green-600">{safeNumber(summary?.completedReports, 0)}</div>
                 <div className="text-xs text-muted-foreground">Hoàn thành</div>
               </div>
               <div className="text-center p-3 bg-orange-50 rounded-lg">
-                <div className="text-lg font-bold text-orange-600">{summary.taskCompletionRate || 0}%</div>
+                <Clock className="w-6 h-6 text-orange-600 mx-auto mb-2" />
+                <div className="text-lg font-bold text-orange-600">{overallTaskCompletion}%</div>
                 <div className="text-xs text-muted-foreground">Tỷ lệ HT TB</div>
               </div>
               <div className="text-center p-3 bg-purple-50 rounded-lg">
-                <div className="text-lg font-bold text-purple-600">{summary.totalTasks || 0}</div>
+                <Users className="w-6 h-6 text-purple-600 mx-auto mb-2" />
+                <div className="text-lg font-bold text-purple-600">{safeNumber(summary?.totalTasks, 0)}</div>
                 <div className="text-xs text-muted-foreground">Tổng công việc</div>
               </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Filters */}
+        {/* Enhanced Filters */}
         <Card className="mb-6">
           <CardContent className="p-4">
             <div className="flex flex-col sm:flex-row gap-4">
@@ -280,11 +285,14 @@ function UserReportsContent() {
                   </SelectContent>
                 </Select>
               </div>
+              <div className="ml-auto text-sm text-muted-foreground">
+                Hiển thị {filteredReports.length} / {reports.length} báo cáo
+              </div>
             </div>
           </CardContent>
         </Card>
 
-        {/* Reports List */}
+        {/* Enhanced Reports List */}
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
@@ -306,183 +314,125 @@ function UserReportsContent() {
                 </div>
               ) : (
                 filteredReports.map((report: any, index: number) => {
-                  // Safe access to report stats with defaults - using direct properties from API
-                  const totalTasks = report.totalTasks ?? 0
-                  const completedTasks = report.completedTasks ?? 0
-                  const incompleteTasks = report.incompleteTasks ?? 0
-                  const taskCompletionRate = report.taskCompletionRate ?? 0
-                  const incompleteReasons = report.incompleteReasons ?? []
-                  
+                  const totalTasks = safeNumber(report?.totalTasks, 0)
+                  const completedTasks = safeNumber(report?.completedTasks, 0)
+                  const taskCompletionRate = safeNumber(report?.taskCompletionRate, 0)
                   const performanceBadge = getPerformanceBadge(taskCompletionRate)
+                  const classification = classifyPerformance(taskCompletionRate)
+                  const reportId = safeString(report?.id, `report-${index}`)
+                  const weekNumber = safeNumber(report?.weekNumber, 0)
+                  const year = safeNumber(report?.year, new Date().getFullYear())
                   
                   return (
                     <motion.div
-                      key={report.id || index}
+                      key={reportId}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ duration: 0.3, delay: index * 0.05 }}
                     >
-                      <Card className="border-0 shadow-sm hover:shadow-md transition-shadow">
-                        <CardContent className="p-4">
-                          {/* Mobile Layout */}
-                          <div className="block lg:hidden">
-                            <div className="flex items-start justify-between mb-3">
+                      <Card className="border-0 shadow-sm hover:shadow-md transition-all duration-200 overflow-hidden">
+                        <CardContent className="p-0">
+                          {/* Enhanced Report Row */}
+                          <div className="p-6">
+                            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-6">
                               <div className="flex-1">
-                                <div className="flex items-center gap-2 mb-2">
-                                  <h3 className="font-semibold">
-                                    Tuần {report.weekNumber || 'N/A'}/{report.year || 'N/A'}
-                                  </h3>
-                                  <Badge variant={performanceBadge.variant} className="text-xs">
-                                    {performanceBadge.label}
-                                  </Badge>
+                                <div className="flex items-center gap-3 mb-3">
+                                  <div className="w-12 h-12 bg-gradient-to-br from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+                                    <Calendar className="w-6 h-6 text-white" />
+                                  </div>
+                                  <div>
+                                    <h3 className="text-lg font-semibold">
+                                      Tuần {weekNumber}/{year}
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                      {report?.updatedAt ? formatDistanceToNow(new Date(report.updatedAt), {
+                                        addSuffix: true,
+                                        locale: vi
+                                      }) : 'Chưa cập nhật'}
+                                    </p>
+                                  </div>
                                 </div>
                                 
-                                <div className="flex items-center gap-2 mb-2">
-                                  {report.isCompleted && (
-                                    <Badge variant="default" className="text-xs">
+                                <div className="flex items-center gap-2 mb-4">
+                                  <Badge className={performanceBadge.className}>
+                                    {performanceBadge.label}
+                                  </Badge>
+                                  {report?.isCompleted && (
+                                    <Badge variant="default" className="bg-green-500">
                                       <CheckCircle2 className="w-3 h-3 mr-1" />
                                       Hoàn thành
                                     </Badge>
                                   )}
-                                  {report.isLocked && (
-                                    <Badge variant="secondary" className="text-xs">
+                                  {report?.isLocked && (
+                                    <Badge variant="secondary">
                                       🔒 Đã khóa
                                     </Badge>
                                   )}
-                                  {!report.isCompleted && !report.isLocked && (
-                                    <Badge variant="outline" className="text-xs">
+                                  {!report?.isCompleted && !report?.isLocked && (
+                                    <Badge variant="outline">
                                       <Clock className="w-3 h-3 mr-1" />
                                       Đang làm
                                     </Badge>
                                   )}
                                 </div>
-                                
-                                <p className="text-xs text-muted-foreground">
-                                  {report.updatedAt ? formatDistanceToNow(new Date(report.updatedAt), {
-                                    addSuffix: true,
-                                    locale: vi
-                                  }) : 'Chưa cập nhật'}
-                                </p>
-                              </div>
-                              
-                              <div className="flex items-center gap-3">
-                                <SimplePieChart
-                                  completedPercentage={totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0}
-                                  size={40}
-                                  strokeWidth={4}
-                                />
-                                {/* Admin chỉ được xem, không được sửa */}
-                                <Link 
-                                  href={`/admin/hierarchy/user/${userId}/report/${report.id}${
-                                    weekNumberFromUrl && yearFromUrl 
-                                      ? `?weekNumber=${weekNumberFromUrl}&year=${yearFromUrl}` 
-                                      : ''
-                                  }`}
-                                >
-                                  <Button variant="outline" size="sm" className="text-xs">
-                                    <Eye className="w-3 h-3 mr-1" />
-                                    Xem
-                                  </Button>
-                                </Link>
-                              </div>
-                            </div>
 
-                            {/* Mobile Stats */}
-                            <div className="grid grid-cols-4 gap-2 text-center text-xs mb-3">
-                              <div>
-                                <div className="font-semibold">{totalTasks}</div>
-                                <div className="text-muted-foreground">Tổng</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-green-600">{completedTasks}</div>
-                                <div className="text-muted-foreground">Xong</div>
-                              </div>
-                              <div>
-                                <div className="font-semibold text-red-600">{incompleteTasks}</div>
-                                <div className="text-muted-foreground">Chưa</div>
-                              </div>
-                              <div>
-                                <div className={`font-semibold ${getPerformanceColor(taskCompletionRate)}`}>
-                                  {taskCompletionRate}%
-                                </div>
-                                <div className="text-muted-foreground">Tỷ lệ</div>
-                              </div>
-                            </div>
-
-                            <Progress value={taskCompletionRate} className="h-2" />
-                          </div>
-
-                          {/* Desktop Layout */}
-                          <div className="hidden lg:block">
-                            <div className="flex items-center justify-between">
-                              <div className="flex items-center gap-6 flex-1">
-                                <div>
-                                  <div className="flex items-center gap-3 mb-2">
-                                    <h3 className="font-semibold text-lg">
-                                      Tuần {report.weekNumber}/{report.year}
-                                    </h3>
-                                    <Badge variant={performanceBadge.variant} className="text-xs">
-                                      {performanceBadge.label}
-                                    </Badge>
-                                    {report.isCompleted && (
-                                      <Badge variant="default" className="text-xs">
-                                        <CheckCircle2 className="w-3 h-3 mr-1" />
-                                        Hoàn thành
-                                      </Badge>
-                                    )}
-                                    {report.isLocked && (
-                                      <Badge variant="secondary" className="text-xs">
-                                        🔒 Đã khóa
-                                      </Badge>
-                                    )}
+                                {/* Task Statistics */}
+                                <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                                  <div className="text-center p-3 bg-gray-50 rounded-lg">
+                                    <div className="text-lg font-bold">{totalTasks}</div>
+                                    <div className="text-xs text-muted-foreground">Tổng task</div>
                                   </div>
-                                  <p className="text-sm text-muted-foreground">
-                                    Cập nhật {formatDistanceToNow(new Date(report.updatedAt), {
-                                      addSuffix: true,
-                                      locale: vi
-                                    })}
-                                  </p>
-                                </div>
-                                
-                                <div className="grid grid-cols-4 gap-6 text-center">
-                                  <div>
-                                    <div className="text-xl font-bold">{totalTasks}</div>
-                                    <div className="text-sm text-muted-foreground">Tổng CV</div>
+                                  <div className="text-center p-3 bg-green-50 rounded-lg">
+                                    <div className="text-lg font-bold text-green-600">{completedTasks}</div>
+                                    <div className="text-xs text-muted-foreground">Hoàn thành</div>
                                   </div>
-                                  <div>
-                                    <div className="text-xl font-bold text-green-600">{completedTasks}</div>
-                                    <div className="text-sm text-muted-foreground">Hoàn thành</div>
+                                  <div className="text-center p-3 bg-orange-50 rounded-lg">
+                                    <div className="text-lg font-bold text-orange-600">{totalTasks - completedTasks}</div>
+                                    <div className="text-xs text-muted-foreground">Chưa hoàn thành</div>
                                   </div>
-                                  <div>
-                                    <div className="text-xl font-bold text-red-600">{incompleteTasks}</div>
-                                    <div className="text-sm text-muted-foreground">Chưa xong</div>
-                                  </div>
-                                  <div>
-                                    <div className={`text-xl font-bold ${getPerformanceColor(taskCompletionRate)}`}>
+                                  <div 
+                                    className="text-center p-3 rounded-lg"
+                                    style={{ backgroundColor: classification.bgColor }}
+                                  >
+                                    <div 
+                                      className="text-lg font-bold"
+                                      style={{ color: classification.color }}
+                                    >
                                       {taskCompletionRate}%
                                     </div>
-                                    <div className="text-sm text-muted-foreground">Tỷ lệ HT</div>
+                                    <div className="text-xs text-muted-foreground">Tỷ lệ HT</div>
                                   </div>
+                                </div>
+
+                                {/* Progress Bar */}
+                                <div className="mb-4">
+                                  <div className="flex justify-between text-sm mb-2">
+                                    <span>Tiến độ hoàn thành</span>
+                                    <span className="font-medium">{taskCompletionRate}%</span>
+                                  </div>
+                                  <Progress 
+                                    value={taskCompletionRate} 
+                                    className="h-3"
+                                  />
                                 </div>
                               </div>
 
                               <div className="flex items-center gap-4">
                                 <SimplePieChart
-                                  completedPercentage={completedTasks > 0 ? (completedTasks / totalTasks) * 100 : 0}
-                                  size={60}
-                                  strokeWidth={6}
+                                  completedPercentage={taskCompletionRate}
+                                  size={80}
+                                  strokeWidth={8}
                                 />
                                 
-                                {/* Admin chỉ được xem, không được sửa */}
                                 <Link 
-                                  href={`/admin/hierarchy/user/${userId}/report/${report.id}${
+                                  href={`/admin/hierarchy/user/${userId}/report/${reportId}${
                                     weekNumberFromUrl && yearFromUrl 
                                       ? `?weekNumber=${weekNumberFromUrl}&year=${yearFromUrl}` 
                                       : ''
                                   }`}
                                 >
-                                  <Button variant="outline" size="sm">
-                                    <Eye className="w-4 h-4 mr-2" />
+                                  <Button className="flex items-center gap-2">
+                                    <Eye className="w-4 h-4" />
                                     Xem chi tiết
                                   </Button>
                                 </Link>
@@ -497,12 +447,12 @@ function UserReportsContent() {
               )}
             </div>
 
-            {/* Pagination */}
-            {pagination && pagination.totalPages > 1 && (
-              <div className="flex items-center justify-between mt-6">
+            {/* Enhanced Pagination */}
+            {pagination && safeNumber(pagination?.totalPages, 0) > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between mt-6 gap-4">
                 <div className="text-sm text-muted-foreground">
-                  Hiển thị {((page - 1) * limit) + 1} - {Math.min(page * limit, pagination.total || 0)} 
-                  trong {pagination.total || 0} báo cáo
+                  Hiển thị {((page - 1) * limit) + 1} - {Math.min(page * limit, safeNumber(pagination?.total, 0))} 
+                  trong {safeNumber(pagination?.total, 0)} báo cáo
                 </div>
                 <div className="flex items-center gap-2">
                   <Button
@@ -513,14 +463,14 @@ function UserReportsContent() {
                   >
                     Trước
                   </Button>
-                  <span className="text-sm">
-                    Trang {page} / {pagination.totalPages || 1}
+                  <span className="text-sm px-3 py-1 bg-muted rounded">
+                    Trang {page} / {safeNumber(pagination?.totalPages, 1)}
                   </span>
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPage(p => Math.min(pagination.totalPages || 1, p + 1))}
-                    disabled={page === (pagination.totalPages || 1)}
+                    onClick={() => setPage(p => Math.min(safeNumber(pagination?.totalPages, 1), p + 1))}
+                    disabled={page === safeNumber(pagination?.totalPages, 1)}
                   >
                     Sau
                   </Button>

@@ -8,14 +8,46 @@ import { Button } from '@/components/ui/button'
 import { ReportForm } from '@/components/reports/report-form'
 import { ReportsList } from '@/components/reports/reports-list'
 import { ReportTemplate } from '@/components/reports/report-template'
-import { Plus, ArrowLeft, FileSpreadsheet, Edit } from 'lucide-react'
+import { Plus, ArrowLeft, Edit } from 'lucide-react'
 import { toast } from 'react-toast-kit'
-import { getCurrentWeek, isValidWeekForCreation } from '@/utils/week-utils' // Fix import
+import { getCurrentWeek, isValidWeekForCreation } from '@/utils/week-utils'
 import { useMyReports, useCurrentWeekReport, useCreateWeeklyReport, useUpdateReport, useDeleteReport, useReportByWeek } from '@/hooks/use-reports'
-import type { UpdateReportDto, WeeklyReport } from '@/types'
+import { WeeklyReport } from '@/types'
 
 type FilterTab = 'week' | 'month' | 'year'
 type ViewMode = 'list' | 'form' | 'template'
+
+interface UpdateReportDto {
+  tasks?: Array<{
+    taskName?: string
+    monday?: boolean
+    tuesday?: boolean
+    wednesday?: boolean
+    thursday?: boolean
+    friday?: boolean
+    saturday?: boolean
+    isCompleted?: boolean
+    reasonNotDone?: string
+  }>
+  isCompleted?: boolean
+}
+
+interface ReportData {
+  weekNumber: number
+  year: number
+  tasks: Array<{
+    id?: string
+    taskName: string
+    monday?: boolean
+    tuesday?: boolean
+    wednesday?: boolean
+    thursday?: boolean
+    friday?: boolean
+    saturday?: boolean
+    isCompleted?: boolean
+    reasonNotDone?: string
+  }>
+}
 
 function ReportsPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
@@ -50,7 +82,97 @@ function ReportsPage() {
   const [currentWeekNumber, setCurrentWeekNumber] = useState<number>(getCurrentWeek().weekNumber)
   const [currentYear, setCurrentYear] = useState<number>(getCurrentWeek().year)
 
-  // CRITICAL: Use shallow routing to prevent API calls
+  // Query hooks - NEVER pass filter parameters to API
+  const { data: reportsData, isLoading: reportsLoading, refetch: refetchReports } = useMyReports(1, 50)
+  const { data: currentWeekReport, refetch: refetchCurrentWeek } = useCurrentWeekReport()
+  const { data: weekReport, isLoading: weekReportLoading } = useReportByWeek(
+    viewMode === 'form' && currentWeekNumber ? currentWeekNumber : 0,
+    viewMode === 'form' && currentYear ? currentYear : 0
+  )
+
+  // Mutation hooks
+  const createReportMutation = useCreateWeeklyReport()
+  const updateReportMutation = useUpdateReport()
+  const deleteReportMutation = useDeleteReport()
+
+  // Memoized data processing - FIX: Handle API response structure correctly
+  const reports = useMemo(() => {
+    // Backend returns paginated response with 'data' property
+    if (reportsData && typeof reportsData === 'object' && 'data' in reportsData) {
+      return Array.isArray(reportsData.data) ? reportsData.data : []
+    }
+    // Handle direct array response
+    if (Array.isArray(reportsData)) {
+      return reportsData
+    }
+    return []
+  }, [reportsData])
+
+  console.log('🔄 Reports data:', reportsData)
+  console.log('🔄 Processed reports:', reports)
+
+  const filteredReports = useMemo(() => {
+    if (!Array.isArray(reports)) return []
+
+    return reports.filter((report: any) => {
+      try {
+        if (filterTab === 'week') {
+          const current = getCurrentWeek()
+          return report?.weekNumber === current.weekNumber && report?.year === current.year
+        }
+        
+        if (filterTab === 'month') {
+          if (!report?.createdAt) return false
+          const reportDate = new Date(report.createdAt)
+          const reportMonth = reportDate.getMonth() + 1
+          const reportYear = reportDate.getFullYear()
+          
+          return reportMonth === selectedMonth && reportYear === selectedYear
+        }
+        
+        if (filterTab === 'year') {
+          return report?.year === selectedYear
+        }
+      } catch (error) {
+        console.error('Filter error:', error, 'Report:', report)
+        return false
+      }
+      return true
+    })
+  }, [reports, filterTab, selectedMonth, selectedYear])
+
+  const availableYears = useMemo(() => {
+    if (!Array.isArray(reports)) return [new Date().getFullYear()]
+    
+    const yearsFromReportYear = reports
+      .filter((r: any) => r?.year && typeof r.year === 'number')
+      .map((r: any) => r.year)
+    
+    const yearsFromCreatedAt = reports
+      .filter((r: any) => r?.createdAt && typeof r.createdAt === 'string')
+      .map((r: any) => {
+        try {
+          return new Date(r.createdAt).getFullYear()
+        } catch {
+          return null
+        }
+      })
+      .filter((year): year is number => year !== null)
+
+    const allYears = [...new Set([...yearsFromReportYear, ...yearsFromCreatedAt])]
+      .sort((a, b) => b - a)
+
+    return allYears.length > 0 ? allYears : [new Date().getFullYear()]
+  }, [reports])
+
+  // Effect to sync selected report with week report
+  useEffect(() => {
+    if (viewMode === 'form') {
+      setSelectedReport(weekReport || null)
+    }
+  }, [weekReport, viewMode])
+
+  // CRITICAL: Use shallow routing to prevent API calls - FIXED with stable dependencies
   const updateURLParams = useCallback((tab: FilterTab, month?: number, year?: number) => {
     const params = new URLSearchParams()
     params.set('filter', tab)
@@ -63,121 +185,14 @@ function ReportsPage() {
     }
 
     const newURL = `${window.location.pathname}?${params.toString()}`
-    router.replace(newURL, { scroll: false })
+    
+    // Use replace to avoid adding to history
+    window.history.replaceState(null, '', newURL)
     
     console.log('🔄 URL updated (client-side only):', newURL)
-  }, [router])
+  }, []) // Remove router dependency to prevent re-renders
 
-  // CRITICAL: Debounce URL updates to prevent multiple calls
-  const [updateTimeout, setUpdateTimeout] = useState<NodeJS.Timeout | null>(null)
-  
-  useEffect(() => {
-    if (viewMode === 'list') {
-      if (updateTimeout) {
-        clearTimeout(updateTimeout)
-      }
-      
-      const timeout = setTimeout(() => {
-        updateURLParams(filterTab, selectedMonth, selectedYear)
-      }, 100)
-      
-      setUpdateTimeout(timeout)
-      
-      return () => {
-        if (timeout) {
-          clearTimeout(timeout)
-        }
-      }
-    }
-  }, [filterTab, selectedMonth, selectedYear, viewMode])
-
-  // Query hooks - NEVER pass filter parameters to API
-  const { data: reportsData, isLoading: reportsLoading, refetch: refetchReports } = useMyReports(1, 50)
-  const { data: currentWeekReport, refetch: refetchCurrentWeek } = useCurrentWeekReport()
-  const { data: weekReport, isLoading: weekReportLoading } = useReportByWeek(
-    viewMode === 'form' ? currentWeekNumber : undefined,
-    viewMode === 'form' ? currentYear : undefined
-  )
-
-  // Mutation hooks
-  const createReportMutation = useCreateWeeklyReport()
-  const updateReportMutation = useUpdateReport()
-  const deleteReportMutation = useDeleteReport()
-
-  // Memoized data processing
-  const reports = useMemo(() => {
-    return reportsData?.data || []
-  }, [reportsData])
-
-  const filteredReports = useMemo(() => {
-    if (!Array.isArray(reports)) return []
-
-    return reports.filter((report) => {
-      try {
-        if (filterTab === 'week') {
-          const current = getCurrentWeek()
-          const matches = report.weekNumber === current.weekNumber && report.year === current.year
-          return matches
-        }
-        
-        if (filterTab === 'month') {
-          const reportDate = new Date(report.createdAt)
-          const reportMonth = reportDate.getMonth() + 1
-          const reportYear = reportDate.getFullYear()
-          
-          const matches = (
-            reportMonth === selectedMonth &&
-            reportYear === selectedYear
-          )
-          
-          return matches
-        }
-        
-        if (filterTab === 'year') {
-          const matches = report.year === selectedYear
-          return matches
-        }
-      } catch (error) {
-        console.error('Filter error:', error, 'Report:', report)
-        return false
-      }
-      return true
-    })
-  }, [reports, filterTab, selectedMonth, selectedYear])
-
-  const availableYears = useMemo(() => {
-    const yearsFromReportYear = reports
-      .filter(r => r?.year)
-      .map(r => r.year)
-    
-    const yearsFromCreatedAt = reports
-      .filter(r => r?.createdAt)
-      .map(r => {
-        try {
-          return new Date(r.createdAt).getFullYear()
-        } catch {
-          return null
-        }
-      })
-      .filter(year => year !== null)
-
-    const allYears = [...new Set([...yearsFromReportYear, ...yearsFromCreatedAt])]
-      .sort((a, b) => b - a)
-
-    return allYears.length > 0 ? allYears : [new Date().getFullYear()]
-  }, [reports])
-
-  const currentWeek = useMemo(() => getCurrentWeek(), [])
-  const hasCurrentWeekReport = currentWeekReport !== null
-
-  // Effect to sync selected report with week report
-  useEffect(() => {
-    if (viewMode === 'form') {
-      setSelectedReport(weekReport || null)
-    }
-  }, [weekReport, viewMode])
-
-  // Event handlers
+  // Event handlers with stable references
   const handleWeekChange = useCallback((newWeekNumber: number, newYear: number) => {
     setSelectedReport(null)
     setCurrentWeekNumber(newWeekNumber)
@@ -186,20 +201,23 @@ function ReportsPage() {
 
   const handleFilterTabChange = useCallback((tab: FilterTab) => {
     setFilterTab(tab)
-  }, [])
+    updateURLParams(tab, selectedMonth, selectedYear)
+  }, [selectedMonth, selectedYear, updateURLParams])
 
   const handleMonthChange = useCallback((month: number) => {
     setSelectedMonth(month)
-  }, [])
+    updateURLParams(filterTab, month, selectedYear)
+  }, [filterTab, selectedYear, updateURLParams])
 
   const handleYearChange = useCallback((year: number) => {
     setSelectedYear(year)
-  }, [])
+    updateURLParams(filterTab, selectedMonth, year)
+  }, [filterTab, selectedMonth, updateURLParams])
 
-  // Mutation handlers with WEEK VALIDATION
-  const handleCreateOrUpdateReport = useCallback(async (reportData: any): Promise<WeeklyReport> => {
+  // FIXED: Remove handleBackToList dependency to prevent infinite loops
+  const handleCreateOrUpdateReport = useCallback(async (reportData: ReportData): Promise<WeeklyReport> => {
     if (!user) {
-      throw new Error('Vui lòng đăng nhập để tạo báo cáo')
+      throw new Error('Vui lòng đăng nhập để tạo báo cáo');
     }
 
     // CRITICAL: Validate week for creation
@@ -207,32 +225,32 @@ function ReportsPage() {
       const weekValidation = isValidWeekForCreation(
         Number(reportData.weekNumber),
         Number(reportData.year)
-      )
+      );
       
       if (!weekValidation.isValid) {
-        throw new Error(weekValidation.reason || 'Tuần được chọn không hợp lệ')
+        throw new Error(weekValidation.reason || 'Tuần được chọn không hợp lệ');
       }
     }
 
     // Validation
     if (!reportData.tasks?.length) {
-      throw new Error('Vui lòng thêm ít nhất một công việc')
+      throw new Error('Vui lòng thêm ít nhất một công việc');
     }
 
-    const emptyTasks = reportData.tasks.filter((task: any) => !task.taskName?.trim())
+    const emptyTasks = reportData.tasks.filter((task: any) => !task.taskName?.trim());
     if (emptyTasks.length > 0) {
-      throw new Error('Vui lòng nhập tên cho tất cả công việc')
+      throw new Error('Vui lòng nhập tên cho tất cả công việc');
     }
 
     const incompleteTasks = reportData.tasks.filter((task: any) =>
       !task.isCompleted && !task.reasonNotDone?.trim()
-    )
+    );
     if (incompleteTasks.length > 0) {
-      throw new Error('Vui lòng nhập lý do cho các công việc chưa hoàn thành')
+      throw new Error('Vui lòng nhập lý do cho các công việc chưa hoàn thành');
     }
 
     try {
-      let result: WeeklyReport
+      let result: WeeklyReport;
 
       if (selectedReport) {
         const updateData: UpdateReportDto = {
@@ -244,13 +262,12 @@ function ReportsPage() {
             thursday: task.thursday || false,
             friday: task.friday || false,
             saturday: task.saturday || false,
-            sunday: task.sunday || false,
             isCompleted: task.isCompleted || false,
             reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined)
           }))
-        }
-        result = await updateReportMutation.mutateAsync({ id: selectedReport.id, data: updateData })
-        toast.success('Cập nhật báo cáo thành công!')
+        };
+        result = await updateReportMutation.mutateAsync({ id: selectedReport.id, data: updateData });
+        toast.success('Cập nhật báo cáo thành công!');
       } else {
         const createData = {
           weekNumber: Number(reportData.weekNumber),
@@ -263,34 +280,38 @@ function ReportsPage() {
             thursday: task.thursday || false,
             friday: task.friday || false,
             saturday: task.saturday || false,
-            sunday: task.sunday || false,
             isCompleted: task.isCompleted || false,
             reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined)
           }))
-        }
+        };
 
-        result = await createReportMutation.mutateAsync(createData)
-        toast.success('Tạo báo cáo thành công!')
+        result = await createReportMutation.mutateAsync(createData);
+        toast.success('Tạo báo cáo thành công!');
       }
 
-      refetchReports()
-      refetchCurrentWeek()
-      handleBackToList()
+      // FIXED: Call refetch and navigation directly instead of through dependency
+      refetchReports();
+      refetchCurrentWeek();
+      
+      // Navigate back to list
+      setSelectedReport(null);
+      setViewMode('list');
+      updateURLParams(filterTab, selectedMonth, selectedYear);
 
-      return result
+      return result;
     } catch (error: any) {
-      console.error('Save report error:', error)
-      const message = error.message || 'Không thể lưu báo cáo. Vui lòng thử lại.'
-      toast.error(message)
-      throw error
+      console.error('Save report error:', error);
+      const message = error.message || 'Không thể lưu báo cáo. Vui lòng thử lại.';
+      toast.error(message);
+      throw error;
     }
-  }, [user, selectedReport, updateReportMutation, createReportMutation, refetchReports, refetchCurrentWeek])
+  }, [user, selectedReport, updateReportMutation, createReportMutation, refetchReports, refetchCurrentWeek, filterTab, selectedMonth, selectedYear, updateURLParams])
 
   const handleViewReport = useCallback((report: WeeklyReport) => {
     setSelectedReport(report)
     setCurrentWeekNumber(report.weekNumber)
     setCurrentYear(report.year)
-    setViewMode('template') // Change to template view first
+    setViewMode('template')
   }, [])
 
   const handleEditReport = useCallback((report: WeeklyReport) => {
@@ -305,22 +326,6 @@ function ReportsPage() {
     const current = getCurrentWeek()
     setCurrentWeekNumber(current.weekNumber)
     setCurrentYear(current.year)
-    setViewMode('form')
-  }, [])
-
-  const handleCreatePreviousWeek = useCallback(() => {
-    setSelectedReport(null)
-    const current = getCurrentWeek()
-    let prevWeek = current.weekNumber - 1
-    let prevYear = current.year
-
-    if (prevWeek < 1) {
-      prevWeek = 52
-      prevYear = current.year - 1
-    }
-
-    setCurrentWeekNumber(prevWeek)
-    setCurrentYear(prevYear)
     setViewMode('form')
   }, [])
 
@@ -345,7 +350,6 @@ function ReportsPage() {
       toast.success('Xóa báo cáo thành công!')
     } catch (error: any) {
       console.error('Delete report error:', error)
-      // Enhanced error handling for deletion restrictions
       if (error.message.includes('tuần hiện tại') || error.message.includes('tuần tiếp theo')) {
         toast.error('Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo')
       } else {
@@ -355,26 +359,8 @@ function ReportsPage() {
     }
   }, [selectedReport, deleteReportMutation, refetchReports, refetchCurrentWeek])
 
-  // Loading states
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Đang tải...</p>
-        </div>
-      </div>
-    )
-  }
-
-  if (!isAuthenticated || !user) {
-    return null
-  }
-
-  const isFormLoading = createReportMutation.isPending || updateReportMutation.isPending || weekReportLoading
-
-  // Check if specific weeks have reports and are still creatable
-  const { previousWeek, nextWeek, weekAvailability } = useMemo(() => {
+  // Calculate week availability - FIX: Type safety for reports
+  const weekAvailability = useMemo(() => {
     const current = getCurrentWeek()
     
     // Calculate previous week
@@ -393,47 +379,43 @@ function ReportsPage() {
       nextYear = current.year + 1
     }
 
-    // Check which weeks have existing reports
-    const hasPreviousWeekReport = reports.some(report =>
-      report.weekNumber === prevWeek && report.year === prevYear
+    // Check which weeks have existing reports - FIX: Type safety
+    const hasPreviousWeekReport = Array.isArray(reports) && reports.some((report: any) =>
+      report?.weekNumber === prevWeek && report?.year === prevYear
     )
-    const hasCurrentWeekReport = reports.some(report =>
-      report.weekNumber === current.weekNumber && report.year === current.year
+    const hasCurrentWeekReport = Array.isArray(reports) && reports.some((report: any) =>
+      report?.weekNumber === current.weekNumber && report?.year === current.year
     )
-    const hasNextWeekReport = reports.some(report =>
-      report.weekNumber === nextWeekNum && report.year === nextYear
+    const hasNextWeekReport = Array.isArray(reports) && reports.some((report: any) =>
+      report?.weekNumber === nextWeekNum && report?.year === nextYear
     )
 
-    // Check if weeks are still creatable (using existing validation)
+    // Check if weeks are still creatable
     const isPreviousWeekCreatable = isValidWeekForCreation(prevWeek, prevYear).isValid
     const isCurrentWeekCreatable = isValidWeekForCreation(current.weekNumber, current.year).isValid
     const isNextWeekCreatable = isValidWeekForCreation(nextWeekNum, nextYear).isValid
 
     return {
-      previousWeek: { weekNumber: prevWeek, year: prevYear },
-      nextWeek: { weekNumber: nextWeekNum, year: nextYear },
-      weekAvailability: {
-        previous: {
-          weekNumber: prevWeek,
-          year: prevYear,
-          hasReport: hasPreviousWeekReport,
-          isCreatable: isPreviousWeekCreatable,
-          shouldShow: !hasPreviousWeekReport && isPreviousWeekCreatable
-        },
-        current: {
-          weekNumber: current.weekNumber,
-          year: current.year,
-          hasReport: hasCurrentWeekReport,
-          isCreatable: isCurrentWeekCreatable,
-          shouldShow: !hasCurrentWeekReport && isCurrentWeekCreatable
-        },
-        next: {
-          weekNumber: nextWeekNum,
-          year: nextYear,
-          hasReport: hasNextWeekReport,
-          isCreatable: isNextWeekCreatable,
-          shouldShow: !hasNextWeekReport && isNextWeekCreatable
-        }
+      previous: {
+        weekNumber: prevWeek,
+        year: prevYear,
+        hasReport: hasPreviousWeekReport,
+        isCreatable: isPreviousWeekCreatable,
+        shouldShow: !hasPreviousWeekReport && isPreviousWeekCreatable
+      },
+      current: {
+        weekNumber: current.weekNumber,
+        year: current.year,
+        hasReport: hasCurrentWeekReport,
+        isCreatable: isCurrentWeekCreatable,
+        shouldShow: !hasCurrentWeekReport && isCurrentWeekCreatable
+      },
+      next: {
+        weekNumber: nextWeekNum,
+        year: nextYear,
+        hasReport: hasNextWeekReport,
+        isCreatable: isNextWeekCreatable,
+        shouldShow: !hasNextWeekReport && isNextWeekCreatable
       }
     }
   }, [reports])
@@ -446,6 +428,24 @@ function ReportsPage() {
     
     console.log(`Creating report for ${weekType} week: ${weekNumber}/${year}`)
   }, [])
+
+  // Loading states
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Đang tải...</p>
+        </div>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated || !user) {
+    return null
+  }
+
+  const isFormLoading = createReportMutation.isPending || updateReportMutation.isPending || weekReportLoading
 
   return (
     <MainLayout
@@ -524,22 +524,6 @@ function ReportsPage() {
                     <span className="hidden sm:inline">(Tiếp theo)</span>
                   </Button>
                 )}
-
-                {/* Fallback button if no weeks are available */}
-                {/* {!weekAvailability.previous.shouldShow && 
-                 !weekAvailability.current.shouldShow && 
-                 !weekAvailability.next.shouldShow && (
-                  <Button
-                    disabled
-                    variant="outline"
-                    size="sm"
-                    className="flex items-center gap-1 sm:gap-2 opacity-50 text-xs sm:text-sm"
-                  >
-                    <Plus className="w-3 h-3 sm:w-4 sm:h-4" />
-                    <span className="hidden sm:inline">Không có tuần nào khả dụng</span>
-                    <span className="sm:hidden">Không khả dụng</span>
-                  </Button>
-                )} */}
               </div>
             </div>
 
@@ -646,8 +630,6 @@ function ReportsPage() {
                   </Button>
                 )}
               </div>
-
-              
             </div>
 
             {selectedReport && (

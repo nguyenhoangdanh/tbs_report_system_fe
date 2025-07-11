@@ -1,172 +1,145 @@
 'use client'
 
-import { createContext, useContext, useState, useEffect, useCallback } from 'react'
-import { useChangePassword } from '@/hooks/use-auth'
-import { ChangePasswordDto, User } from '@/types'
-import { useProfile } from '@/hooks/use-profile'
-import { toast } from 'react-toast-kit'
+import { createContext, useContext, useEffect, useState, useCallback } from 'react'
+import { useRouter } from 'next/navigation'
+import { useQueryClient } from '@tanstack/react-query'
 import { AuthService } from '@/services/auth.service'
+import { clearUserCaches } from '@/hooks/use-reports'
+import { toast } from 'react-toast-kit'
+import type { User, LoginDto } from '@/types'
 
 interface AuthContextType {
   user: User | null
-  isLoading: boolean
   isAuthenticated: boolean
-  error: Error | null
-  login: (employeeCode: string, password: string, rememberMe?: boolean) => Promise<User>
+  isLoading: boolean
+  login: (credentials: LoginDto) => Promise<void>
   logout: () => Promise<void>
-  changePassword: (data: ChangePasswordDto) => Promise<void>
-  refreshUser: () => Promise<void>
+  checkAuth: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-interface AuthProviderProps {
-  children: React.ReactNode
-}
-
-export function AuthProvider({ children }: AuthProviderProps) {
+export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null)
-  const [isInitialized, setIsInitialized] = useState(false)
-  
-  const { 
-    data: profileData, 
-    isLoading: profileLoading, 
-    error: profileError,
-    refetch: refetchProfile 
-  } = useProfile()
-  
-  const changePasswordMutation = useChangePassword()
+  const [isLoading, setIsLoading] = useState(true)
+  const router = useRouter()
+  const queryClient = useQueryClient()
 
-  // Initialize auth state từ profile API (dựa vào HTTP-only cookie)
-  useEffect(() => {
-    if (!profileLoading) {
-      if (profileData) {
-        setUser(profileData)
-      } else if (profileError) {
-        setUser(null)
-      }
-      setIsInitialized(true)
-    }
-  }, [profileData, profileLoading, profileError])
+  const isAuthenticated = !!user
 
-  // Login function - return user data, let AuthGuard handle redirect
-  const login = useCallback(async (employeeCode: string, password: string, rememberMe?: boolean): Promise<User> => {
+  const clearUserData = useCallback((previousUserId?: string) => {
+    setUser(null)
+    // Clear all user-specific caches
+    clearUserCaches(queryClient, previousUserId)
+    // Không cần clear localStorage vì backend sử dụng HTTP-only cookies
+  }, [queryClient])
+
+  const checkAuth = useCallback(async () => {
     try {
+      setIsLoading(true)
       
-      const response = await AuthService.login({ 
-        employeeCode, 
-        password, 
-        rememberMe 
+      // Backend sử dụng HTTP-only cookies, gọi API profile để verify
+      const userData = await AuthService.getProfile()
+      
+      // Check if this is a different user
+      const previousUserId = user?.id
+      const newUserId = userData.id
+      
+      if (previousUserId && previousUserId !== newUserId) {
+        // Clear previous user's cache
+        clearUserCaches(queryClient, previousUserId)
+        console.log('🔄 Cleared cache for previous user:', previousUserId)
+      }
+      
+      setUser(userData)
+      console.log('✅ Auth check successful for user:', newUserId)
+    } catch (error) {
+      console.log('❌ Auth check failed:', error)
+      clearUserData(user?.id)
+    } finally {
+      setIsLoading(false)
+    }
+  }, [user?.id, queryClient, clearUserData])
+
+  const login = useCallback(async (credentials: LoginDto) => {
+    try {
+      const previousUserId = user?.id
+      
+      // Backend xử lý cả MSNV (số) và email prefix (chữ)
+      console.log('🔑 Attempting login with:', {
+        employeeCode: credentials.employeeCode,
+        isNumeric: /^\d+$/.test(credentials.employeeCode),
+        isEmailPrefix: /^[a-zA-Z][a-zA-Z0-9]*$/.test(credentials.employeeCode),
+        rememberMe: credentials.rememberMe
       })
       
+      const response = await AuthService.login(credentials)
       
-      // Update user state immediately
+      // Clear previous user's cache if exists
+      if (previousUserId) {
+        clearUserCaches(queryClient, previousUserId)
+      }
+      
+      // Backend trả về user data và tự động set HTTP-only cookie
       setUser(response.user)
       
-      // Invalidate and refetch profile to sync with backend
-      await refetchProfile()
+      console.log('✅ Login successful for user:', response.user.id)
       
+      // Navigate to dashboard after successful login
+      router.push('/dashboard')
       toast.success('Đăng nhập thành công!')
-      
-      // Return user data for AuthGuard to handle redirect
-      return response.user
     } catch (error: any) {
-      console.error('[AUTH PROVIDER] Login error:', error)
-      const errorMessage = error.response?.data?.message || error.message || 'Đăng nhập thất bại'
-      toast.error(errorMessage)
+      console.error('❌ Login failed:', error)
+      clearUserData(user?.id)
+      
+      const message = error?.message || 'Đăng nhập thất bại'
+      toast.error(message)
       throw error
     }
-  }, [refetchProfile])
+  }, [user?.id, router, queryClient, clearUserData])
 
-  // Logout function - clear user state, let AuthGuard handle redirect
   const logout = useCallback(async () => {
     try {
+      const currentUserId = user?.id
       
+      // Call backend logout để clear HTTP-only cookie
       await AuthService.logout()
       
-      // Clear user state
-      setUser(null)
+      // Clear user data and caches
+      clearUserData(currentUserId)
       
+      console.log('✅ Logout successful for user:', currentUserId)
+      
+      // Navigate to login page
+      router.push('/login')
       toast.success('Đăng xuất thành công!')
     } catch (error: any) {
-      console.error('[AUTH PROVIDER] Logout error:', error)
+      console.error('❌ Logout failed:', error)
       
-      // Still clear state even if logout API fails
-      setUser(null)
+      // Force clear user data even if logout API fails
+      clearUserData(user?.id)
+      router.push('/login')
       
-      // Show warning but don't block logout
-      toast.error('Có lỗi khi đăng xuất, nhưng bạn đã được đăng xuất')
+      toast.error('Đã có lỗi xảy ra khi đăng xuất')
     }
-  }, [])
+  }, [user?.id, router, clearUserData])
 
-  // Change password function
-  const changePassword = useCallback(async (data: ChangePasswordDto) => {
-    try {
-      await changePasswordMutation.mutateAsync(data)
-      toast.success('Đổi mật khẩu thành công!')
-    } catch (error: any) {
-      console.error('[AUTH PROVIDER] Change password error:', error)
-      const errorMessage = error.response?.data?.message || error.message || 'Đổi mật khẩu thất bại'
-      toast.error(errorMessage)
-      throw error
-    }
-  }, [changePasswordMutation])
-
-  // Refresh user data
-  const refreshUser = useCallback(async () => {
-    try {
-      console.log('[AUTH PROVIDER] Refreshing user data...')
-      const updatedProfile = await refetchProfile()
-      if (updatedProfile.data) {
-        setUser(updatedProfile.data)
-      } else {
-        setUser(null)
-      }
-    } catch (error) {
-      console.error('[AUTH PROVIDER] Error refreshing user:', error)
-      setUser(null)
-    }
-  }, [refetchProfile])
-
-  // Auto-refresh user data periodically (only in production)
+  // Initial auth check - chỉ chạy một lần khi mount
   useEffect(() => {
-    if (!user || !isInitialized || process.env.NODE_ENV !== 'production') return
-
-    // Refresh every 10 minutes in production
-    const interval = setInterval(() => {
-      refreshUser()
-    }, 10 * 60 * 1000)
-
-    return () => clearInterval(interval)
-  }, [user, isInitialized, refreshUser])
-
-  // Check session validity on window focus (only in production)
-  useEffect(() => {
-    if (process.env.NODE_ENV !== 'production') return
-
-    const handleFocus = () => {
-      if (user && isInitialized) {
-        refreshUser()
-      }
-    }
-
-    window.addEventListener('focus', handleFocus)
-    return () => window.removeEventListener('focus', handleFocus)
-  }, [user, isInitialized, refreshUser])
-
-  const contextValue: AuthContextType = {
-    user,
-    isLoading: !isInitialized || profileLoading,
-    isAuthenticated: !!user && !profileError,
-    error: profileError,
-    login,
-    logout,
-    changePassword,
-    refreshUser,
-  }
+    checkAuth()
+  }, []) // Bỏ checkAuth khỏi dependencies để tránh infinite loop
 
   return (
-    <AuthContext.Provider value={contextValue}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated,
+        isLoading,
+        login,
+        logout,
+        checkAuth,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

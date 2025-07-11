@@ -12,6 +12,7 @@ import { Checkbox } from "../ui/checkbox"
 import { Label } from "../ui/label"
 import { FormField } from "../ui/form-field"
 import { SubmitButton } from "../ui/submit-button"
+import { useLogin } from "@/hooks/use-auth"
 
 // Fixed animation variants with proper TypeScript types
 const containerVariants: Variants = {
@@ -44,7 +45,7 @@ const itemVariants: Variants = {
 }
 
 export function LoginPage() {
-  const { login, isLoading } = useAuth()
+  const loginMutation = useLogin(); // Renamed for clarity
   const shouldReduceMotion = useReducedMotion()
 
   const {
@@ -64,11 +65,19 @@ export function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      await login(data.employeeCode, data.password, data.rememberMe)
+      // Use mutateAsync from the mutation object
+      await loginMutation.mutateAsync({
+        employeeCode: data.employeeCode,
+        password: data.password,
+        rememberMe: data.rememberMe
+      })
     } catch (error) {
       console.error("[LoginPage] Login error:", error)
     }
   }
+
+  // Get loading state from mutation
+  const isLoading = loginMutation.isPending
 
   console.log("[LoginPage] Rendered with reduced motion:", errors)
 

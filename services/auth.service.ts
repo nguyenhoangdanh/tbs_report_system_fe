@@ -5,9 +5,9 @@ import type {
   ChangePasswordDto, 
   ForgotPasswordDto,
   ResetPasswordDto,
-  AuthResponse,
   User,
-  ForgotPasswordResponse
+  ForgotPasswordResponse,
+  AuthResponse
 } from '@/types'
 
 export class AuthService {

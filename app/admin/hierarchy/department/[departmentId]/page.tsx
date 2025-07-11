@@ -21,6 +21,9 @@ import { RankingSummaryCard } from '@/components/hierarchy/ranking-summary-card'
 import { getPerformanceBadge, getPerformanceColor } from '@/utils/performance-classification'
 import { Progress } from '@/components/ui/progress'
 import { calculatePerformanceDistribution } from '@/utils/performance-classification'
+import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { ErrorMessage } from '@/components/ui/error-message'
+import { formatWorkWeekRange } from '@/utils/week-utils'
 
 function DepartmentDetailsContent() {
   const { user } = useAuth()
@@ -163,7 +166,7 @@ function DepartmentDetailsContent() {
         title="Không có quyền truy cập"
         showBreadcrumb
         breadcrumbItems={[
-          { label: 'Dashboard', href: '/dashboard' },
+          { label: 'Trang chủ', href: '/dashboard' },
           { label: 'Admin', href: '/admin' },
           { label: 'Báo cáo KH & KQCV', href: '/admin/hierarchy' },
           { label: 'Chi tiết phòng ban', href: '#' }
@@ -184,9 +187,9 @@ function DepartmentDetailsContent() {
 
   if (isLoading) {
     return (
-      <MainLayout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <AppLoading text="Đang tải chi tiết phòng ban..." />
+      <MainLayout title="Chi tiết phòng ban">
+        <div className="flex items-center justify-center min-h-[400px]">
+          <LoadingSpinner />
         </div>
       </MainLayout>
     )
@@ -313,7 +316,7 @@ function DepartmentDetailsContent() {
     const userRole = user?.role
     
     if (userRole === 'OFFICE_ADMIN') {
-      return 'Về Dashboard'
+      return 'Về Trang chủ'
     }
     if (userRole === 'OFFICE_MANAGER') {
       return 'Về trang văn phòng'

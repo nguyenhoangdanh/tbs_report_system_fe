@@ -65,7 +65,11 @@ function ForgotPasswordContent() {
   const handleVerify = async (data: ForgotPasswordFormData) => {
     setIsLoading(true);
     try {
-      const response = await AuthService.forgotPassword(data);
+      // Use the AuthService directly since useForgotPassword expects different params
+      const response = await AuthService.forgotPassword({
+        employeeCode: data.employeeCode,
+        phone: data.phone
+      });
       setUserInfo(response.user);
       setVerifyData(data);
       setStep('reset');
@@ -80,6 +84,7 @@ function ForgotPasswordContent() {
   const handleReset = async (data: ResetPasswordFormData) => {
     setIsLoading(true);
     try {
+      // Use the AuthService directly
       await AuthService.resetPassword({
         employeeCode: verifyData.employeeCode,
         phone: verifyData.phone,

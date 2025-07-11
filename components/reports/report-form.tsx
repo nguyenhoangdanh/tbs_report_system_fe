@@ -7,9 +7,89 @@ import { AlertCircle, Trash2, ChevronLeft, ChevronRight, Calendar, Save } from '
 import { TaskTable } from './task-table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'react-toast-kit'
-import { getCurrentWeek, isValidWeekForCreation, isValidWeekForEdit, getAvailableWeeksForReporting, isValidWeekForDeletion } from '@/utils/week-utils'
-import type { WeeklyReport, TaskReport } from '@/types'
+import { getCurrentWeek, isValidWeekForCreation, WeekValidationResult, getWorkWeekRange, formatWorkWeek } from '@/utils/week-utils'
+import type { WeeklyReport, Task } from '@/types'
 import { SubmitButton } from '../ui/submit-button'
+
+// Helper functions for week validation
+function isValidWeekForEdit(weekNumber: number, year: number): WeekValidationResult {
+  return isValidWeekForCreation(weekNumber, year)
+}
+
+function isValidWeekForDeletion(weekNumber: number, year: number): WeekValidationResult {
+  const current = getCurrentWeek()
+  
+  // Current week
+  if (weekNumber === current.weekNumber && year === current.year) {
+    return { isValid: true }
+  }
+  
+  // Next week
+  let nextWeek = current.weekNumber + 1
+  let nextYear = current.year
+  if (nextWeek > 52) {
+    nextWeek = 1
+    nextYear = current.year + 1
+  }
+  
+  if (weekNumber === nextWeek && year === nextYear) {
+    return { isValid: true }
+  }
+  
+  return { 
+    isValid: false, 
+    reason: 'Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo' 
+  }
+}
+
+// Mock function for getting available weeks
+function getAvailableWeeksForReporting() {
+  const current = getCurrentWeek()
+  const weeks = []
+  
+  // Previous week
+  let prevWeek = current.weekNumber - 1
+  let prevYear = current.year
+  if (prevWeek < 1) {
+    prevWeek = 52
+    prevYear = current.year - 1
+  }
+  
+  weeks.push({
+    weekNumber: prevWeek,
+    year: prevYear,
+    isCurrent: false,
+    isPast: true,
+    isFuture: false
+  })
+  
+  // Current week
+  weeks.push({
+    weekNumber: current.weekNumber,
+    year: current.year,
+    isCurrent: true,
+    isPast: false,
+    isFuture: false
+  })
+  
+  // Next week
+  let nextWeek = current.weekNumber + 1
+  let nextYear = current.year
+  if (nextWeek > 52) {
+    nextWeek = 1
+    nextYear = current.year + 1
+  }
+  
+  weeks.push({
+    weekNumber: nextWeek,
+    year: nextYear,
+    isCurrent: false,
+    isPast: false,
+    isFuture: true
+  })
+  
+  return weeks
+}
 
 interface ReportFormProps {
   report?: WeeklyReport | null
@@ -36,7 +116,7 @@ export const ReportForm = memo(function ReportForm({
 
   const [weekNumber, setWeekNumber] = useState(propWeekNumber || report?.weekNumber || currentWeek.weekNumber)
   const [year, setYear] = useState(propYear || report?.year || currentWeek.year)
-  const [tasks, setTasks] = useState<TaskReport[]>([])
+  const [tasks, setTasks] = useState<Task[]>([])
   const [isSaving, setIsSaving] = useState(false)
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
@@ -63,7 +143,7 @@ export const ReportForm = memo(function ReportForm({
 
   // Validate permissions
   const { canEdit, validation } = useMemo(() => {
-    let validationResult
+    let validationResult: WeekValidationResult
     if (report) {
       validationResult = isValidWeekForEdit(weekNumber, year)
     } else {
@@ -87,6 +167,14 @@ export const ReportForm = memo(function ReportForm({
     if (weekInfo?.isFuture) return { label: 'Tuần tiếp theo', color: 'text-blue-600' }
     return { label: '', color: 'text-muted-foreground' }
   }, [weekNumber, year, availableWeeks])
+
+  // Get work week display info
+  const workWeekDisplayInfo = useMemo(() => {
+    if (weekNumber && year) {
+      return getWorkWeekRange(weekNumber, year).displayInfo;
+    }
+    return null;
+  }, [weekNumber, year]);
 
   // Week navigation handlers - Allow navigation to any week in the year
   const handlePreviousWeek = useCallback(() => {
@@ -143,22 +231,6 @@ export const ReportForm = memo(function ReportForm({
   const navigationAvailable = useMemo(() => {
     const currentWeekInfo = getCurrentWeek()
 
-    // Check previous week - always allow navigation
-    let prevWeekNumber = weekNumber - 1
-    let prevYear = year
-    if (prevWeekNumber < 1) {
-      prevWeekNumber = 52
-      prevYear = year - 1
-    }
-
-    // Check next week - always allow navigation
-    let nextWeekNumber = weekNumber + 1
-    let nextYear = year
-    if (nextWeekNumber > 52) {
-      nextWeekNumber = 1
-      nextYear = year + 1
-    }
-
     // Check if current week is different
     const isCurrentWeek = weekNumber === currentWeekInfo.weekNumber && year === currentWeekInfo.year
 
@@ -193,7 +265,7 @@ export const ReportForm = memo(function ReportForm({
   const handleAddTask = useCallback(() => {
     if (!canEdit) return
 
-    const newTask: TaskReport = {
+    const newTask: Task = {
       id: `temp-${Date.now()}-${Math.random()}`,
       taskName: '',
       monday: false,
@@ -202,7 +274,6 @@ export const ReportForm = memo(function ReportForm({
       thursday: false,
       friday: false,
       saturday: false,
-      sunday: false,
       isCompleted: false,
       reasonNotDone: '',
       reportId: report?.id || '',
@@ -217,7 +288,7 @@ export const ReportForm = memo(function ReportForm({
     setTasks(prev => {
       const taskExists = prev.find(task => task.id === taskId)
       if (!taskExists) {
-        const newTask: TaskReport = {
+        const newTask: Task = {
           id: taskId,
           taskName: field === 'taskName' ? value : '',
           monday: field === 'monday' ? value : false,
@@ -226,7 +297,6 @@ export const ReportForm = memo(function ReportForm({
           thursday: field === 'thursday' ? value : false,
           friday: field === 'friday' ? value : false,
           saturday: field === 'saturday' ? value : false,
-          sunday: field === 'sunday' ? value : false,
           isCompleted: field === 'isCompleted' ? value : false,
           reasonNotDone: field === 'reasonNotDone' ? value : '',
           reportId: report?.id || '',
@@ -305,7 +375,6 @@ export const ReportForm = memo(function ReportForm({
             thursday: task.thursday || false,
             friday: task.friday || false,
             saturday: task.saturday || false,
-            sunday: task.sunday || false,
             isCompleted: task.isCompleted || false,
             reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined)
           }))
@@ -322,7 +391,6 @@ export const ReportForm = memo(function ReportForm({
             thursday: task.thursday || false,
             friday: task.friday || false,
             saturday: task.saturday || false,
-            sunday: task.sunday || false,
             isCompleted: task.isCompleted || false,
             reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined)
           }))
@@ -361,10 +429,23 @@ export const ReportForm = memo(function ReportForm({
           <div className="text-center space-y-4">
             <div>
               <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
-                Tuần {weekNumber} - {year}
+                {workWeekDisplayInfo?.weekTitle || `Tuần ${weekNumber} - ${year}`}
               </h2>
+              {workWeekDisplayInfo && (
+                <div className="space-y-1">
+                  <div className="text-sm text-gray-600 dark:text-gray-400">
+                    {workWeekDisplayInfo.dateRange}
+                  </div>
+                  <div className="text-xs text-gray-500 dark:text-gray-500">
+                    {workWeekDisplayInfo.workDaysText}
+                  </div>
+                  <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
+                    {workWeekDisplayInfo.resultDaysText}
+                  </div>
+                </div>
+              )}
               {weekTypeInfo.label && (
-                <div className={`text-sm font-medium ${weekTypeInfo.color}`}>
+                <div className={`text-sm font-medium ${weekTypeInfo.color} mt-2`}>
                   {weekTypeInfo.label}
                 </div>
               )}
@@ -524,14 +605,6 @@ export const ReportForm = memo(function ReportForm({
             isSaving={isSaving}
           />
           <div className="flex justify-end items-center gap-2">
-            {/* <SubmitButton
-              disabled={isSaving}
-              onClick={canEditCurrentWeek && tasks.length > 0 ? handleSave : undefined} // Use new validation
-              loading={isSaving}
-              text='Lưu báo cáo'
-              icon={<Save className="w-4 h-4" />}
-              className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700"
-            /> */}
             {/* Save button for new or existing reports */}
             {(tasks.length !== 0) && (
               <SubmitButton

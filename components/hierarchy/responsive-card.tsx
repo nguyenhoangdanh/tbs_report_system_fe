@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button'
 import { SimplePieChart } from '@/components/charts/simple-pie-chart'
 import { ExternalLink, Eye } from 'lucide-react'
 import Link from 'next/link'
+import { getPerformanceColor, getProgressBarStyle, classifyPerformance } from '@/utils/performance-classification'
 
 interface ResponsiveCardProps {
   title: string
@@ -46,23 +47,9 @@ export const ResponsiveCard = memo(function ResponsiveCard({
 }: ResponsiveCardProps) {
   const incomplete = total - completed
   
-  const getPerformanceColor = (rate?: number) => {
-    if (!rate) return 'text-muted-foreground'
-    if (rate === 100) return 'text-purple-600 dark:text-purple-400' // GIỎI - Màu tím
-    if (rate >= 95) return 'text-green-600 dark:text-green-400' // KHÁ - Màu xanh lá
-    if (rate >= 90) return 'text-yellow-600 dark:text-yellow-400' // TB - Màu vàng
-    if (rate >= 85) return 'text-orange-600 dark:text-orange-400' // YẾU - Màu cam
-    return 'text-red-600 dark:text-red-400' // KÉM - Màu đỏ
-  }
-
-  const getProgressBarColor = (rate?: number) => {
-    if (!rate) return 'bg-muted'
-    if (rate === 100) return 'bg-gradient-to-r from-purple-500 to-purple-600' // GIỎI - Màu tím
-    if (rate >= 95) return 'bg-gradient-to-r from-green-500 to-green-600' // KHÁ - Màu xanh lá
-    if (rate >= 90) return 'bg-gradient-to-r from-yellow-500 to-yellow-600' // TB - Màu vàng
-    if (rate >= 85) return 'bg-gradient-to-r from-orange-500 to-orange-600' // YẾU - Màu cam
-    return 'bg-gradient-to-r from-red-500 to-red-600' // KÉM - Màu đỏ
-  }
+  const performanceColors = getPerformanceColor(reportSubmissionRate)
+  const progressBarStyle = getProgressBarStyle(reportSubmissionRate)
+  const classification = classifyPerformance(reportSubmissionRate)
 
   const handleNavigation = () => {
     if (onNavigate) {
@@ -127,7 +114,7 @@ export const ResponsiveCard = memo(function ResponsiveCard({
             ))}
           </div>
 
-          {/* Progress Section */}
+          {/* Progress Section - Updated colors */}
           <div className="relative rounded-xl bg-gradient-to-br from-muted/30 to-muted/50 dark:from-muted/20 dark:to-muted/40 p-4 sm:p-5">
             <div className="flex items-center justify-between">
               <div className="flex-1">
@@ -135,16 +122,31 @@ export const ResponsiveCard = memo(function ResponsiveCard({
                   <span className="text-sm font-medium text-muted-foreground">
                     Tỷ lệ nộp báo cáo
                   </span>
-                  <span className={`text-sm font-bold ${getPerformanceColor(reportSubmissionRate)}`}>
-                    {reportSubmissionRate}%
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={`text-sm font-bold`} style={{ color: performanceColors.text }}>
+                      {reportSubmissionRate}%
+                    </span>
+                    <Badge 
+                      className="text-xs px-2 py-1"
+                      style={{ 
+                        backgroundColor: classification.color,
+                        color: 'white',
+                        borderColor: classification.borderColor
+                      }}
+                    >
+                      {classification.label}
+                    </Badge>
+                  </div>
                 </div>
                 
-                {/* Custom Progress Bar */}
+                {/* Custom Progress Bar with PERFORMANCE_LEVELS colors */}
                 <div className="relative h-3 bg-muted rounded-full overflow-hidden shadow-inner">
                   <div 
-                    className={`h-full transition-all duration-700 ease-out ${getProgressBarColor(reportSubmissionRate)} shadow-sm`}
-                    style={{ width: `${reportSubmissionRate}%` }}
+                    className={`h-full transition-all duration-700 ease-out shadow-sm`}
+                    style={{ 
+                      width: `${reportSubmissionRate}%`,
+                      background: classification.color
+                    }}
                   >
                     <div className="h-full bg-gradient-to-r from-white/20 to-transparent" />
                   </div>

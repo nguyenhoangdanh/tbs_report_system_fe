@@ -16,9 +16,11 @@ const PROFILE_QUERY_KEYS = {
  */
 export function useProfile() {
   return useQuery({
-    queryKey: ['auth', 'profile'],
-    queryFn: AuthService.getProfile, // Use AuthService for authentication context
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryKey: PROFILE_QUERY_KEYS.profile,
+    queryFn: AuthService.getProfile,
+    staleTime: 2 * 60 * 1000, // 2 minutes - shorter for profile data
+    gcTime: 5 * 60 * 1000, // 5 minutes
+    refetchOnWindowFocus: false,
     retry: (failureCount, error: any) => {
       // Không retry nếu là lỗi 401 (Unauthorized)
       if (error?.status === 401 || error?.response?.status === 401) {
@@ -38,14 +40,35 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (data: UpdateProfileDto) => UserService.updateProfile(data),
     onSuccess: (updatedUser) => {
-      // Update both auth and user caches
-      queryClient.setQueryData(['auth', 'profile'], updatedUser)
+      console.log('✅ Profile updated successfully:', updatedUser.id)
+      
+      // Update profile cache immediately
+      queryClient.setQueryData(PROFILE_QUERY_KEYS.profile, updatedUser)
+      
+      // Also update other user-related caches
       queryClient.setQueryData(['users', 'profile'], updatedUser)
-      queryClient.invalidateQueries({ queryKey: ['auth', 'profile'] })
+      
+      // Invalidate and refetch to ensure consistency
+      queryClient.invalidateQueries({ 
+        queryKey: PROFILE_QUERY_KEYS.profile,
+        exact: true 
+      })
+      
+      // Invalidate user-specific queries to refresh with new user context
+      queryClient.invalidateQueries({ 
+        queryKey: ['reports', updatedUser.id],
+        exact: false 
+      })
+      
+      queryClient.invalidateQueries({ 
+        queryKey: ['statistics', updatedUser.id],
+        exact: false 
+      })
+      
       toast.success('Cập nhật thông tin cá nhân thành công!')
     },
-    onError: (error) => {
-      console.error('Update profile error:', error)
+    onError: (error: any) => {
+      console.error('❌ Update profile error:', error)
       toast.error(error.message || 'Cập nhật thông tin thất bại')
     },
     retry: 1,
@@ -59,33 +82,45 @@ export function useChangePassword() {
   return useMutation({
     mutationFn: (data: ChangePasswordDto) => AuthService.changePassword(data),
     onSuccess: () => {
+      console.log('✅ Password changed successfully')
       toast.success('Đổi mật khẩu thành công!')
     },
-    onError: (error) => {
-      console.error('Change password error:', error)
+    onError: (error: any) => {
+      console.error('❌ Change password error:', error)
       toast.error(error.message || 'Đổi mật khẩu thất bại')
     },
     retry: 1,
   })
 }
 
-
 /**
  * Combined hook for profile management
  */
 export function useProfileManagement() {
   const profile = useProfile()
-  const updateProfile = useUpdateProfile()
-  const changePassword = useChangePassword()
+  const updateProfileMutation = useUpdateProfile()
+  const changePasswordMutation = useChangePassword()
   
   return {
     user: profile.data,
     isLoading: profile.isLoading,
     error: profile.error,
-    updateProfile: updateProfile.mutateAsync,
-    changePassword: changePassword.mutateAsync,
-    isUpdating: updateProfile.isPending,
-    isChangingPassword: changePassword.isPending,
+    updateProfile: updateProfileMutation.mutateAsync,
+    changePassword: changePasswordMutation.mutateAsync,
+    isUpdating: updateProfileMutation.isPending,
+    isChangingPassword: changePasswordMutation.isPending,
     refetch: profile.refetch,
+    
+    // Status tracking
+    updateStatus: {
+      isSuccess: updateProfileMutation.isSuccess,
+      isError: updateProfileMutation.isError,
+      error: updateProfileMutation.error,
+    },
+    passwordStatus: {
+      isSuccess: changePasswordMutation.isSuccess,
+      isError: changePasswordMutation.isError,
+      error: changePasswordMutation.error,
+    }
   }
 }

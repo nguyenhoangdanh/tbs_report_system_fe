@@ -38,7 +38,7 @@ export function AppFooter() {
             <ul className="space-y-2 text-sm">
               <li>
                 <Link href="/dashboard" className="text-muted-foreground hover:text-foreground transition-colors">
-                  Dashboard
+                  Trang chủ
                 </Link>
               </li>
               <li>

@@ -1,6 +1,7 @@
 "use client";
 
 import { AuthService } from '@/services/auth.service'
+import { useAuth } from '@/components/providers/auth-provider'
 import type { RegisterDto, ChangePasswordDto, User, AuthResponse, LoginDto, ForgotPasswordDto, ResetPasswordDto, ForgotPasswordResponse } from '@/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
@@ -8,40 +9,32 @@ import { toast } from 'react-toast-kit'
 
 // Query keys for auth
 const AUTH_QUERY_KEYS = {
-  profile: ['auth', 'profile'] as const,
-  checkAuth: ['auth', 'check'] as const,
+  profile: (userId?: string) => ['auth', 'profile', userId] as const,
+  checkAuth: (userId?: string) => ['auth', 'check', userId] as const,
 }
 
 /**
- * Get current user profile
+ * Get current user profile - delegate to AuthProvider
  */
 export function useAuthProfile() {
-  return useQuery<User, Error>({
-    queryKey: AUTH_QUERY_KEYS.profile,
-    queryFn: AuthService.getProfile,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
-    refetchOnWindowFocus: false,
-    retry: 1,
-    throwOnError: false,
-  })
+  const { user, isLoading } = useAuth()
+  
+  return {
+    data: user,
+    isLoading,
+    error: null,
+    refetch: () => Promise.resolve(user)
+  }
 }
 
 /**
- * Login mutation
+ * Login mutation - delegate to AuthProvider
  */
 export function useLogin() {
-  return useMutation<AuthResponse, Error, LoginDto>({
-    mutationFn: (data: LoginDto) => AuthService.login(data),
-    onSuccess: (response) => {
-      // Let AuthGuard handle navigation based on user role
-      // This ensures consistent navigation logic
-      // window.location.replace('/dashboard') // Temporary redirect, AuthGuard will handle proper routing
-    },
-    onError: (error) => {
-      console.error('Login error:', error)
-      toast.error(error.message || 'Đăng nhập thất bại')
-    },
+  const { login } = useAuth()
+  
+  return useMutation<void, Error, LoginDto>({
+    mutationFn: (data: LoginDto) => login(data),
     retry: 1,
   })
 }
@@ -57,14 +50,6 @@ export function useRegister() {
     mutationFn: (data: RegisterDto) => AuthService.register(data),
     onSuccess: (response) => {
       // Backend handles HTTP-only cookie authentication
-      // No need to handle access_token in frontend
-      
-      // Update profile cache with user data
-      queryClient.setQueryData(AUTH_QUERY_KEYS.profile, response.user)
-      
-      // Invalidate auth queries
-      queryClient.invalidateQueries({ queryKey: ['auth'] })
-      
       toast.success(response.message || 'Đăng ký thành công!')
       
       // Redirect to dashboard
@@ -79,32 +64,13 @@ export function useRegister() {
 }
 
 /**
- * Logout mutation
+ * Logout mutation - delegate to AuthProvider
  */
 export function useLogout() {
-  const queryClient = useQueryClient()
-  const router = useRouter()
+  const { logout } = useAuth()
   
   return useMutation<void, Error, void>({
-    mutationFn: () => AuthService.logout(),
-    onSuccess: () => {
-      console.log('Logout successful')
-      // Không cần xóa localStorage vì không lưu token
-      // Backend sẽ clear HTTP-only cookie
-    },
-    onError: (error) => {
-      console.error('Logout error:', error)
-      
-      // Still clear cache and redirect even if API call fails
-      queryClient.clear()
-      
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token')
-      }
-      
-      toast.error(error.message || 'Đăng xuất thất bại')
-      router.push('/auth/login')
-    },
+    mutationFn: () => logout(),
     retry: 1,
   })
 }
@@ -127,11 +93,14 @@ export function useChangePassword() {
 }
 
 /**
- * Forgot password mutation
+ * Forgot password mutation - Phù hợp với backend (employeeCode + phone)
  */
 export function useForgotPassword() {
-  return useMutation<ForgotPasswordResponse, Error, ForgotPasswordDto>({
-    mutationFn: (data: ForgotPasswordDto) => AuthService.forgotPassword(data),
+  return useMutation<ForgotPasswordResponse, Error, { employeeCode: string; phone: string }>({
+    mutationFn: (data) => AuthService.forgotPassword({
+      employeeCode: data.employeeCode,
+      phone: data.phone
+    }),
     onSuccess: (response) => {
       toast.success(response.message || 'Xác thực thông tin thành công!')
     },
@@ -144,13 +113,17 @@ export function useForgotPassword() {
 }
 
 /**
- * Reset password mutation
+ * Reset password mutation - Phù hợp với backend (employeeCode + phone)
  */
 export function useResetPassword() {
   const router = useRouter()
   
-  return useMutation<void, Error, ResetPasswordDto>({
-    mutationFn: (data: ResetPasswordDto) => AuthService.resetPassword(data),
+  return useMutation<void, Error, { employeeCode: string; phone: string; newPassword: string; confirmPassword: string }>({
+    mutationFn: (data) => AuthService.resetPassword({
+      employeeCode: data.employeeCode,
+      phone: data.phone,
+      newPassword: data.newPassword,
+    }),
     onSuccess: () => {
       toast.success('Đặt lại mật khẩu thành công!')
       router.push('/auth/login')
@@ -171,7 +144,6 @@ export function useRefreshToken() {
     mutationFn: AuthService.refreshToken,
     onSuccess: (response) => {
       console.log('Token refreshed successfully')
-      // Backend tự động set cookie mới
       return response
     },
     onError: (error: any) => {
@@ -181,34 +153,24 @@ export function useRefreshToken() {
 }
 
 /**
- * Check authentication status
+ * Check authentication status - delegate to AuthProvider
  */
 export function useAuthCheck() {
-  return useQuery<boolean, Error>({
-    queryKey: AUTH_QUERY_KEYS.checkAuth,
-    queryFn: async () => {
-      try {
-        // Check authentication via profile API call
-        // Backend will validate HTTP-only cookie
-        await AuthService.getProfile()
-        return true
-      } catch (error) {
-        return false
-      }
-    },
-    staleTime: 1 * 60 * 1000, // 1 minute
-    gcTime: 5 * 60 * 1000, // 5 minutes
-    refetchOnWindowFocus: false,
-    retry: 1,
-    throwOnError: false,
-  })
+  const { user, isLoading, checkAuth } = useAuth()
+  
+  return {
+    data: !!user,
+    isLoading,
+    error: null,
+    refetch: checkAuth
+  }
 }
 
 /**
  * Helper hook to get user permissions based on role
  */
 export function useAuthPermissions() {
-  const { data: user } = useAuthProfile()
+  const { user } = useAuth()
   
   if (!user) {
     return {
@@ -247,7 +209,7 @@ export function useAuthPermissions() {
  * Helper hook to get user display information
  */
 export function useAuthUser() {
-  const { data: user, isLoading, error } = useAuthProfile()
+  const { user, isLoading } = useAuth()
   
   const displayName = user ? `${user.firstName} ${user.lastName}`.trim() || user.employeeCode || 'Người dùng' : 'Người dùng'
   const fullName = user ? `${user.firstName} ${user.lastName}`.trim() : ''
@@ -255,7 +217,7 @@ export function useAuthUser() {
   return {
     user,
     isLoading,
-    error,
+    error: null,
     isAuthenticated: !!user,
     displayName,
     fullName,

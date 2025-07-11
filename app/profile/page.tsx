@@ -16,16 +16,27 @@ import { toast } from 'react-toast-kit'
 import type { JobPosition, Office } from '@/types'
 import { useProfileManagement } from '@/hooks/use-profile'
 import { FormField } from '@/components/ui/form-field'
-import { 
-  updateProfileSchema, 
-  changePasswordSchema, 
-  type UpdateProfileFormData, 
-  type ChangePasswordFormData 
+import {
+  updateProfileSchema,
+  changePasswordSchema,
+  type UpdateProfileFormData,
+  type ChangePasswordFormData
 } from '@/lib/validations/profile'
+import { Building2, Factory } from 'lucide-react'
 
 function ProfileContent() {
-  const { user, isAuthenticated, isLoading } = useAuth()
-  const { updateProfile, changePassword, isUpdating, isChangingPassword } = useProfileManagement()
+  // Use useProfileManagement instead of useAuth for profile data
+  const {
+    user,
+    isLoading,
+    updateProfile,
+    changePassword,
+    isUpdating,
+    isChangingPassword,
+    refetch
+  } = useProfileManagement()
+
+  const { isAuthenticated, checkAuth } = useAuth() // Only for authentication status
   const router = useRouter()
 
   const [activeTab, setActiveTab] = useState<'info' | 'password'>('info')
@@ -33,7 +44,7 @@ function ProfileContent() {
   const [offices, setOffices] = useState<Office[]>([])
   const [loadingData, setLoadingData] = useState(false)
 
-  // Profile form
+  // Profile form - Reset values when user data changes
   const profileForm = useForm<UpdateProfileFormData>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: {
@@ -42,10 +53,10 @@ function ProfileContent() {
       lastName: user?.lastName || '',
       email: user?.email || '',
       phone: user?.phone || '',
-      jobPositionId: user?.jobPosition.id || '',
-      officeId: user?.officeId || '',
+      jobPositionId: user?.jobPosition?.id || '',
+      officeId: user?.office?.id || '',
     },
-    mode: 'onChange', // Validate on change for better UX
+    mode: 'onChange',
   })
 
   // Password form
@@ -102,7 +113,7 @@ function ProfileContent() {
     try {
       // Only send changed fields
       const updateData: Partial<UpdateProfileFormData> = {}
-      
+
       if (data.employeeCode !== user?.employeeCode) {
         updateData.employeeCode = data.employeeCode
       }
@@ -118,10 +129,10 @@ function ProfileContent() {
       if (data.phone !== (user?.phone || '')) {
         updateData.phone = data.phone || undefined
       }
-      if (data.jobPositionId !== user?.jobPositionId) {
+      if (data.jobPositionId !== user?.jobPosition?.id) {
         updateData.jobPositionId = data.jobPositionId
       }
-      if (data.officeId !== user?.officeId) {
+      if (data.officeId !== user?.office.id) {
         updateData.officeId = data.officeId
       }
       if (canEditRole && data.role !== user?.role) {
@@ -133,24 +144,37 @@ function ProfileContent() {
         return
       }
 
+      // Use updateProfile from useProfileManagement - it will auto refresh data
       await updateProfile(updateData)
+
+      // Also refresh auth context to sync with updated profile
+      await checkAuth()
+
+      // Reload job positions and offices if office/role changed
+      if (updateData.officeId || updateData.role) {
+        await loadEditData()
+      }
+
     } catch (error: any) {
+      console.error('Profile update error:', error)
       toast.error(error.message || 'Cập nhật thất bại')
     }
   }
 
   const handleChangePassword = async (data: ChangePasswordFormData) => {
     try {
+      // Use changePassword from useProfileManagement
       await changePassword({
         currentPassword: data.currentPassword,
         newPassword: data.newPassword,
       })
-      
+
       // Reset form after successful password change
       passwordForm.reset()
-      toast.success('Đổi mật khẩu thành công')
+      // Success toast is handled in the hook
     } catch (error: any) {
-      toast.error(error.message || 'Đổi mật khẩu thất bại')
+      console.error('Password change error:', error)
+      // Error toast is handled in the hook
     }
   }
 
@@ -159,14 +183,27 @@ function ProfileContent() {
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-center">
           <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Đang tải...</p>
+          <p className="text-muted-foreground">Đang tải thông tin cá nhân...</p>
         </div>
       </div>
     )
   }
 
   if (!user) {
-    return null
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <div className="text-center">
+          <p className="text-muted-foreground">Không thể tải thông tin người dùng</p>
+          <Button
+            onClick={() => refetch()}
+            variant="outline"
+            className="mt-4"
+          >
+            Thử lại
+          </Button>
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -175,7 +212,7 @@ function ProfileContent() {
       subtitle="Quản lý thông tin tài khoản và cài đặt bảo mật"
       showBreadcrumb
       breadcrumbItems={[
-        { label: 'Dashboard', href: '/dashboard' },
+        { label: 'Trang chủ', href: '/dashboard' },
         { label: 'Thông tin cá nhân' }
       ]}
     >
@@ -197,33 +234,30 @@ function ProfileContent() {
                   <p className="text-muted-foreground text-sm">
                     {user.employeeCode}
                   </p>
-                  <span className={`mt-2 px-3 py-1 rounded-full text-xs font-medium ${
-                    user.role === 'SUPERADMIN' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
+                  <span className={`mt-2 px-3 py-1 rounded-full text-xs font-medium ${user.role === 'SUPERADMIN' ? 'bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-300' :
                     user.role === 'ADMIN' ? 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300' :
-                    'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
-                  }`}>
-                    {user.jobPosition?.position?.description || 'Chưa phân công'}
+                      'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300'
+                    }`}>
+                    {user.jobPosition?.position?.description}
                   </span>
                 </div>
 
                 <nav className="space-y-2">
                   <button
                     onClick={() => setActiveTab('info')}
-                    className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                      activeTab === 'info'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 font-medium'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                    }`}
+                    className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${activeTab === 'info'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                      }`}
                   >
                     👤 Thông tin cá nhân
                   </button>
                   <button
                     onClick={() => setActiveTab('password')}
-                    className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${
-                      activeTab === 'password'
-                        ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 font-medium'
-                        : 'text-muted-foreground hover:text-foreground hover:bg-accent'
-                    }`}
+                    className={`w-full text-left px-4 py-3 rounded-lg transition-colors ${activeTab === 'password'
+                      ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300 font-medium'
+                      : 'text-muted-foreground hover:text-foreground hover:bg-accent'
+                      }`}
                   >
                     🔒 Đổi mật khẩu
                   </button>
@@ -244,25 +278,44 @@ function ProfileContent() {
                   <CardHeader>
                     <CardTitle>Thông tin cá nhân</CardTitle>
                     <CardDescription>
-                      Cập nhật thông tin cá nhân của bạn. Các trường có dấu * là bắt buộc.
+                      Cập nhật thông tin cá nhân của bạn. Các trường có dấu
+                      <span className="text-red-500 text-center">{` (*) `}</span>
+                      là bắt buộc.
                     </CardDescription>
                   </CardHeader>
                   <CardContent>
                     <form onSubmit={profileForm.handleSubmit(handleSaveProfile)} className="space-y-6">
-                      {/* Employee Code */}
-                      <Controller
-                        name="employeeCode"
-                        control={profileForm.control}
-                        render={({ field, fieldState }) => (
-                          <FormField
-                            label="Mã nhân viên"
-                            placeholder="CEO001, EMP001..."
-                            required
-                            {...field}
-                            error={fieldState.error?.message}
-                          />
-                        )}
-                      />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {/* Employee Code */}
+                        <Controller
+                          name="employeeCode"
+                          control={profileForm.control}
+                          render={({ field, fieldState }) => (
+                            <FormField
+                              label="Mã nhân viên"
+                              placeholder="CEO001, EMP001..."
+                              required
+                              {...field}
+                              error={fieldState.error?.message}
+                            />
+                          )}
+                        />
+
+                        <Controller
+                          name="phone"
+                          control={profileForm.control}
+                          render={({ field, fieldState }) => (
+                            <FormField
+                              required
+                              label="Số điện thoại"
+                              placeholder="0123456789"
+                              maxLength={10}
+                              {...field}
+                              error={fieldState.error?.message}
+                            />
+                          )}
+                        />
+                      </div>
 
                       {/* Name */}
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -294,6 +347,8 @@ function ProfileContent() {
                         />
                       </div>
 
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+
                       {/* Contact Info */}
                       <Controller
                         name="email"
@@ -310,20 +365,7 @@ function ProfileContent() {
                         )}
                       />
 
-                      <Controller
-                        name="phone"
-                        control={profileForm.control}
-                        render={({ field, fieldState }) => (
-                          <FormField
-                            label="Số điện thoại"
-                            placeholder="0123456789"
-                            description="Không bắt buộc"
-                            maxLength={10}
-                            {...field}
-                            error={fieldState.error?.message}
-                          />
-                        )}
-                      />
+
 
                       {/* Work Info */}
                       <div className="space-y-2">
@@ -345,7 +387,9 @@ function ProfileContent() {
                                   {offices.map((office) => (
                                     <SelectItem key={office.id} value={office.id}>
                                       <div className="flex items-center gap-2">
-                                        <span>{office.type === 'HEAD_OFFICE' ? '🏢' : '🏭'}</span>
+                                        {office.type === 'HEAD_OFFICE'
+                                          ? <Building2 className="w-4 h-4 text-green-500" />
+                                          : <Factory className="w-4 h-4 text-red-500" />}
                                         {office.name}
                                       </div>
                                     </SelectItem>
@@ -358,7 +402,8 @@ function ProfileContent() {
                             </div>
                           )}
                         />
-                      </div>
+                        </div>
+                        </div>
 
                       <div className="space-y-2">
                         <Label>Vị trí công việc <span className="text-red-500">*</span></Label>
@@ -373,12 +418,12 @@ function ProfileContent() {
                                 disabled={loadingData || !watchedOfficeId}
                               >
                                 <SelectTrigger>
-                                  <SelectValue 
+                                  <SelectValue
                                     placeholder={
-                                      loadingData ? "Đang tải..." : 
-                                      !watchedOfficeId ? "Chọn văn phòng trước" :
-                                      "Chọn vị trí công việc"
-                                    } 
+                                      loadingData ? "Đang tải..." :
+                                        !watchedOfficeId ? "Chọn văn phòng trước" :
+                                          "Chọn vị trí công việc"
+                                    }
                                   />
                                 </SelectTrigger>
                                 <SelectContent>
@@ -406,7 +451,7 @@ function ProfileContent() {
                       {canEditRole && (
                         <div className="space-y-2">
                           <Label>
-                            Vai trò 
+                            Vai trò
                             <span className="text-xs text-muted-foreground ml-2">(Chỉ Superadmin)</span>
                           </Label>
                           <Controller
@@ -432,17 +477,18 @@ function ProfileContent() {
                       <div className="bg-muted/50 p-4 rounded-lg">
                         <h4 className="font-medium text-sm mb-2">Thông tin bổ sung:</h4>
                         <div className="space-y-2 text-sm text-muted-foreground">
-                          <p>• <span className="font-medium">Phòng ban:</span> {user.jobPosition?.department?.name || 'Chưa phân công'}</p>
-                          <p>• <span className="font-medium">Chức vụ:</span> {user.jobPosition?.position?.name || 'Chưa phân công'}</p>
+                          <p>• <span className="font-medium">Phòng ban:</span> {user.jobPosition?.department?.name}</p>
+                          <p>• <span className="font-medium">Chức vụ:</span> {user.jobPosition?.position?.description}</p>
                           <p>• <span className="font-medium">Loại văn phòng:</span> {
-                            user.office?.type === 'HEAD_OFFICE' ? 'Văn phòng chính' : 
-                            user.office?.type === 'FACTORY_OFFICE' ? 'Văn phòng nhà máy' : 'Chưa phân công'
+                            user.office?.type === 'HEAD_OFFICE'
+                              ? 'Văn phòng điều hành tổ hợp'
+                              : 'Văn phòng nhà máy'
                           }</p>
                           <p>• <span className="font-medium">Ngày tạo:</span> {new Date(user.createdAt).toLocaleDateString('vi-VN')}</p>
                         </div>
                       </div>
 
-                      <div className="flex justify-end">
+                      <div className="flex justify-end gap-3">
                         <Button
                           type="submit"
                           disabled={isUpdating || !profileForm.formState.isValid}

@@ -28,16 +28,16 @@ export function AppHeader({
       case "SUPERADMIN":
       case "ADMIN":
         return "/admin/hierarchy";
-      case "OFFICE_MANAGER":
-        const officeId = user.office?.id || user.officeId;
-        return officeId ? `/admin/hierarchy/office/${officeId}` : "/dashboard";
-      case "OFFICE_ADMIN":
-        const departmentId =
-          user.jobPosition?.department?.id ||
-          user.jobPosition?.departmentId;
-        return departmentId
-          ? `/admin/hierarchy/department/${departmentId}`
-          : "/dashboard";
+      // case "OFFICE_MANAGER":
+      //   const officeId = user.office?.id || user.officeId;
+      //   return officeId ? `/admin/hierarchy/office/${officeId}` : "/dashboard";
+      // case "OFFICE_ADMIN":
+      //   const departmentId =
+      //     user.jobPosition?.department?.id ||
+      //     user.jobPosition?.departmentId;
+      //   return departmentId
+      //     ? `/admin/hierarchy/department/${departmentId}`
+      //     : "/dashboard";
       default:
         return "/dashboard";
     }

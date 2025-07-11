@@ -5,19 +5,32 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area } from 'recharts'
 import { Badge } from '@/components/ui/badge'
 import { useTheme } from 'next-themes'
-import { TrendingUp, TrendingDown, Minus } from 'lucide-react'
+import { TrendingUp, TrendingDown, Minus, Calendar } from 'lucide-react'
+
+interface WeeklyTrendsData {
+  weekNumber: number
+  year: number
+  totalReports: number
+  completedReports: number
+  totalTasks: number
+  completedTasks: number
+  taskCompletionRate: number
+  reportCompletionRate: number
+}
 
 interface WeeklyTrendsChartProps {
-  data: Array<{
-    week: string
-    completionRate: number
-    totalTasks: number
-    completedTasks: number
-  }>
+  data: WeeklyTrendsData[]
+  title?: string
+  height?: number
   className?: string
 }
 
-export const WeeklyTrendsChart = memo(({ data, className }: WeeklyTrendsChartProps) => {
+export const WeeklyTrendsChart = memo(({ 
+  data, 
+  title = 'Xu hướng hoàn thành theo tuần',
+  height = 300,
+  className = '' 
+}: WeeklyTrendsChartProps) => {
   const { theme } = useTheme()
   
   const colors = useMemo(() => {
@@ -108,6 +121,12 @@ export const WeeklyTrendsChart = memo(({ data, className }: WeeklyTrendsChartPro
     )
   }
 
+  // Calculate trend direction
+  const firstWeek = data[0]
+  const lastWeek = data[data.length - 1]
+  const taskTrend = lastWeek.taskCompletionRate - firstWeek.taskCompletionRate
+  const reportTrend = lastWeek.reportCompletionRate - firstWeek.reportCompletionRate
+
   return (
     <Card className={`${className} border-0 shadow-sm bg-gradient-to-br from-background to-muted/20`}>
       <CardHeader className="pb-4 border-b border-border/50">
@@ -139,52 +158,92 @@ export const WeeklyTrendsChart = memo(({ data, className }: WeeklyTrendsChartPro
         </div>
       </CardHeader>
       <CardContent className="p-6">
-        <ResponsiveContainer width="100%" height={350}>
-          <AreaChart data={data} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
-            <defs>
-              <linearGradient id="colorCompletion" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor={colors.gradient.start} />
-                <stop offset="95%" stopColor={colors.gradient.end} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke={colors.grid} />
-            <XAxis 
-              dataKey="week" 
-              tick={{ fill: colors.text, fontSize: 12 }}
-              axisLine={{ stroke: colors.grid }}
-              tickLine={{ stroke: colors.grid }}
-            />
-            <YAxis 
-              domain={[0, 100]}
-              tick={{ fill: colors.text, fontSize: 12 }}
-              axisLine={{ stroke: colors.grid }}
-              tickLine={{ stroke: colors.grid }}
-              label={{ 
-                value: 'Tỷ lệ (%)', 
-                angle: -90, 
-                position: 'insideLeft',
-                style: { textAnchor: 'middle', fill: colors.text }
-              }}
-            />
-            <Tooltip content={<CustomTooltip />} />
-            <Legend 
-              wrapperStyle={{ 
-                fontSize: '12px',
-                color: colors.text 
-              }}
-            />
-            <Area
-              type="monotone"
-              dataKey="completionRate"
-              stroke={colors.primary}
-              strokeWidth={3}
-              fill="url(#colorCompletion)"
-              dot={{ r: 6, fill: colors.primary, strokeWidth: 2, stroke: '#ffffff' }}
-              activeDot={{ r: 8, fill: colors.secondary, strokeWidth: 2, stroke: '#ffffff' }}
-              name="Tỷ lệ hoàn thành (%)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        {/* Summary Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+          <div className="text-center p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">
+              {Math.round(data.reduce((sum, week) => sum + week.taskCompletionRate, 0) / data.length)}%
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Trung bình Task</div>
+          </div>
+          <div className="text-center p-3 bg-green-50 dark:bg-green-900/20 rounded-lg">
+            <div className="text-2xl font-bold text-green-600 dark:text-green-400">
+              {Math.round(data.reduce((sum, week) => sum + week.reportCompletionRate, 0) / data.length)}%
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Trung bình Báo cáo</div>
+          </div>
+          <div className="text-center p-3 bg-purple-50 dark:bg-purple-900/20 rounded-lg">
+            <div className="flex items-center justify-center gap-1 text-lg font-bold">
+              {taskTrend > 0 ? (
+                <>
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                  <span className="text-green-600 dark:text-green-400">+{taskTrend.toFixed(1)}%</span>
+                </>
+              ) : (
+                <>
+                  <TrendingDown className="h-4 w-4 text-red-500" />
+                  <span className="text-red-600 dark:text-red-400">{taskTrend.toFixed(1)}%</span>
+                </>
+              )}
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Xu hướng Task</div>
+          </div>
+          <div className="text-center p-3 bg-orange-50 dark:bg-orange-900/20 rounded-lg">
+            <div className="flex items-center justify-center gap-1 text-lg font-bold">
+              {reportTrend > 0 ? (
+                <>
+                  <TrendingUp className="h-4 w-4 text-green-500" />
+                  <span className="text-green-600 dark:text-green-400">+{reportTrend.toFixed(1)}%</span>
+                </>
+              ) : (
+                <>
+                  <TrendingDown className="h-4 w-4 text-red-500" />
+                  <span className="text-red-600 dark:text-red-400">{reportTrend.toFixed(1)}%</span>
+                </>
+              )}
+            </div>
+            <div className="text-xs text-gray-600 dark:text-gray-400">Xu hướng Báo cáo</div>
+          </div>
+        </div>
+
+        {/* Weekly Data */}
+        <div className="space-y-3" style={{ maxHeight: height - 150, overflowY: 'auto' }}>
+          {data.map((week, index) => (
+            <div key={`${week.year}-${week.weekNumber}`} className="flex items-center gap-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg">
+              <div className="min-w-[80px] text-sm font-medium">
+                Tuần {week.weekNumber}/{week.year}
+              </div>
+              
+              {/* Task Progress */}
+              <div className="flex-1">
+                <div className="flex justify-between text-xs mb-1">
+                  <span>Tasks: {week.completedTasks}/{week.totalTasks}</span>
+                  <span className="font-medium">{week.taskCompletionRate}%</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-blue-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${week.taskCompletionRate}%` }}
+                  />
+                </div>
+              </div>
+
+              {/* Report Progress */}
+              <div className="flex-1">
+                <div className="flex justify-between text-xs mb-1">
+                  <span>Báo cáo: {week.completedReports}/{week.totalReports}</span>
+                  <span className="font-medium">{week.reportCompletionRate}%</span>
+                </div>
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                  <div 
+                    className="bg-green-500 h-2 rounded-full transition-all duration-500"
+                    style={{ width: `${week.reportCompletionRate}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
       </CardContent>
     </Card>
   )

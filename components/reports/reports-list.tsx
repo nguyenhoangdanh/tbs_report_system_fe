@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, memo, useMemo, useCallback, use } from 'react'
+import { useState, memo, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
@@ -9,13 +9,27 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Eye, Trash2, Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
-import { getCurrentWeek, getNextWeek } from '@/lib/date-utils'
+import { getCurrentWeek } from '@/utils/week-utils'
 import type { WeeklyReport } from '@/types'
+
+// Helper function to get next week
+function getNextWeek() {
+  const current = getCurrentWeek()
+  let nextWeekNumber = current.weekNumber + 1
+  let nextYear = current.year
+  
+  if (nextWeekNumber > 52) {
+    nextWeekNumber = 1
+    nextYear = current.year + 1
+  }
+  
+  return { weekNumber: nextWeekNumber, year: nextYear }
+}
 
 interface ReportsListProps {
   reports: WeeklyReport[]
   onViewReport: (report: WeeklyReport) => void
-  onEditReport: (report: WeeklyReport) => void // Add this missing prop
+  onEditReport: (report: WeeklyReport) => void
   onDeleteReport?: (reportId: string) => Promise<void>
   isLoading?: boolean
 }
@@ -109,7 +123,7 @@ const ReportCard = memo(function ReportCard({
               {stats.totalTasks - stats.completedTasks > 0 && (
                 <div className="flex items-center text-orange-500">
                   <XCircle className="w-4 h-4 mr-1" />
-                  {stats.totalTasks - stats.completedTasks} chưa xong
+                  {stats.totalTasks - stats.completedTasks} chưa hoàn thành
                 </div>
               )}
             </div>
@@ -148,7 +162,7 @@ ReportCard.displayName = 'ReportCard'
 export const ReportsList = memo(function ReportsList({
   reports,
   onViewReport,
-  onEditReport, // Add this parameter
+  onEditReport,
   onDeleteReport,
   isLoading = false
 }: ReportsListProps) {

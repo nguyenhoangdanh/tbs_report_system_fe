@@ -1,5 +1,8 @@
+import { startOfWeek, endOfWeek, format as dateFnsFormat, getWeek, getYear, addDays } from 'date-fns';
+import { vi } from 'date-fns/locale';
+
 /**
- * Frontend utility functions for week calculations and report deadlines
+ * Frontend utility functions for work week calculations (Friday-Thursday cycle)
  */
 
 export interface WeekInfo {
@@ -8,331 +11,368 @@ export interface WeekInfo {
 }
 
 /**
- * Get current week number and year
+ * Get current work week (Friday to Thursday cycle)
+ * Work week được tính theo logic thực tế:
+ * - Work week N = T6,T7 của ISO week (N-1) + T2,T3,T4,T5 của ISO week N
+ * - Ví dụ: Work week 28 = T6,T7 của ISO week 27 + T2,T3,T4,T5 của ISO week 28
  */
-export function getCurrentWeek(): WeekInfo {
+export function getCurrentWeek(): { weekNumber: number; year: number } {
   const now = new Date();
-  const year = now.getFullYear();
-  
-  // Get first day of year
-  const firstDayOfYear = new Date(year, 0, 1);
-  
-  // Calculate days since first day of year
-  const daysSinceFirstDay = Math.floor((now.getTime() - firstDayOfYear.getTime()) / (24 * 60 * 60 * 1000));
-  
-  // Calculate week number (ISO week date)
-  const weekNumber = Math.ceil((daysSinceFirstDay + firstDayOfYear.getDay() + 1) / 7);
-  
-  return { weekNumber, year };
+  return getWorkWeekFromDate(now);
 }
 
 /**
- * Get the deadline date for a specific week (Saturday 10:00 AM)
+ * Get work week number and year from a specific date
+ * Logic chính xác:
+ * - T6, T7: thuộc work week = ISO week + 1
+ * - T2, T3, T4, T5: thuộc work week = ISO week hiện tại
+ * - CN: thuộc work week = ISO week hiện tại
  */
-export function getWeekDeadline(weekNumber: number, year: number): Date {
-  // Get the first day of the year
-  const firstDayOfYear = new Date(year, 0, 1);
-  const firstDayWeekday = firstDayOfYear.getDay();
+export function getWorkWeekFromDate(date: Date): { weekNumber: number; year: number } {
+  const targetDate = new Date(date.getTime());
+  const dayOfWeek = targetDate.getDay(); // 0=Sunday, 1=Monday, ..., 6=Saturday
   
-  // Calculate the Monday of the first week
-  const daysToFirstMonday = firstDayWeekday <= 1 ? 1 - firstDayWeekday : 8 - firstDayWeekday;
-  const firstMondayOfYear = new Date(year, 0, 1 + daysToFirstMonday);
+  // Lấy ISO week của ngày hiện tại
+  const isoWeekNumber = getWeek(targetDate, { 
+    weekStartsOn: 1, // Monday = 1
+    firstWeekContainsDate: 4 
+  });
+  const isoYear = getYear(targetDate);
   
-  // Calculate the Monday of the target week
-  const targetWeekMonday = new Date(firstMondayOfYear.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
+  let workWeekNumber: number;
+  let workYear: number;
   
-  // Calculate Saturday 10:00 AM of the target week
-  const targetWeekSaturday = new Date(targetWeekMonday.getTime() + 5 * 24 * 60 * 60 * 1000); // +5 days to get Saturday
-  targetWeekSaturday.setHours(10, 0, 0, 0); // Set to 10:00 AM
-  
-  return targetWeekSaturday;
-}
-
-/**
- * Check if a report is overdue for a given week
- */
-export function isReportOverdue(weekNumber: number, year: number, currentDate: Date = new Date()): boolean {
-  const deadline = getWeekDeadline(weekNumber, year);
-  return currentDate > deadline;
-}
-
-/**
- * Calculate days overdue for a report with correct deadline logic
- */
-export function calculateDaysOverdue(weekNumber: number, year: number, currentDate: Date = new Date()): number {
-  const { weekNumber: currentWeek, year: currentYear } = getCurrentWeek();
-  
-  // If it's a future week, not overdue
-  if (year > currentYear || (year === currentYear && weekNumber > currentWeek)) {
-    return 0;
-  }
-  
-  const deadline = getWeekDeadline(weekNumber, year);
-  
-  // If current time is before deadline, not overdue
-  if (currentDate <= deadline) {
-    return 0;
-  }
-  
-  // Calculate time difference in milliseconds
-  const timeDiff = currentDate.getTime() - deadline.getTime();
-  
-  // Convert to days and round up
-  const daysDiff = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
-  
-  return Math.max(0, daysDiff);
-}
-
-/**
- * Get deadline status for a week report
- */
-export function getDeadlineStatus(weekNumber: number, year: number, currentDate: Date = new Date()): {
-  deadline: Date;
-  isOverdue: boolean;
-  daysOverdue: number;
-  timeUntilDeadline?: number; // in hours, only if not overdue
-  statusText: string;
-  statusColor: 'green' | 'yellow' | 'red';
-} {
-  const deadline = getWeekDeadline(weekNumber, year);
-  const isOverdue = currentDate > deadline;
-  const daysOverdue = isOverdue ? calculateDaysOverdue(weekNumber, year, currentDate) : 0;
-  
-  let timeUntilDeadline: number | undefined;
-  let statusText: string;
-  let statusColor: 'green' | 'yellow' | 'red';
-  
-  if (!isOverdue) {
-    const timeDiff = deadline.getTime() - currentDate.getTime();
-    timeUntilDeadline = Math.max(0, timeDiff / (1000 * 60 * 60)); // in hours
+  if (dayOfWeek === 5 || dayOfWeek === 6) {
+    // Friday or Saturday (T6, T7) - thuộc work week tiếp theo
+    workWeekNumber = isoWeekNumber + 1;
+    workYear = isoYear;
     
-    if (timeUntilDeadline > 24) {
-      statusText = `Còn ${Math.ceil(timeUntilDeadline / 24)} ngày`;
-      statusColor = 'green';
-    } else if (timeUntilDeadline > 2) {
-      statusText = `Còn ${Math.ceil(timeUntilDeadline)} giờ`;
-      statusColor = 'yellow';
-    } else {
-      statusText = `Còn ${Math.ceil(timeUntilDeadline)} giờ (Sắp hết hạn!)`;
-      statusColor = 'red';
+    // Handle year transition
+    if (workWeekNumber > 52) {
+      // Check if week 53 exists
+      const lastDayOfYear = new Date(isoYear, 11, 31);
+      const lastWeekOfYear = getWeek(lastDayOfYear, { 
+        weekStartsOn: 1, 
+        firstWeekContainsDate: 4 
+      });
+      
+      if (workWeekNumber > lastWeekOfYear) {
+        workWeekNumber = 1;
+        workYear = isoYear + 1;
+      }
     }
   } else {
-    if (daysOverdue === 0) {
-      statusText = 'Trễ vài giờ';
-    } else if (daysOverdue === 1) {
-      statusText = 'Trễ 1 ngày';
-    } else {
-      statusText = `Trễ ${daysOverdue} ngày`;
-    }
-    statusColor = 'red';
+    // Monday to Thursday + Sunday - thuộc work week hiện tại
+    workWeekNumber = isoWeekNumber;
+    workYear = isoYear;
+  }
+
+  return { weekNumber: workWeekNumber, year: workYear };
+}
+
+/**
+ * Get first Friday of the year
+ */
+function getFirstFridayOfYear(year: number): Date {
+  const firstDay = new Date(year, 0, 1); // January 1st
+  const firstFriday = new Date(firstDay.getTime());
+  
+  // Find first Friday
+  while (firstFriday.getDay() !== 5) {
+    firstFriday.setDate(firstFriday.getDate() + 1);
   }
   
+  return firstFriday;
+}
+
+/**
+ * Get work week range (Friday to Thursday - 6-day work week, excluding Sunday)
+ * Work week N bao gồm:
+ * - T6, T7 của ISO week (N-1) 
+ * - T2, T3, T4, T5 của ISO week N
+ */
+export function getWorkWeekRange(weekNumber: number, year: number): {
+  startDate: Date;
+  endDate: Date;
+  workDays: Date[];
+  resultDays: Date[]; // Mon-Thu for result calculation
+  displayInfo: {
+    weekTitle: string;
+    dateRange: string;
+    workDaysText: string;
+    resultDaysText: string;
+  };
+} {
+  // Step 1: Tìm thứ 2 đầu tiên của năm (ISO week 1)
+  const jan4 = new Date(year, 0, 4); // Ngày 4 tháng 1 luôn thuộc tuần 1
+  const jan4DayOfWeek = (jan4.getDay() + 6) % 7; // Chuyển Sunday=0 thành Monday=0
+  const firstMondayOfYear = new Date(jan4.getTime());
+  firstMondayOfYear.setDate(jan4.getDate() - jan4DayOfWeek); // Lùi về thứ 2 của tuần 1
+  
+  // Step 2: Tính thứ 2 của ISO week N
+  const mondayOfWeekN = new Date(firstMondayOfYear.getTime());
+  mondayOfWeekN.setDate(firstMondayOfYear.getDate() + (weekNumber - 1) * 7);
+  
+  // Step 3: Tính các ngày làm việc cho work week N
+  const workDays: Date[] = [];
+  
+  // T6 của tuần ISO (N-1) = T6 trước thứ 2 của tuần N
+  const friday = new Date(mondayOfWeekN.getTime());
+  friday.setDate(mondayOfWeekN.getDate() - 3); // Thứ 2 - 3 = Thứ 6 tuần trước
+  workDays.push(friday);
+  
+  // T7 của tuần ISO (N-1) = T7 trước thứ 2 của tuần N
+  const saturday = new Date(mondayOfWeekN.getTime());
+  saturday.setDate(mondayOfWeekN.getDate() - 2); // Thứ 2 - 2 = Thứ 7 tuần trước
+  workDays.push(saturday);
+  
+  // T2, T3, T4, T5 của tuần ISO N
+  for (let i = 0; i < 4; i++) {
+    const day = new Date(mondayOfWeekN.getTime());
+    day.setDate(mondayOfWeekN.getDate() + i); // Thứ 2, 3, 4, 5
+    workDays.push(day);
+  }
+  
+  // Result calculation days: Monday to Thursday only (4 ngày chính của tuần)
+  const resultDays = workDays.slice(2); // Skip Friday and Saturday
+  
+  const startDate = friday; // Work week bắt đầu từ T6
+  const endDate = workDays[5]; // Work week kết thúc ở T5 (index 5)
+  
+  // Display information
+  const displayInfo = {
+    weekTitle: `Tuần ${weekNumber}/${year}`,
+    dateRange: `${dateFnsFormat(startDate, 'dd/MM', { locale: vi })} - ${dateFnsFormat(endDate, 'dd/MM/yyyy', { locale: vi })}`,
+    workDaysText: 'Làm việc: T6, T7, T2, T3, T4, T5',
+    resultDaysText: 'Báo cáo: T2, T3, T4, T5'
+  };
+  
+  console.log('🔍 Frontend getWorkWeekRange - Work week details:', {
+    workWeek: `${weekNumber}/${year}`,
+    startDate: dateFnsFormat(startDate, 'dd/MM/yyyy (E)', { locale: vi }),
+    endDate: dateFnsFormat(endDate, 'dd/MM/yyyy (E)', { locale: vi }),
+    workDays: workDays.map(d => dateFnsFormat(d, 'dd/MM (E)', { locale: vi })),
+    resultDays: resultDays.map(d => dateFnsFormat(d, 'dd/MM (E)', { locale: vi }))
+  });
+  
   return {
-    deadline,
-    isOverdue,
-    daysOverdue,
-    timeUntilDeadline,
-    statusText,
-    statusColor,
+    startDate,
+    endDate,
+    workDays,
+    resultDays,
+    displayInfo
   };
 }
 
 /**
- * Format deadline for display in Vietnamese
+ * Check if current time is in reporting period (Monday to Thursday)
  */
-export function formatDeadline(weekNumber: number, year: number): string {
-  const deadline = getWeekDeadline(weekNumber, year);
-  return deadline.toLocaleString('vi-VN', {
-    weekday: 'long',
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+export function isInReportingPeriod(): boolean {
+  const now = new Date();
+  const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  
+  // Monday (1) to Thursday (4) is reporting period
+  return dayOfWeek >= 1 && dayOfWeek <= 4;
+}
+
+/**
+ * Format work week for display with date range
+ */
+export function formatWorkWeek(
+  weekNumber: number, 
+  year: number, 
+  formatType: 'short' | 'long' | 'range' | 'full' = 'short'
+): string {
+  switch (formatType) {
+    case 'short':
+      return `Tuần ${weekNumber}/${year}`;
+    case 'long':
+      return `Tuần làm việc ${weekNumber} năm ${year}`;
+    case 'range': {
+      const { startDate, endDate } = getWorkWeekRange(weekNumber, year);
+      return `${dateFnsFormat(startDate, 'dd/MM', { locale: vi })} - ${dateFnsFormat(endDate, 'dd/MM/yyyy', { locale: vi })}`;
+    }
+    case 'full': {
+      const { displayInfo } = getWorkWeekRange(weekNumber, year);
+      return `${displayInfo.weekTitle} (${displayInfo.dateRange})`;
+    }
+    default:
+      return `Tuần ${weekNumber}/${year}`;
+  }
+}
+
+/**
+ * Get list of available weeks for selection
+ */
+export function getAvailableWeeks(currentWeek: number, currentYear: number): Array<{
+  weekNumber: number;
+  year: number;
+  label: string;
+  isValid: boolean;
+}> {
+  const weeks = [];
+  
+  // Previous week
+  let prevWeek = currentWeek - 1;
+  let prevYear = currentYear;
+  if (prevWeek <= 0) {
+    const weeksInPreviousYear = getWeek(new Date(currentYear - 1, 11, 31), { 
+      weekStartsOn: 1, 
+      firstWeekContainsDate: 4 
+    });
+    prevWeek = weeksInPreviousYear;
+    prevYear = currentYear - 1;
+  }
+  
+  weeks.push({
+    weekNumber: prevWeek,
+    year: prevYear,
+    label: formatWorkWeek(prevWeek, prevYear, 'range'),
+    isValid: true
   });
+  
+  // Current week
+  weeks.push({
+    weekNumber: currentWeek,
+    year: currentYear,
+    label: formatWorkWeek(currentWeek, currentYear, 'range'),
+    isValid: true
+  });
+  
+  // Next week
+  let nextWeek = currentWeek + 1;
+  let nextYear = currentYear;
+  const weeksInCurrentYear = getWeek(new Date(currentYear, 11, 31), { 
+    weekStartsOn: 1, 
+    firstWeekContainsDate: 4 
+  });
+  
+  if (nextWeek > weeksInCurrentYear) {
+    nextWeek = 1;
+    nextYear = currentYear + 1;
+  }
+  
+  weeks.push({
+    weekNumber: nextWeek,
+    year: nextYear,
+    label: formatWorkWeek(nextWeek, nextYear, 'range'),
+    isValid: true
+  });
+  
+  return weeks;
 }
 
-/**
- * Get week range (Monday to Sunday) for display
- */
-export function getWeekDateRange(weekNumber: number, year: number): { start: Date; end: Date } {
-  const firstDayOfYear = new Date(year, 0, 1);
-  const firstDayWeekday = firstDayOfYear.getDay();
-  
-  // Calculate the Monday of the first week
-  const daysToFirstMonday = firstDayWeekday <= 1 ? 1 - firstDayWeekday : 8 - firstDayWeekday;
-  const firstMondayOfYear = new Date(year, 0, 1 + daysToFirstMonday);
-  
-  // Calculate the Monday of the target week
-  const start = new Date(firstMondayOfYear.getTime() + (weekNumber - 1) * 7 * 24 * 60 * 60 * 1000);
-  
-  // Calculate Sunday of the target week
-  const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
-  
-  return { start, end };
-}
-
-/**
- * Format date range for display
- */
-export function formatDateRange(start: Date, end: Date): string {
-  return `${start.toLocaleDateString('vi-VN')} - ${end.toLocaleDateString('vi-VN')}`;
-}
-
-/**
- * Check if a week is valid for report creation (current week, previous week, or next week)
- */
-export function isValidWeekForCreation(weekNumber: number, year: number): {
+export interface WeekValidationResult {
   isValid: boolean;
   reason?: string;
-  allowedWeeks: Array<{ weekNumber: number; year: number; label: string }>;
-} {
+}
+
+/**
+ * Check if a week is valid for report creation
+ * Logic: Allow creation for current week, previous week, and next week
+ */
+export function isValidWeekForCreation(
+  weekNumber: number,
+  year: number
+): WeekValidationResult {
   const current = getCurrentWeek();
   
-  // Calculate previous week
-  let prevWeek = current.weekNumber - 1;
-  let prevYear = current.year;
-  if (prevWeek < 1) {
-    prevWeek = 52;
-    prevYear = current.year - 1;
+  // Current week
+  if (weekNumber === current.weekNumber && year === current.year) {
+    return { isValid: true };
   }
   
-  // Calculate next week
-  let nextWeek = current.weekNumber + 1;
-  let nextYear = current.year;
-  if (nextWeek > 52) {
-    nextWeek = 1;
-    nextYear = current.year + 1;
+  // Previous week
+  if (isPreviousWeek(weekNumber, year, current.weekNumber, current.year)) {
+    return { isValid: true };
   }
   
-  const allowedWeeks = [
-    { weekNumber: prevWeek, year: prevYear, label: 'Tuần trước' },
-    { weekNumber: current.weekNumber, year: current.year, label: 'Tuần hiện tại' },
-    { weekNumber: nextWeek, year: nextYear, label: 'Tuần tiếp theo' }
-  ];
-  
-  const isValid = allowedWeeks.some(w => 
-    w.weekNumber === weekNumber && w.year === year
-  );
-  
-  let reason = '';
-  if (!isValid) {
-    reason = `Chỉ có thể tạo báo cáo cho tuần ${prevWeek}/${prevYear} (tuần trước), tuần ${current.weekNumber}/${current.year} (tuần hiện tại), hoặc tuần ${nextWeek}/${nextYear} (tuần tiếp theo)`;
+  // Next week
+  if (isNextWeek(weekNumber, year, current.weekNumber, current.year)) {
+    return { isValid: true };
   }
   
-  return {
-    isValid,
-    reason,
-    allowedWeeks
+  return { 
+    isValid: false, 
+    reason: 'Chỉ có thể tạo báo cáo cho tuần trước, tuần hiện tại và tuần tiếp theo' 
   };
 }
 
 /**
- * Check if a week is valid for editing (same as creation rules)
+ * Check if a week is valid for report editing
+ * Logic: Allow editing for current week, previous week, and next week
  */
-export function isValidWeekForEdit(weekNumber: number, year: number): {
-  isValid: boolean;
-  reason?: string;
-} {
+export function isValidWeekForEdit(
+  weekNumber: number,
+  year: number
+): WeekValidationResult {
   return isValidWeekForCreation(weekNumber, year);
 }
 
 /**
- * Get available weeks for report creation
+ * Check if a week is valid for report deletion
+ * Logic: Allow deletion for current week and next week only
  */
-export function getAvailableWeeksForReporting(): Array<{
-  weekNumber: number;
-  year: number;
-  label: string;
-  isCurrent: boolean;
-  isPast: boolean;
-  isFuture: boolean;
-}> {
+export function isValidWeekForDeletion(
+  weekNumber: number,
+  year: number
+): WeekValidationResult {
   const current = getCurrentWeek();
   
-  // Calculate previous week
-  let prevWeek = current.weekNumber - 1;
-  let prevYear = current.year;
-  if (prevWeek < 1) {
-    prevWeek = 52;
-    prevYear = current.year - 1;
+  // Current week
+  if (weekNumber === current.weekNumber && year === current.year) {
+    return { isValid: true };
   }
   
-  // Calculate next week
-  let nextWeek = current.weekNumber + 1;
-  let nextYear = current.year;
-  if (nextWeek > 52) {
-    nextWeek = 1;
-    nextYear = current.year + 1;
+  // Next week
+  if (isNextWeek(weekNumber, year, current.weekNumber, current.year)) {
+    return { isValid: true };
   }
   
-  return [
-    {
-      weekNumber: prevWeek,
-      year: prevYear,
-      label: `Tuần ${prevWeek}/${prevYear} (Tuần trước)`,
-      isCurrent: false,
-      isPast: true,
-      isFuture: false
-    },
-    {
-      weekNumber: current.weekNumber,
-      year: current.year,
-      label: `Tuần ${current.weekNumber}/${current.year} (Tuần hiện tại)`,
-      isCurrent: true,
-      isPast: false,
-      isFuture: false
-    },
-    {
-      weekNumber: nextWeek,
-      year: nextYear,
-      label: `Tuần ${nextWeek}/${nextYear} (Tuần tiếp theo)`,
-      isCurrent: false,
-      isPast: false,
-      isFuture: true
-    }
-  ];
-}
-
-/**
- * Get week range (Monday to Sunday) for display - alias for getWeekDateRange
- */
-export function getWeekRange(weekNumber: number, year: number): { start: Date; end: Date; display: string } {
-  const { start, end } = getWeekDateRange(weekNumber, year);
-  const display = formatDateRange(start, end);
-  
-  return { start, end, display };
-}
-
-/**
- * Check if a week is valid for deletion (current week and next week only)
- */
-export function isValidWeekForDeletion(weekNumber: number, year: number): {
-  isValid: boolean;
-  reason?: string;
-} {
-  const current = getCurrentWeek();
-  
-  // Calculate next week
-  let nextWeek = current.weekNumber + 1;
-  let nextYear = current.year;
-  if (nextWeek > 52) {
-    nextWeek = 1;
-    nextYear = current.year + 1;
-  }
-  
-  const isCurrentWeek = weekNumber === current.weekNumber && year === current.year;
-  const isNextWeek = weekNumber === nextWeek && year === nextYear;
-  
-  const isValid = isCurrentWeek || isNextWeek;
-  
-  let reason = '';
-  if (!isValid) {
-    reason = `Chỉ có thể xóa báo cáo của tuần ${current.weekNumber}/${current.year} (tuần hiện tại) hoặc tuần ${nextWeek}/${nextYear} (tuần tiếp theo)`;
-  }
-  
-  return {
-    isValid,
-    reason
+  return { 
+    isValid: false, 
+    reason: 'Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo' 
   };
+}
+
+/**
+ * Helper: Check if target week is previous week
+ */
+function isPreviousWeek(
+  weekNumber: number,
+  year: number,
+  currentWeek: number,
+  currentYear: number,
+): boolean {
+  if (year === currentYear) {
+    return weekNumber === currentWeek - 1;
+  }
+  
+  // Handle year transition (current week 1, target week 52/53 of previous year)
+  if (year === currentYear - 1 && currentWeek === 1) {
+    return weekNumber >= 52;
+  }
+  
+  return false;
+}
+
+/**
+ * Helper: Check if target week is next week
+ */
+function isNextWeek(
+  weekNumber: number,
+  year: number,
+  currentWeek: number,
+  currentYear: number,
+): boolean {
+  if (year === currentYear) {
+    return weekNumber === currentWeek + 1;
+  }
+  
+  // Handle year transition (current week 52/53, target week 1 of next year)
+  if (year === currentYear + 1 && currentWeek >= 52) {
+    return weekNumber === 1;
+  }
+  
+  return false;
 }

@@ -127,7 +127,7 @@ export function getPerformanceBadge(percentage: number): {
       return {
         label: classification.label,
         variant: 'default',
-        className: 'bg-purple-600 text-white border-purple-600 hover:bg-purple-700'
+        className: 'bg-purple-500 text-white border-purple-500 hover:bg-purple-600'
       }
     case 'GOOD':
       return {
@@ -151,7 +151,7 @@ export function getPerformanceBadge(percentage: number): {
       return {
         label: classification.label,
         variant: 'destructive',
-        className: 'bg-red-600 text-white border-red-600 hover:bg-red-700'
+        className: 'bg-red-500 text-white border-red-500 hover:bg-red-600'
       }
     default:
       return {
@@ -265,4 +265,28 @@ export function calculatePerformanceDistribution(completionRates: number[]): {
     fail,
     failRate: Math.round((fail / total) * 100 * 100) / 100
   }
+}
+
+/**
+ * Get text color for performance percentage - Updated to match PERFORMANCE_LEVELS
+ */
+export function getPerformanceTextColor(percentage: number): string {
+  const classification = classifyPerformance(percentage)
+  return classification.color
+}
+
+/**
+ * Get background color for performance percentage - Updated to match PERFORMANCE_LEVELS
+ */
+export function getPerformanceBackgroundColor(percentage: number): string {
+  const classification = classifyPerformance(percentage)
+  return classification.bgColor
+}
+
+/**
+ * Get border color for performance percentage - Updated to match PERFORMANCE_LEVELS
+ */
+export function getPerformanceBorderColor(percentage: number): string {
+  const classification = classifyPerformance(percentage)
+  return classification.borderColor
 }

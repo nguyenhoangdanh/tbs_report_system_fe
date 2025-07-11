@@ -5,27 +5,27 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, LineChart, Line, PieChart, Pie, Cell } from 'recharts'
 import { useTheme } from 'next-themes'
 
-interface TaskCompletionChartProps {
-  data: Array<{
-    name: string
-    completed: number
-    uncompleted: number
-    total: number
-    completionRate: number
-  }>
-  type?: 'bar' | 'line' | 'pie'
-  title?: string
-  height?: number
-  className?: string
+interface TaskCompletionData {
+  name: string
+  completed: number
+  uncompleted: number
+  total: number
+  completionRate: number
 }
 
-export const TaskCompletionChart = memo(({
+interface TaskCompletionChartProps {
+  data: TaskCompletionData[]
+  type?: 'bar' | 'line' | 'pie'
+  height?: number
+  title?: string
+}
+
+export function TaskCompletionChart({ 
   data, 
   type = 'bar', 
-  title = 'Tỷ lệ hoàn thành công việc', 
-  height = 400, 
-  className 
-}: TaskCompletionChartProps) => {
+  height = 300,
+  title 
+}: TaskCompletionChartProps) {
   const { theme } = useTheme()
   
   // Colors for light/dark mode
@@ -49,13 +49,13 @@ export const TaskCompletionChart = memo(({
     }
   }, [theme])
 
-  // Custom tooltip with enhanced styling
+  // Custom tooltip with enhanced styling - Fix type compatibility
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       const data = payload[0]?.payload
       return (
         <div className="bg-card/95 backdrop-blur-sm border border-border rounded-lg shadow-xl p-4 min-w-[200px]">
-          <p className="font-semibold text-foreground mb-3">{label}</p>
+          <p className="font-semibold text-foreground mb-3">{String(label)}</p>
           <div className="space-y-2 text-sm">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -63,7 +63,7 @@ export const TaskCompletionChart = memo(({
                 <span className="text-muted-foreground">Hoàn thành:</span>
               </div>
               <span className="font-medium text-emerald-600 dark:text-emerald-400">
-                {data.completed}
+                {data?.completed || 0}
               </span>
             </div>
             <div className="flex items-center justify-between">
@@ -72,13 +72,13 @@ export const TaskCompletionChart = memo(({
                 <span className="text-muted-foreground">Chưa hoàn thành:</span>
               </div>
               <span className="font-medium text-red-600 dark:text-red-400">
-                {data.uncompleted}
+                {data?.uncompleted || 0}
               </span>
             </div>
             <div className="pt-2 border-t border-border/50">
               <div className="flex items-center justify-between">
                 <span className="text-muted-foreground">Tỷ lệ:</span>
-                <span className="font-bold text-foreground">{data.completionRate}%</span>
+                <span className="font-bold text-foreground">{data?.completionRate || 0}%</span>
               </div>
             </div>
           </div>
@@ -117,7 +117,7 @@ export const TaskCompletionChart = memo(({
     }
 
     switch (type) {
-      case 'bar': {
+      case 'bar':
         return (
           <ResponsiveContainer width="100%" height={height}>
             <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
@@ -165,9 +165,8 @@ export const TaskCompletionChart = memo(({
             </BarChart>
           </ResponsiveContainer>
         )
-      }
 
-      case 'line': {
+      case 'line':
         return (
           <ResponsiveContainer width="100%" height={height}>
             <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 80 }}>
@@ -212,14 +211,38 @@ export const TaskCompletionChart = memo(({
             </LineChart>
           </ResponsiveContainer>
         )
-      }
 
-      case 'pie': {
+      case 'pie':
         const pieData = chartData.map((item, index) => ({
           name: item.name,
           value: item.completionRate,
           fill: colors.pieColors[index % colors.pieColors.length]
         }))
+        
+        // Fix: Custom label function that matches Recharts PieLabelProps
+        const renderCustomLabel = (props: any) => {
+          const { cx, cy, midAngle, innerRadius, outerRadius, percent, name } = props;
+          if (percent < 0.05) return null; // Don't show label if less than 5%
+          
+          const RADIAN = Math.PI / 180;
+          const radius = innerRadius + (outerRadius - innerRadius) * 0.5;
+          const x = cx + radius * Math.cos(-midAngle * RADIAN);
+          const y = cy + radius * Math.sin(-midAngle * RADIAN);
+
+          return (
+            <text 
+              x={x} 
+              y={y} 
+              fill="white" 
+              textAnchor={x > cx ? 'start' : 'end'} 
+              dominantBaseline="central"
+              fontSize={12}
+              fontWeight="bold"
+            >
+              {`${name}: ${(percent * 100).toFixed(0)}%`}
+            </text>
+          );
+        };
         
         return (
           <ResponsiveContainer width="100%" height={height}>
@@ -229,7 +252,7 @@ export const TaskCompletionChart = memo(({
                 cx="50%"
                 cy="50%"
                 labelLine={false}
-                label={({ name, value }) => (value ?? 0) > 5 ? `${name}: ${value}%` : ''}
+                label={renderCustomLabel}
                 outerRadius={Math.min(height * 0.35, 120)}
                 fill="#8884d8"
                 dataKey="value"
@@ -249,7 +272,6 @@ export const TaskCompletionChart = memo(({
             </PieChart>
           </ResponsiveContainer>
         )
-      }
 
       default:
         return null
@@ -257,7 +279,7 @@ export const TaskCompletionChart = memo(({
   }
 
   return (
-    <Card className={`${className} border-0 shadow-sm bg-gradient-to-br from-background to-muted/20`}>
+    <Card className={`border-0 shadow-sm bg-gradient-to-br from-background to-muted/20`}>
       <CardHeader className="pb-4 border-b border-border/50">
         <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
           <div className="w-2 h-6 bg-gradient-to-b from-blue-500 to-purple-500 rounded-full" />
@@ -269,6 +291,8 @@ export const TaskCompletionChart = memo(({
       </CardContent>
     </Card>
   )
-})
+}
 
-TaskCompletionChart.displayName = 'TaskCompletionChart'
+// Export the component with memo for performance optimization
+export const MemoizedTaskCompletionChart = memo(TaskCompletionChart)
+export default TaskCompletionChart

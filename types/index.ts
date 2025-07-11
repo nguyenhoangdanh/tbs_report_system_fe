@@ -1,7 +1,5 @@
 export enum Role {
   SUPERADMIN = 'SUPERADMIN',
-  OFFICE_MANAGER = 'OFFICE_MANAGER',
-  OFFICE_ADMIN = 'OFFICE_ADMIN',
   ADMIN = 'ADMIN',
   USER = 'USER',
 }
@@ -11,24 +9,225 @@ export enum OfficeType {
   FACTORY_OFFICE = 'FACTORY_OFFICE',
 }
 
-export type UserRole = keyof typeof Role
+// Fix UserRole type to use the actual Role enum values
+export type UserRole = Role
+
+// Common types
+export interface ApiResponse<T = any> {
+  data: T
+  message?: string
+  success?: boolean
+}
+
+export interface PaginatedResponse<T = any> {
+  data: T[]
+  total: number
+  page: number
+  limit: number
+  totalPages: number
+}
 
 export interface User {
   id: string
   employeeCode: string
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+  role: string
+  isActive: boolean
+  office: {
+    id: string
+    name: string
+    type: string
+  }
+  jobPosition: {
+    id: string
+    jobName: string
+    positionName: string
+    department: {
+      id: string
+      name: string
+      office: {
+        id: string
+        name: string
+      }
+    }
+    position: {
+      id: string
+      name: string
+      description?: string
+    }
+  }
+  createdAt: string
+  updatedAt: string
+}
+
+export interface CreateUserDto {
+  employeeCode: string
   email?: string
+  password: string
   firstName: string
   lastName: string
   phone?: string
-  role: UserRole // Changed to use UserRole type
+  role: Role // Use Role enum directly
   jobPositionId: string
-  isActive: boolean
   officeId: string
+}
+
+export interface UpdateProfileDto {
+  employeeCode?: string
+  firstName?: string
+  lastName?: string
+  email?: string
+  phone?: string
+  jobPositionId?: string
+  officeId?: string
+  role?: Role // Use Role enum directly
+  phoneNumber?: string
+  address?: string
+  dateOfBirth?: string
+}
+
+// Task interface (6-day work week)
+export interface Task {
+  id: string
+  taskName: string
+  monday: boolean
+  tuesday: boolean
+  wednesday: boolean
+  thursday: boolean
+  friday: boolean
+  saturday: boolean
+  isCompleted: boolean
+  reasonNotDone?: string
   createdAt: string
   updatedAt: string
-  office: Office
-  jobPosition: JobPosition
+  reportId: string
 }
+
+// Weekly Report types - Fix to match backend exactly
+export interface WeeklyReport {
+  id: string
+  weekNumber: number
+  year: number
+  isCompleted: boolean
+  isLocked: boolean
+  createdAt: string
+  updatedAt: string
+  userId: string
+  tasks: Task[]
+  user: User
+  // Optional statistics
+  totalTasks?: number
+  completedTasks?: number
+  taskCompletionRate?: number
+}
+
+// Create/Update DTOs
+export interface CreateTaskDto {
+  taskName: string
+  monday?: boolean
+  tuesday?: boolean
+  wednesday?: boolean
+  thursday?: boolean
+  friday?: boolean
+  saturday?: boolean
+  isCompleted?: boolean
+  reasonNotDone?: string
+}
+
+export interface CreateWeeklyReportDto {
+  weekNumber: number
+  year: number
+  tasks: CreateTaskDto[]
+}
+
+export interface UpdateTaskDto {
+  taskName?: string
+  monday?: boolean
+  tuesday?: boolean
+  wednesday?: boolean
+  thursday?: boolean
+  friday?: boolean
+  saturday?: boolean
+  isCompleted?: boolean
+  reasonNotDone?: string
+}
+
+export interface UpdateReportDto {
+  isCompleted?: boolean
+  tasks?: UpdateTaskDto[]
+  updatedAt?: boolean
+}
+
+// Auth types - Fixed and consolidated
+export interface AuthUser extends User {
+  accessToken?: string
+  refreshToken?: string
+}
+
+export interface LoginCredentials {
+  email: string
+  password: string
+}
+
+export interface LoginDto {
+  employeeCode: string
+  password: string
+  rememberMe?: boolean
+}
+
+export interface RegisterDto {
+  employeeCode: string
+  email?: string
+  password: string
+  firstName: string
+  lastName: string
+  phone?: string
+  jobPositionId: string
+  officeId: string
+  role: Role // Use Role enum directly
+}
+
+export interface ChangePasswordDto {
+  currentPassword: string
+  newPassword: string
+}
+
+export interface ForgotPasswordDto {
+  employeeCode: string
+  phone: string
+}
+
+export interface ResetPasswordDto {
+  employeeCode: string
+  phone: string
+  newPassword: string
+}
+
+export interface AuthResponse {
+  access_token: string  // Changed from success: boolean
+  user: User
+  message: string
+}
+
+export interface ForgotPasswordResponse {
+  message: string
+  user: {
+    employeeCode: string
+    firstName: string
+    lastName: string
+    phone: string
+  }
+}
+
+export interface LoginResponse {
+  access_token: string
+  user: User
+}
+
+// Office and Department types
 export interface Office {
   id: string
   name: string
@@ -70,187 +269,15 @@ export interface JobPosition {
   department: Department
 }
 
-export interface WeeklyReport {
-  id: string
-  weekNumber: number
-  year: number
-  isLocked: boolean
-  isCompleted: boolean
-  userId: string
-  tasks: TaskReport[]
-  createdAt: string
-  updatedAt: string
-  user: User
-}
-
-export interface TaskReport {
-  id: string
-  taskName: string
-  monday: boolean
-  tuesday: boolean
-  wednesday: boolean
-  thursday: boolean
-  friday: boolean
-  saturday: boolean
-  sunday: boolean
-  isCompleted: boolean
-  reasonNotDone?: string
-  reportId: string
-  createdAt?: string
-  updatedAt?: string
-}
-
-// Auth DTOs
-export interface LoginDto {
-  employeeCode: string
-  password: string
-  rememberMe?: boolean
-}
-
-export interface RegisterDto {
-  employeeCode: string
-  email?: string
-  password: string
-  firstName: string
-  lastName: string
-  phone?: string
-  jobPositionId: string
-  officeId: string
-  role: UserRole // Changed to use UserRole type
-}
-
-export interface ChangePasswordDto {
-  currentPassword: string
-  newPassword: string
-}
-
-export interface ForgotPasswordDto {
-  employeeCode: string
-  phone: string
-}
-
-export interface ResetPasswordDto {
-  employeeCode: string
-  phone: string
-  newPassword: string
-}
-
-export interface ForgotPasswordResponse {
+// Common response types
+export interface ErrorResponse {
   message: string
-  user: {
-    employeeCode: string
-    firstName: string
-    lastName: string
-    phone?: string
-  }
+  error: string
+  statusCode: number
 }
 
-export interface UpdateProfileDto {
-  employeeCode?: string
-  firstName?: string
-  lastName?: string
-  email?: string
-  phone?: string
-  jobPositionId?: string
-  officeId?: string
-  role?: UserRole
-  phoneNumber?: string
-  address?: string
-  dateOfBirth?: string
-}
-
-// Report DTOs
-export interface CreateWeeklyReportDto {
-  weekNumber: number
-  year: number
-  tasks: CreateTaskReportDto[]
-}
-
-export interface CreateTaskReportDto {
-  taskName: string
-  monday?: boolean
-  tuesday?: boolean
-  wednesday?: boolean
-  thursday?: boolean
-  friday?: boolean
-  saturday?: boolean
-  sunday?: boolean
-  isCompleted?: boolean
-  reasonNotDone?: string
-}
-
-// Fix: UpdateTaskReportDto should be for updating entire report with tasks array
-export interface UpdateTaskReportDto {
-  tasks: UpdateTaskDto[]
-}
-
-// Single task update DTO
-export interface UpdateTaskDto {
-  id?: string // Optional for new tasks
-  taskName: string
-  monday?: boolean
-  tuesday?: boolean
-  wednesday?: boolean
-  thursday?: boolean
-  friday?: boolean
-  saturday?: boolean
-  sunday?: boolean
-  isCompleted?: boolean
-  reasonNotDone?: string
-}
-
-// Individual task update (for single task operations)
-export interface UpdateSingleTaskDto {
-  taskName?: string
-  monday?: boolean
-  tuesday?: boolean
-  wednesday?: boolean
-  thursday?: boolean
-  friday?: boolean
-  saturday?: boolean
-  sunday?: boolean
-  isCompleted?: boolean
-  reasonNotDone?: string
-}
-
-// Auth related types
-export interface AuthResponse {
-  access_token: string  // Changed from success: boolean
-  user: User
-  message: string
-}
-
-// API Response Types
-export interface ApiResponse<T = any> {
-  data: T
-  message?: string
-}
-
-export interface PaginatedResponse<T> {
-  data: T[]
-  total: number
-  page: number
-  limit: number
-  totalPages: number
-}
-
-// Add hierarchy types to main types file
-export * from './hierarchy'
-
-// Add missing DTOs
-export interface CreateUserDto {
-  employeeCode: string
-  email?: string
-  password: string
-  firstName: string
-  lastName: string
-  phone?: string
-  role: UserRole // Changed to use UserRole type
-  jobPositionId: string
-  officeId: string
-}
-
-export interface UpdateReportDto {
-  tasks?: UpdateTaskDto[]
-  isCompleted?: boolean
+// API Service types
+export interface RequestConfig {
+  headers?: Record<string, string>
+  timeout?: number
 }

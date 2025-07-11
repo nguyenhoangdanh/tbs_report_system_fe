@@ -9,11 +9,10 @@ import { ExternalLink, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lu
 import Link from 'next/link'
 import { RankingBadge } from '@/components/ranking/ranking-badge'
 import { EmployeeRanking, calculateRankingFromRate } from '@/services/ranking.service'
-import { getPerformanceBadge, getPerformanceColor } from '@/utils/performance-classification'
+import { getPerformanceBadge, getPerformanceColor, classifyPerformance } from '@/utils/performance-classification'
 import { SimplePieChart } from '@/components/charts/simple-pie-chart'
 
-
-// Fix: Define proper interface that matches API response
+// Updated interface to match API response structure
 interface WeeklyIncompleteReason {
   reason: string
   count: number
@@ -27,7 +26,11 @@ interface WeeklyIncompleteReason {
 interface MonthlyIncompleteReason {
   reason: string
   count: number
+  percentage?: number // Make percentage optional for monthly data
 }
+
+// Union type for the incomplete reasons prop
+type IncompleteReasonData = WeeklyIncompleteReason | MonthlyIncompleteReason
 
 interface StatsCardProps {
   title: string
@@ -41,7 +44,7 @@ interface StatsCardProps {
   icon: React.ReactNode
   color: string
   bgColor: string
-  incompleteReasons: WeeklyIncompleteReason[] | MonthlyIncompleteReason[]
+  incompleteReasons: IncompleteReasonData[]
   isLoading?: boolean
   trend?: {
     direction: 'up' | 'down' | 'neutral'
@@ -71,10 +74,22 @@ const StatsCard = memo(function StatsCard({
     return total > 0 ? Math.round((completed / total) * 100) : 0
   }, [completed, total])
 
-  // Calculate ranking based on completion rate
-  const ranking = useMemo(() => {
-    return calculateRankingFromRate(completionRate)
+  // Use performance classification instead of ranking calculation
+  const performanceClassification = useMemo(() => {
+    return classifyPerformance(completionRate)
   }, [completionRate])
+
+  // Create ranking object compatible with RankingBadge
+  const ranking = useMemo((): EmployeeRanking => {
+    const perf = performanceClassification
+    return {
+      rank: perf.level.toLowerCase() as 'excellent' | 'good' | 'average' | 'poor' | 'fail',
+      label: perf.label,
+      color: perf.color,
+      bgColor: perf.bgColor,
+      description: perf.description
+    }
+  }, [performanceClassification])
 
   const performanceBadge = useMemo(() => {
     return getPerformanceBadge(completionRate)
@@ -86,11 +101,13 @@ const StatsCard = memo(function StatsCard({
 
   // Transform API data to match IncompleteReason interface
   const transformedReasons = useMemo((): IncompleteReason[] => {
-    if (!incompleteReasons.length) return []
+    if (!incompleteReasons || !Array.isArray(incompleteReasons) || incompleteReasons.length === 0) {
+      return []
+    }
     
-    return incompleteReasons.map((reason) => {
+    return incompleteReasons.map((reason: IncompleteReasonData) => {
       // Check if it's WeeklyIncompleteReason (has percentage and sampleTasks)
-      if ('percentage' in reason && 'sampleTasks' in reason) {
+      if ('percentage' in reason && 'sampleTasks' in reason && reason.percentage !== undefined) {
         return {
           reason: reason.reason,
           count: reason.count,
@@ -101,12 +118,13 @@ const StatsCard = memo(function StatsCard({
           }))
         }
       } else {
-        // It's MonthlyIncompleteReason (only has reason and count)
+        // It's MonthlyIncompleteReason (only has reason and count, calculate percentage)
+        const calculatedPercentage = uncompleted > 0 ? Math.round((reason.count / uncompleted) * 100) : 0
         return {
           reason: reason.reason,
           count: reason.count,
-          percentage: uncompleted > 0 ? Math.round((reason.count / uncompleted) * 100) : 0,
-          sampleTasks: []
+          percentage: reason.percentage || calculatedPercentage,
+          sampleTasks: [] // Monthly data doesn't have sample tasks
         }
       }
     })

@@ -1,73 +1,211 @@
 import { api } from '@/lib/api'
-import type {
-  OfficesOverviewResponse,
-  OfficeDetailsResponse,
-  DepartmentDetailsResponse,
-  UserDetails,
-  TaskCompletionTrends,
-  IncompleteReasonsHierarchy,
-  HierarchyFilters,
-} from '@/types/hierarchy'
-import type {
-  EmployeesWithoutReportsResponse,
-  EmployeesWithIncompleteReportsResponse,
+import type { 
+  HierarchyResponse,
+  ManagementHierarchyResponse,
+  StaffHierarchyResponse,
+  MixedHierarchyResponse,
+  PositionDetailsResponse,
+  UserDetailsResponse,
   EmployeesReportingStatusResponse,
-  EmployeeReportingFilters,
-} from '@/types/statistics'
+  TaskCompletionTrendsResponse,
+  IncompleteReasonsResponse,
+  PositionOverviewResponse
+} from '@/types/hierarchy'
+
+export interface HierarchyFilters {
+  weekNumber?: number
+  year?: number
+  month?: number
+  officeId?: string
+  departmentId?: string
+  page?: number
+  limit?: number
+  status?: 'not_submitted' | 'incomplete' | 'completed' | 'all'
+  weeks?: number
+}
 
 export class HierarchyService {
   /**
-   * Get hierarchy view based on user role
+   * Get hierarchy view based on user role and permissions
    */
-  static async getMyHierarchyView(filters?: HierarchyFilters): Promise<OfficesOverviewResponse | OfficeDetailsResponse | DepartmentDetailsResponse> {
-    const params = new URLSearchParams()
-    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
-    
-    const query = params.toString() ? `?${params}` : ''
-    return await api.get(`/hierarchy-reports/my-hierarchy-view${query}`)
+  static async getMyHierarchyView(filters?: HierarchyFilters): Promise<HierarchyResponse> {
+    try {
+      console.log('HierarchyService.getMyHierarchyView called with filters:', filters)
+      
+      const params = new URLSearchParams()
+      
+      if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
+      if (filters?.year) params.append('year', filters.year.toString())
+      if (filters?.month) params.append('month', filters.month.toString())
+      if (filters?.officeId) params.append('officeId', filters.officeId)
+      if (filters?.departmentId) params.append('departmentId', filters.departmentId)
+
+      const url = `/hierarchy-reports/my-view${params.toString() ? `?${params.toString()}` : ''}`
+      console.log('API URL:', url)
+
+      const response = await api.get<HierarchyResponse>(url)
+      console.log('Raw API response:', response)
+
+      // Validate response structure
+      if (!response || typeof response !== 'object') {
+        throw new Error('Invalid response format')
+      }
+
+      // Check for valid viewType
+      if (!response.viewType) {
+        throw new Error('Response missing viewType')
+      }
+
+      console.log('Response viewType:', response.viewType)
+      console.log('Response groupBy:', response.groupBy)
+
+      // Handle different response types - KHỚP CHÍNH XÁC VỚI BACKEND
+      switch (response.viewType) {
+        case 'management':
+          if (response.groupBy === 'position' && Array.isArray(response.positions)) {
+            console.log('Valid management hierarchy response')
+            return response as ManagementHierarchyResponse
+          }
+          throw new Error('Invalid management hierarchy structure')
+
+        case 'staff':
+          if (response.groupBy === 'jobPosition' && Array.isArray(response.jobPositions)) {
+            console.log('Valid staff hierarchy response')
+            return response as StaffHierarchyResponse
+          }
+          throw new Error('Invalid staff hierarchy structure')
+
+        case 'mixed':
+          if (response.groupBy === 'mixed') {
+            // Validate mixed response structure - CHÍNH XÁC THEO BACKEND
+            const hasPositions = Array.isArray(response.positions)
+            const hasJobPositions = Array.isArray(response.jobPositions)
+            
+            console.log('Mixed response validation:', {
+              hasPositions,
+              hasJobPositions,
+              positionsLength: response.positions?.length || 0,
+              jobPositionsLength: response.jobPositions?.length || 0
+            })
+
+            if (hasPositions || hasJobPositions) {
+              console.log('Valid mixed hierarchy response')
+              return response as MixedHierarchyResponse
+            }
+            
+            throw new Error('Mixed hierarchy response has no positions or jobPositions')
+          }
+          throw new Error('Invalid mixed hierarchy structure - missing groupBy=mixed')
+
+        case 'empty':
+          console.log('Empty hierarchy response')
+          return response
+          
+        default:
+          throw new Error(`Unknown response viewType: ${response}`)
+          // throw new Error(`Unknown response viewType: ${response.viewType}`)
+      }
+    } catch (error) {
+      console.error('HierarchyService.getMyHierarchyView error:', error)
+      
+      if (error instanceof Error) {
+        throw error
+      } else {
+        throw new Error('Failed to fetch hierarchy data')
+      }
+    }
+  }
+
+  /**
+   * Check if response is management hierarchy
+   */
+  static isManagementHierarchy(response: HierarchyResponse): response is ManagementHierarchyResponse {
+    return response.viewType === 'management' && response.groupBy === 'position' && 'positions' in response
+  }
+
+  /**
+   * Check if response is staff hierarchy
+   */
+  static isStaffHierarchy(response: HierarchyResponse): response is StaffHierarchyResponse {
+    return response.viewType === 'staff' && response.groupBy === 'jobPosition' && 'jobPositions' in response
   }
 
   /**
    * Get offices overview (Admin/Superadmin only)
    */
-  static async getOfficesOverview(filters?: HierarchyFilters): Promise<OfficesOverviewResponse> {
+  static async getOfficesOverview(filters?: HierarchyFilters): Promise<PositionOverviewResponse> {
     const params = new URLSearchParams()
-    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
+    
+    // FIX: Validate numbers before sending
+    if (filters?.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
     
     const query = params.toString() ? `?${params}` : ''
-    return await api.get(`/hierarchy-reports/offices-overview${query}`)
+    return await api.get<PositionOverviewResponse>(`/hierarchy-reports/offices-overview${query}`)
   }
 
   /**
-   * Get office details
+   * Get position details
    */
-  static async getOfficeDetails(
-    officeId: string,
+  static async getPositionDetails(
+    positionId: string, 
     filters?: HierarchyFilters
-  ): Promise<OfficeDetailsResponse> {
+  ): Promise<PositionDetailsResponse> {
     const params = new URLSearchParams()
-    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
+    
+    // FIX: Validate numbers
+    if (filters?.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
     
     const query = params.toString() ? `?${params}` : ''
-    return await api.get(`/hierarchy-reports/office/${officeId}/details${query}`)
+    return await api.get<PositionDetailsResponse>(`/hierarchy-reports/position/${positionId}${query}`)
   }
 
   /**
-   * Get department details
+   * Get position users list
    */
-  static async getDepartmentDetails(
-    departmentId: string,
+  static async getPositionUsers(
+    positionId: string,
     filters?: HierarchyFilters
-  ): Promise<DepartmentDetailsResponse> {
+  ): Promise<any> {
     const params = new URLSearchParams()
-    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
+    
+    // FIX: Validate numbers
+    if (filters?.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
     
     const query = params.toString() ? `?${params}` : ''
-    return await api.get(`/hierarchy-reports/department/${departmentId}/details${query}`)
+    return await api.get(`/hierarchy-reports/position-users/${positionId}${query}`)
   }
 
   /**
@@ -75,146 +213,190 @@ export class HierarchyService {
    */
   static async getUserDetails(
     userId: string,
-    filters?: HierarchyFilters
-  ): Promise<UserDetails> {
+    filters?: HierarchyFilters & { limit?: number }
+  ): Promise<UserDetailsResponse> {
     const params = new URLSearchParams()
     
-    // Ensure parameters are properly set
+    // FIX: Validate all numeric parameters
     if (filters?.weekNumber !== undefined) {
-      params.append('weekNumber', filters.weekNumber.toString())
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
     }
     if (filters?.year !== undefined) {
-      params.append('year', filters.year.toString())
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
     }
     if (filters?.limit !== undefined) {
-      params.append('limit', filters.limit.toString())
+      const limitNum = Number(filters.limit)
+      if (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100) {
+        params.append('limit', String(limitNum))
+      }
     }
     
     const query = params.toString() ? `?${params}` : ''
-    
-    return await api.get(`/hierarchy-reports/user/${userId}/details${query}`)
+    return await api.get<UserDetailsResponse>(`/hierarchy-reports/user/${userId}${query}`)
   }
 
   /**
-   * Get task completion trends
+   * Get employees without reports
    */
-  static async getTaskCompletionTrends(filters?: {
-    officeId?: string
-    departmentId?: string
-    weeks?: number
-  }): Promise<TaskCompletionTrends> {
+  static async getEmployeesWithoutReports(filters?: HierarchyFilters): Promise<EmployeesReportingStatusResponse> {
     const params = new URLSearchParams()
-    if (filters?.officeId) params.append('officeId', filters.officeId)
-    if (filters?.departmentId) params.append('departmentId', filters.departmentId)
-    if (filters?.weeks) params.append('weeks', filters.weeks.toString())
+    
+    // FIX: Validate numbers for pagination and date filters
+    if (filters?.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
+    if (filters?.page !== undefined) {
+      const pageNum = Number(filters.page)
+      if (!isNaN(pageNum) && pageNum > 0) {
+        params.append('page', String(pageNum))
+      }
+    }
+    if (filters?.limit !== undefined) {
+      const limitNum = Number(filters.limit)
+      if (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100) {
+        params.append('limit', String(limitNum))
+      }
+    }
     
     const query = params.toString() ? `?${params}` : ''
-    return await api.get(`/hierarchy-reports/task-completion-trends${query}`)
-  }
-
-  /**
-   * Get incomplete reasons hierarchy analysis
-   */
-  static async getIncompleteReasonsHierarchy(filters?: {
-    officeId?: string
-    departmentId?: string
-    weekNumber?: number
-    year?: number
-  }): Promise<IncompleteReasonsHierarchy> {
-    const params = new URLSearchParams()
-    if (filters?.officeId) params.append('officeId', filters.officeId)
-    if (filters?.departmentId) params.append('departmentId', filters.departmentId)
-    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
-    
-    const query = params.toString() ? `?${params}` : ''
-    return await api.get(`/hierarchy-reports/incomplete-reasons-hierarchy${query}`)
-  }
-
-  /**
-   * Get employees who haven't submitted reports
-   */
-  static async getEmployeesWithoutReports(
-    filters?: EmployeeReportingFilters
-  ): Promise<EmployeesWithoutReportsResponse> {
-    const params = new URLSearchParams()
-    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
-    if (filters?.officeId) params.append('officeId', filters.officeId)
-    if (filters?.departmentId) params.append('departmentId', filters.departmentId)
-    if (filters?.page) params.append('page', filters.page.toString())
-    if (filters?.limit) params.append('limit', filters.limit.toString())
-    
-    const query = params.toString() ? `?${params}` : ''
-    return await api.get(`/hierarchy-reports/employees-without-reports${query}`)
+    return await api.get<EmployeesReportingStatusResponse>(`/hierarchy-reports/employees-without-reports${query}`)
   }
 
   /**
    * Get employees with incomplete reports
    */
-  static async getEmployeesWithIncompleteReports(
-    filters?: EmployeeReportingFilters
-  ): Promise<EmployeesWithIncompleteReportsResponse> {
+  static async getEmployeesWithIncompleteReports(filters?: HierarchyFilters): Promise<EmployeesReportingStatusResponse> {
     const params = new URLSearchParams()
-    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
-    if (filters?.officeId) params.append('officeId', filters.officeId)
-    if (filters?.departmentId) params.append('departmentId', filters.departmentId)
-    if (filters?.page) params.append('page', filters.page.toString())
-    if (filters?.limit) params.append('limit', filters.limit.toString())
     
-    const query = params.toString() ? `?${params}` : ''
-    return await api.get(`/hierarchy-reports/employees-incomplete-reports${query}`)
-  }
-
-  /**
-   * Get comprehensive employee reporting status
-   */
-  static async getEmployeesReportingStatus(
-    filters?: EmployeeReportingFilters
-  ): Promise<EmployeesReportingStatusResponse> {
-    const params = new URLSearchParams()
-    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
-    if (filters?.officeId) params.append('officeId', filters.officeId)
-    if (filters?.departmentId) params.append('departmentId', filters.departmentId)
-    if (filters?.status) params.append('status', filters.status)
-    if (filters?.page) params.append('page', filters.page.toString())
-    if (filters?.limit) params.append('limit', filters.limit.toString())
-    
-    const query = params.toString() ? `?${params}` : ''
-    return await api.get(`/hierarchy-reports/employees-reporting-status${query}`)
-  }
-
-  /**
-   * Admin: Get user reports for management
-   */
-  static async getUserReportsForAdmin(
-    userId: string,
-    filters?: {
-      page?: number
-      limit?: number
-      weekNumber?: number
-      year?: number
+    // FIX: Same validation pattern
+    if (filters?.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
     }
-  ): Promise<any> {
-    const params = new URLSearchParams()
-    if (filters?.page) params.append('page', filters.page.toString())
-    if (filters?.limit) params.append('limit', filters.limit.toString())
-    if (filters?.weekNumber) params.append('weekNumber', filters.weekNumber.toString())
-    if (filters?.year) params.append('year', filters.year.toString())
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
+    if (filters?.page !== undefined) {
+      const pageNum = Number(filters.page)
+      if (!isNaN(pageNum) && pageNum > 0) {
+        params.append('page', String(pageNum))
+      }
+    }
+    if (filters?.limit !== undefined) {
+      const limitNum = Number(filters.limit)
+      if (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100) {
+        params.append('limit', String(limitNum))
+      }
+    }
     
     const query = params.toString() ? `?${params}` : ''
-    return await api.get(`/hierarchy-reports/admin/user/${userId}/reports${query}`)
+    return await api.get<EmployeesReportingStatusResponse>(`/hierarchy-reports/employees-incomplete-reports${query}`)
   }
 
   /**
-   * Admin: Get specific report details for a user
+   * Get employees reporting status
    */
-  static async getReportDetailsForAdmin(
-    userId: string,
-    reportId: string
-  ): Promise<any> {
-    return await api.get(`/hierarchy-reports/admin/user/${userId}/report/${reportId}`)
+  static async getEmployeesReportingStatus(filters?: HierarchyFilters): Promise<EmployeesReportingStatusResponse> {
+    const params = new URLSearchParams()
+    
+    // FIX: Validate numeric parameters
+    if (filters?.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
+    if (filters?.page !== undefined) {
+      const pageNum = Number(filters.page)
+      if (!isNaN(pageNum) && pageNum > 0) {
+        params.append('page', String(pageNum))
+      }
+    }
+    if (filters?.limit !== undefined) {
+      const limitNum = Number(filters.limit)
+      if (!isNaN(limitNum) && limitNum > 0 && limitNum <= 100) {
+        params.append('limit', String(limitNum))
+      }
+    }
+    if (filters?.status && typeof filters.status === 'string') {
+      params.append('status', filters.status)
+    }
+    
+    const query = params.toString() ? `?${params}` : ''
+    return await api.get<EmployeesReportingStatusResponse>(`/hierarchy-reports/employees-reporting-status${query}`)
+  }
+
+  /**
+   * Get task completion trends
+   */
+  static async getTaskCompletionTrends(filters?: HierarchyFilters & { weeks?: number }): Promise<TaskCompletionTrendsResponse> {
+    const params = new URLSearchParams()
+    
+    // FIX: Validate all possible numeric parameters
+    if (filters?.officeId && typeof filters.officeId === 'string') {
+      params.append('officeId', filters.officeId)
+    }
+    if (filters?.departmentId && typeof filters.departmentId === 'string') {
+      params.append('departmentId', filters.departmentId)
+    }
+    if (filters?.weeks !== undefined) {
+      const weeksNum = Number(filters.weeks)
+      if (!isNaN(weeksNum) && weeksNum > 0 && weeksNum <= 52) {
+        params.append('weeks', String(weeksNum))
+      }
+    }
+    
+    const query = params.toString() ? `?${params}` : ''
+    return await api.get<TaskCompletionTrendsResponse>(`/hierarchy-reports/task-completion-trends${query}`)
+  }
+
+  /**
+   * Get incomplete reasons hierarchy analysis
+   */
+  static async getIncompleteReasonsHierarchy(filters?: HierarchyFilters): Promise<IncompleteReasonsResponse> {
+    const params = new URLSearchParams()
+    
+    // FIX: Validate week and year parameters
+    if (filters?.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
+    
+    const query = params.toString() ? `?${params}` : ''
+    return await api.get<IncompleteReasonsResponse>(`/hierarchy-reports/incomplete-reasons-hierarchy${query}`)
   }
 }

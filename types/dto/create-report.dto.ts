@@ -12,7 +12,6 @@ export interface CreateTaskReportDto {
   thursday?: boolean
   friday?: boolean
   saturday?: boolean
-  sunday?: boolean
   isCompleted?: boolean
-  reasonNotDone?: string // Make sure this is optional string, not required
+  reasonNotDone?: string
 }

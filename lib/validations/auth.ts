@@ -25,16 +25,23 @@ export const registerSchema = z.object({
 })
 
 export const forgotPasswordSchema = z.object({
-  employeeCode: z.string().min(1, 'Mã nhân viên không được để trống'),
-  phone: z.string().min(10, 'Số điện thoại phải có ít nhất 10 ký tự').max(12, 'Số điện thoại không được quá 12 ký tự'),
+  employeeCode: z.string()
+    .min(1, 'Vui lòng nhập mã nhân viên')
+    .regex(/^[A-Za-z0-9]+$/, 'Mã nhân viên chỉ được chứa chữ và số'),
+  phone: z.string()
+    .min(10, 'Số điện thoại phải có ít nhất 10 số')
+    .max(11, 'Số điện thoại không được quá 11 số')
+    .regex(/^[0-9]+$/, 'Số điện thoại chỉ được chứa số')
 })
 
 export const resetPasswordSchema = z.object({
-  newPassword: z.string().min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
-  confirmPassword: z.string().min(1, 'Vui lòng xác nhận mật khẩu'),
-}).refine(data => data.newPassword === data.confirmPassword, {
-  message: 'Mật khẩu xác nhận không khớp',
-  path: ['confirmPassword'],
+  newPassword: z.string()
+    .min(6, 'Mật khẩu phải có ít nhất 6 ký tự'),
+  confirmPassword: z.string()
+    .min(6, 'Mật khẩu xác nhận phải có ít nhất 6 ký tự')
+}).refine((data) => data.newPassword === data.confirmPassword, {
+  message: "Mật khẩu xác nhận không khớp",
+  path: ["confirmPassword"],
 })
 
 export type LoginFormData = z.infer<typeof loginSchema>

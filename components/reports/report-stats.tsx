@@ -2,10 +2,10 @@
 
 import { memo, useMemo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
-import type { TaskReport } from '@/types'
+import type { Task } from '@/types'
 
 interface ReportStatsProps {
-  tasks: TaskReport[]
+  tasks: Task[]
 }
 
 const ReportStats = memo(function ReportStats({ tasks }: ReportStatsProps) {
@@ -16,7 +16,7 @@ const ReportStats = memo(function ReportStats({ tasks }: ReportStatsProps) {
     const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
 
     // Calculate weekly activity
-    const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const
+    const dayKeys = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'] as const
     const weeklyActivity = dayKeys.map(day => {
       const activeTasks = tasks.filter(task => task[day])
       return activeTasks.length
@@ -35,7 +35,7 @@ const ReportStats = memo(function ReportStats({ tasks }: ReportStatsProps) {
   }, [tasks])
 
   // Memoize day names to prevent recreation
-  const dayNames = useMemo(() => ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'], [])
+  const dayNames = useMemo(() => ['T2', 'T3', 'T4', 'T5', 'T6', 'T7'], [])
 
   return (
     <Card>

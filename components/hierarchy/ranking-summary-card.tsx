@@ -5,18 +5,13 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { Trophy, Users, Building, TrendingUp } from 'lucide-react'
+import { normalizeRankingDistribution, type RankingDistribution } from '@/types/hierarchy'
 
-// Updated interface to match backend data structure
+// Updated interface to use optional RankingDistribution
 interface RankingData {
   totalEntities: number
   averageCompletionRate: number
-  ranking: {
-    excellent: { count: number; percentage: number }
-    good: { count: number; percentage: number }
-    average: { count: number; percentage: number }
-    poor: { count: number; percentage: number }
-    fail: { count: number; percentage: number }
-  }
+  ranking?: RankingDistribution
 }
 
 interface RankingSummaryCardProps {
@@ -32,6 +27,9 @@ export const RankingSummaryCard = memo(function RankingSummaryCard({
   entityType,
   className = ''
 }: RankingSummaryCardProps) {
+  
+  // Normalize the ranking distribution to handle optional properties
+  const normalizedRanking = normalizeRankingDistribution(data.ranking)
   
   const getEntityIcon = () => {
     switch (entityType) {
@@ -66,7 +64,7 @@ export const RankingSummaryCard = memo(function RankingSummaryCard({
       color: 'bg-purple-500',
       bgColor: 'bg-purple-50',
       textColor: 'text-purple-700',
-      data: data.ranking.excellent
+      data: normalizedRanking.excellent
     },
     {
       key: 'good',
@@ -74,7 +72,7 @@ export const RankingSummaryCard = memo(function RankingSummaryCard({
       color: 'bg-green-500',
       bgColor: 'bg-green-50',
       textColor: 'text-green-700',
-      data: data.ranking.good
+      data: normalizedRanking.good
     },
     {
       key: 'average',
@@ -82,15 +80,15 @@ export const RankingSummaryCard = memo(function RankingSummaryCard({
       color: 'bg-yellow-500',
       bgColor: 'bg-yellow-50',
       textColor: 'text-yellow-700',
-      data: data.ranking.average
+      data: normalizedRanking.average
     },
     {
-      key: 'poor',
+      key: 'belowAverage',
       label: 'YẾU',
       color: 'bg-orange-500',
       bgColor: 'bg-orange-50',
       textColor: 'text-orange-700',
-      data: data.ranking.poor
+      data: normalizedRanking.belowAverage
     },
     {
       key: 'fail',
@@ -98,7 +96,7 @@ export const RankingSummaryCard = memo(function RankingSummaryCard({
       color: 'bg-red-500',
       bgColor: 'bg-red-50',
       textColor: 'text-red-700',
-      data: data.ranking.fail
+      data: normalizedRanking.poor
     }
   ]
 
@@ -173,30 +171,6 @@ export const RankingSummaryCard = memo(function RankingSummaryCard({
               ))}
             </div>
           </div>
-
-          {/* Summary Stats */}
-          {/* <div className="pt-3 border-t border-blue-200 dark:border-blue-800">
-            <div className="grid grid-cols-3 gap-4 text-center">
-              <div>
-                <div className="text-sm font-bold text-green-600">
-                  {data.ranking.excellent.count + data.ranking.good.count}
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Xuất sắc</div>
-              </div>
-              <div>
-                <div className="text-sm font-bold text-yellow-600">
-                  {data.ranking.average.count}
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Trung bình</div>
-              </div>
-              <div>
-                <div className="text-sm font-bold text-red-600">
-                  {data.ranking.poor.count + data.ranking.fail.count}
-                </div>
-                <div className="text-xs text-gray-600 dark:text-gray-400">Cần cải thiện</div>
-              </div>
-            </div>
-          </div> */}
         </div>
       </CardContent>
     </Card>
