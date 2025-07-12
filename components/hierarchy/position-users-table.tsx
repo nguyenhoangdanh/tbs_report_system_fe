@@ -1,11 +1,9 @@
 'use client'
 
 import React, { memo, useState } from 'react'
-import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye, Mail, Building2, ChevronDown, ChevronUp, BarChart3 } from 'lucide-react'
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
+import { Eye,  ChevronDown, ChevronUp, BarChart3 } from 'lucide-react'
 import { getPerformanceBadge, classifyPerformance } from '@/utils/performance-classification'
 import Link from 'next/link'
 
@@ -54,8 +52,6 @@ interface UserDetailProps {
 
 // Component để hiển thị chi tiết user trong collapse
 const UserDetail = memo(({ user }: UserDetailProps) => {
-  // Fix: Extract correct completion rate từ user data structure
-  console.log('UserDetail received user:', user)
   
   const userCompletionRate = user.stats?.taskCompletionRate || 0
   const hasReport = user.stats?.hasReport || false
@@ -65,14 +61,6 @@ const UserDetail = memo(({ user }: UserDetailProps) => {
   const userPerformanceBadge = getPerformanceBadge(userCompletionRate)
   const userClassification = classifyPerformance(userCompletionRate)
 
-  // Debug user data structure
-  console.log('UserDetail processed data:', {
-    userCompletionRate,
-    hasReport,
-    totalTasks,
-    completedTasks,
-    originalUser: user
-  })
 
   return (
     <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border mt-2">
@@ -174,8 +162,6 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
     )
   }
 
-  // Debug users data structure
-  console.log('PositionUsersTable users:', users)
 
   // Sort users by completion rate (highest first)
   const sortedUsers = [...users].sort((a, b) => {
@@ -207,15 +193,6 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
           
           const userPerformanceBadge = getPerformanceBadge(completionRate)
           const userClassification = classifyPerformance(completionRate)
-
-          // Debug individual user data
-          console.log(`User ${index + 1}:`, {
-            name: `${userItem.firstName} ${userItem.lastName}`,
-            completionRate,
-            hasReport,
-            isCompleted,
-            stats: userItem.stats
-          })
 
           return (
             <div key={userItem.id || index} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">

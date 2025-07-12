@@ -4,10 +4,10 @@ import React, { useState, memo } from 'react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Building, ChevronDown, ChevronUp, Users, Award, UserCheck, UserX } from 'lucide-react'
+import { ChevronDown, ChevronUp, Users, Award, UserCheck, UserX } from 'lucide-react'
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible'
 import { PositionUsersTable } from './position-users-table'
-import { PerformanceBarChart } from '@/components/charts/performance-bar-chart'
+import { PerformanceBarChart, PerformancePieChart } from '@/components/charts'
 import { getPerformanceBadge, classifyPerformance } from '@/utils/performance-classification'
 
 // Fix: Update interface để match với data structure thực tế
@@ -70,15 +70,6 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
   const positionClassification = classifyPerformance(completionRate)
   const positionBadge = getPerformanceBadge(completionRate)
 
-  // Debug position data
-  console.log('PositionCard data:', {
-    positionName: positionInfo.name,
-    completionRate,
-    submissionRate,
-    totalUsers: position.stats.totalUsers,
-    usersWithReports: position.stats.usersWithReports,
-    stats: position.stats
-  })
 
   // Create default ranking distribution if not provided
   const rankingDistribution = position.stats.rankingDistribution || {
@@ -103,9 +94,7 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
 
   // Transform users data for the table if available - Fix user data mapping
   const transformedUsers = (position.stats.users || position.users || []).map((user: any) => {
-    console.log('Transforming user for table:', user)
-    
-    // Fix: Transform to match PositionUser interface
+
     return {
       id: user.id,
       employeeCode: user.employeeCode,
@@ -166,19 +155,30 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                 </div>
               </div>
 
-              {/* Center - Performance Bar Chart */}
-              <div className="flex flex-col items-center mx-6">
-                <PerformanceBarChart 
+              {/* Center - Performance Charts */}
+              <div className="flex flex-row gap-2 items-center mx-6">
+                {/* <PerformanceBarChart
                   distribution={rankingDistribution}
                   width={140}
                   height={60}
                   showLabels={true}
+                /> */}
+                {/* Or use PieChart instead */}
+                <PerformancePieChart 
+                  distribution={rankingDistribution}
+                  width={120}
+                  height={120}
+                  showLabels={true}
+                  showLegend={true}
+                  compact={true}
+                  innerRadius={25}
+                  outerRadius={50}
                 />
               </div>
 
               {/* Right Side - Quick Stats - Fix: Show completion rate instead of submission rate */}
               <div className="flex items-center gap-6">
-                <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="grid grid-cols-2 gap-4 text-center">
                   <div>
                     <div className="text-lg font-bold text-blue-600">
                       {position.stats.totalUsers}
@@ -191,7 +191,7 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                     </div>
                     <div className="text-xs text-muted-foreground">Đã nộp</div>
                   </div>
-                  <div>
+                  {/* <div>
                     <div 
                       className="text-lg font-bold"
                       style={{ color: positionClassification.color }}
@@ -199,7 +199,8 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                       {Math.round(completionRate)}%
                     </div>
                     <div className="text-xs text-muted-foreground">Hoàn thành</div>
-                  </div>
+                  </div> */}
+                 
                 </div>
               </div>
             </div>
@@ -240,19 +241,19 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                   </div>
                 </div>
 
-                <div className="flex-1 flex justify-center">
-                  <PerformanceBarChart 
+                {/* <div className="flex-1 flex justify-center">
+                  <PerformanceBarChart
                     distribution={rankingDistribution}
                     width={100}
                     height={45}
                     showLabels={false}
                     compact={true}
                   />
-                </div>
+                </div> */}
 
                 <div className="flex flex-col gap-1">
                   <div className="text-center">
-                    <div 
+                    <div
                       className="text-lg font-bold"
                       style={{ color: positionClassification.color }}
                     >
@@ -273,8 +274,8 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
           {/* Collapse Button - Bottom Center */}
           <div className="border-t border-gray-200 dark:border-gray-700">
             <CollapsibleTrigger asChild>
-              <Button 
-                variant="ghost" 
+              <Button
+                variant="ghost"
                 className="w-full h-10 rounded-none rounded-b-lg flex items-center justify-center gap-2 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
               >
                 <Users className="h-4 w-4" />
@@ -324,18 +325,32 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                     </div>
                   </div>
 
-                  {/* Performance Chart for Mobile Expanded View */}
+                  {/* Performance Charts for Mobile Expanded View */}
                   <div className="md:hidden p-3 bg-white dark:bg-gray-900 rounded-lg border">
                     <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3 text-center">
                       Biểu đồ xếp loại chi tiết
                     </p>
-                    <div className="flex justify-center">
-                      <PerformanceBarChart 
-                        distribution={rankingDistribution}
-                        width={200}
-                        height={80}
-                        showLabels={true}
-                      />
+                    <div className="grid grid-cols-1 gap-4">
+                      <div className="flex justify-center">
+                        <PerformanceBarChart
+                          distribution={rankingDistribution}
+                          width={200}
+                          height={80}
+                          showLabels={true}
+                        />
+                      </div>
+                      <div className="flex justify-center">
+                        <PerformancePieChart
+                          distribution={rankingDistribution}
+                          width={100}
+                          height={100}
+                          showLabels={true}
+                          showLegend={true}
+                          compact={true}
+                          innerRadius={25}
+                          outerRadius={50}
+                        />
+                      </div>
                     </div>
                   </div>
 
@@ -346,9 +361,9 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                     </p>
                     <div className="flex flex-wrap gap-2">
                       {rankingStats.excellent > 0 && (
-                        <Badge 
-                          style={{ 
-                            backgroundColor: '#d946ef', 
+                        <Badge
+                          style={{
+                            backgroundColor: '#d946ef',
                             color: 'white',
                             borderColor: '#d946ef'
                           }}
@@ -357,9 +372,9 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                         </Badge>
                       )}
                       {rankingStats.good > 0 && (
-                        <Badge 
-                          style={{ 
-                            backgroundColor: '#22c55e', 
+                        <Badge
+                          style={{
+                            backgroundColor: '#22c55e',
                             color: 'white',
                             borderColor: '#22c55e'
                           }}
@@ -368,9 +383,9 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                         </Badge>
                       )}
                       {rankingStats.average > 0 && (
-                        <Badge 
-                          style={{ 
-                            backgroundColor: '#eab308', 
+                        <Badge
+                          style={{
+                            backgroundColor: '#eab308',
                             color: 'white',
                             borderColor: '#eab308'
                           }}
@@ -379,9 +394,9 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                         </Badge>
                       )}
                       {rankingStats.poor > 0 && (
-                        <Badge 
-                          style={{ 
-                            backgroundColor: '#f97316', 
+                        <Badge
+                          style={{
+                            backgroundColor: '#f97316',
                             color: 'white',
                             borderColor: '#f97316'
                           }}
@@ -390,9 +405,9 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                         </Badge>
                       )}
                       {rankingStats.fail > 0 && (
-                        <Badge 
-                          style={{ 
-                            backgroundColor: '#dc2626', 
+                        <Badge
+                          style={{
+                            backgroundColor: '#dc2626',
                             color: 'white',
                             borderColor: '#dc2626'
                           }}
@@ -406,7 +421,7 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                   {/* Employee Details Table */}
                   {transformedUsers.length > 0 && (
                     <div className="bg-white dark:bg-gray-900 rounded-lg border p-4">
-                      <PositionUsersTable 
+                      <PositionUsersTable
                         users={transformedUsers}
                         positionName={positionInfo.name}
                       />

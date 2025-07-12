@@ -101,7 +101,7 @@ export class ReportService {
       throw new Error('Year must be between 2020 and 2030')
     }
     
-    return await api.get<WeeklyReport>(`/reports/week/${validWeekNumber}/year/${validYear}`)
+    return await api.get<WeeklyReport>(`/reports/week/${validWeekNumber}/${validYear}`)
   }
 
   /**

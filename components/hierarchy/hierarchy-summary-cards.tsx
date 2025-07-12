@@ -44,12 +44,6 @@ export const HierarchySummaryCards = memo(({ summary }: HierarchySummaryCardsPro
   // For mixed view, show breakdown
   const isMixedView = summary.managementSummary && summary.staffSummary
   
-  console.log('Summary data:', {
-    totalPositions,
-    totalJobPositions,
-    totalUsers,
-    isMixedView
-  })
 
   const cards = [
     {

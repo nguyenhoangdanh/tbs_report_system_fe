@@ -2,17 +2,14 @@
 
 import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { useAuth } from "@/components/providers/auth-provider"
-import { motion, AnimatePresence, useReducedMotion, Variants } from "framer-motion"
+import { motion, useReducedMotion, Variants } from "framer-motion"
 import { loginSchema, type LoginFormData } from "@/lib/validations/auth"
 import Link from "next/link"
-import { LockIcon as UserLock, Eye, EyeOff, Shield, Sparkles, Leaf, Zap } from "lucide-react"
-import { useState } from "react"
-import { Checkbox } from "../ui/checkbox"
-import { Label } from "../ui/label"
+import { LockIcon as UserLock, Sparkles } from "lucide-react"
 import { FormField } from "../ui/form-field"
 import { SubmitButton } from "../ui/submit-button"
 import { useLogin } from "@/hooks/use-auth"
+import { AnimatedBackground } from "../ui/animated-background"
 
 // Fixed animation variants with proper TypeScript types
 const containerVariants: Variants = {
@@ -45,7 +42,7 @@ const itemVariants: Variants = {
 }
 
 export function LoginPage() {
-  const loginMutation = useLogin(); // Renamed for clarity
+  const loginMutation = useLogin();
   const shouldReduceMotion = useReducedMotion()
 
   const {
@@ -65,7 +62,6 @@ export function LoginPage() {
 
   const onSubmit = async (data: LoginFormData) => {
     try {
-      // Use mutateAsync from the mutation object
       await loginMutation.mutateAsync({
         employeeCode: data.employeeCode,
         password: data.password,
@@ -76,155 +72,11 @@ export function LoginPage() {
     }
   }
 
-  // Get loading state from mutation
   const isLoading = loginMutation.isPending
 
-  console.log("[LoginPage] Rendered with reduced motion:", errors)
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-100 dark:from-green-950/20 dark:via-emerald-950/10 dark:to-teal-950/5 relative overflow-hidden">
-      {/* Enhanced animated background elements */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        {/* Floating orbs with better motion */}
-        <motion.div
-          animate={shouldReduceMotion ? {} : {
-            y: [-10, 10, -10],
-            rotate: [0, 5, -5, 0],
-            scale: [1, 1.1, 1]
-          }}
-          transition={{
-            duration: 6,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute top-20 left-10 w-24 h-24 bg-green-200/30 dark:bg-green-400/20 rounded-full blur-xl"
-        />
-        <motion.div
-          animate={shouldReduceMotion ? {} : {
-            y: [-15, 15, -15],
-            rotate: [0, -5, 5, 0],
-            scale: [1, 1.2, 1]
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 2,
-          }}
-          className="absolute top-40 right-20 w-32 h-32 bg-emerald-200/20 dark:bg-emerald-400/15 rounded-full blur-xl"
-        />
-        <motion.div
-          animate={shouldReduceMotion ? {} : {
-            y: [-8, 12, -8],
-            rotate: [0, 3, -3, 0],
-            scale: [1, 1.15, 1]
-          }}
-          transition={{
-            duration: 7,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 4,
-          }}
-          className="absolute bottom-20 left-1/4 w-28 h-28 bg-teal-200/25 dark:bg-teal-400/20 rounded-full blur-xl"
-        />
-
-        {/* Additional floating elements */}
-        <motion.div
-          animate={shouldReduceMotion ? {} : {
-            y: [-12, 12, -12],
-            x: [-8, 8, -8],
-            rotate: [0, 10, -10, 0]
-          }}
-          transition={{
-            duration: 9,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1,
-          }}
-          className="absolute bottom-32 right-32 w-20 h-20 bg-blue-200/25 dark:bg-blue-400/20 rounded-full blur-lg"
-        />
-
-        {/* Pulsing rings with better animations */}
-        <motion.div
-          animate={shouldReduceMotion ? {} : {
-            scale: [1, 1.2, 1],
-            opacity: [0.3, 0.6, 0.3],
-            rotate: [0, 180, 360]
-          }}
-          transition={{
-            duration: 3,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute top-1/3 right-1/4 w-40 h-40 border border-green-300/20 dark:border-green-400/30 rounded-full"
-        />
-        <motion.div
-          animate={shouldReduceMotion ? {} : {
-            scale: [1, 1.3, 1],
-            opacity: [0.2, 0.5, 0.2],
-            rotate: [360, 180, 0]
-          }}
-          transition={{
-            duration: 4,
-            repeat: Infinity,
-            ease: "easeInOut",
-            delay: 1.5,
-          }}
-          className="absolute bottom-1/3 left-1/3 w-32 h-32 border border-emerald-300/15 dark:border-emerald-400/25 rounded-full"
-        />
-
-        {/* Enhanced orbiting elements */}
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2">
-          <motion.div
-            animate={shouldReduceMotion ? {} : { rotate: 360 }}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "linear",
-            }}
-            className="relative w-96 h-96"
-          >
-            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-3 h-3 bg-green-400/40 rounded-full blur-sm" />
-            <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-2 h-2 bg-emerald-400/30 rounded-full blur-sm" />
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-2 h-2 bg-teal-400/35 rounded-full blur-sm" />
-            <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3 h-3 bg-green-300/25 rounded-full blur-sm" />
-          </motion.div>
-        </div>
-
-        {/* Enhanced floating icons */}
-        <motion.div
-          animate={shouldReduceMotion ? {} : {
-            y: [-20, 20, -20],
-            x: [-10, 10, -10],
-            rotate: [0, 180, 360],
-          }}
-          transition={{
-            duration: 8,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute top-1/4 left-1/6 text-green-300/20 dark:text-green-400/30"
-        >
-          <Leaf className="w-8 h-8" />
-        </motion.div>
-        <motion.div
-          animate={shouldReduceMotion ? {} : {
-            y: [20, -20, 20],
-            x: [10, -10, 10],
-            rotate: [360, 180, 0],
-          }}
-          transition={{
-            duration: 10,
-            repeat: Infinity,
-            ease: "easeInOut",
-          }}
-          className="absolute bottom-1/4 right-1/6 text-emerald-300/15 dark:text-emerald-400/25"
-        >
-          <Zap className="w-6 h-6" />
-        </motion.div>
-      </div>
-
-      <div className="relative z-10 flex items-center justify-center min-h-screen p-4">
+    <AnimatedBackground variant="login" particleCount={20}>
+      <div className="flex items-center justify-center min-h-screen p-4">
         <motion.div 
           variants={containerVariants} 
           initial="hidden" 
@@ -355,7 +207,6 @@ export function LoginPage() {
                 </div> 
               </motion.div>
 
-
               {/* Enhanced Submit Button */}
               <motion.div variants={itemVariants}>
                 <SubmitButton
@@ -376,7 +227,6 @@ export function LoginPage() {
                 </Link>
               </div>
             </form>
-
           </motion.div>
 
           {/* Footer */}
@@ -385,6 +235,6 @@ export function LoginPage() {
           </motion.div>
         </motion.div>
       </div>
-    </div>
+    </AnimatedBackground>
   )
 }

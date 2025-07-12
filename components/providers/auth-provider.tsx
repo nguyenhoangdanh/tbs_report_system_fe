@@ -52,7 +52,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
       
       setUser(userData)
-      console.log('✅ Auth check successful for user:', newUserId)
     } catch (error) {
       console.log('❌ Auth check failed:', error)
       clearUserData(user?.id)

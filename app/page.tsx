@@ -1,11 +1,12 @@
 'use client'
 
-import { Suspense } from 'react'
+import { Suspense, memo } from 'react'
 import { motion, useScroll, useTransform, useSpring, useReducedMotion, Variants } from 'framer-motion'
 import Link from 'next/link'
 import { MainLayout } from '@/components/layout/main-layout'
 
-const StatCard = ({ number, label, delay }: { number: string; label: string; delay: number }) => {
+// Optimized StatCard component
+const StatCard = memo(({ number, label, delay }: { number: string; label: string; delay: number }) => {
   const shouldReduceMotion = useReducedMotion()
   
   return (
@@ -23,9 +24,12 @@ const StatCard = ({ number, label, delay }: { number: string; label: string; del
       <div className="text-muted-foreground text-sm md:text-base">{label}</div>
     </motion.div>
   )
-}
+})
 
-const FeatureCard = ({ icon, title, description, delay }: {
+StatCard.displayName = 'StatCard'
+
+// Optimized FeatureCard component  
+const FeatureCard = memo(({ icon, title, description, delay }: {
   icon: string
   title: string
   description: string
@@ -43,7 +47,6 @@ const FeatureCard = ({ icon, title, description, delay }: {
       className="group relative"
     >
       <div className="relative p-8 bg-card/80 backdrop-blur-sm rounded-2xl shadow-lg border border-border/50 hover:shadow-xl hover:border-green-500/20 transition-all duration-300 overflow-hidden">
-        {/* Animated background gradient */}
         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
         
         <div className="relative z-10">
@@ -62,9 +65,16 @@ const FeatureCard = ({ icon, title, description, delay }: {
       </div>
     </motion.div>
   )
-}
+})
 
-const FloatingElement = ({ children, delay = 0 }: { children: React.ReactNode; delay?: number }) => {
+FeatureCard.displayName = 'FeatureCard'
+
+// Simplified floating element component
+const FloatingElement = memo(({ children, delay = 0, className = "" }: { 
+  children: React.ReactNode
+  delay?: number
+  className?: string
+}) => {
   const shouldReduceMotion = useReducedMotion()
   
   return (
@@ -79,26 +89,25 @@ const FloatingElement = ({ children, delay = 0 }: { children: React.ReactNode; d
         ease: "easeInOut",
         delay
       }}
-      className="absolute opacity-20 dark:opacity-10"
+      className={`absolute opacity-20 dark:opacity-10 ${className}`}
     >
       {children}
     </motion.div>
   )
-}
+})
 
-const AnimatedParticle = ({ 
+FloatingElement.displayName = 'FloatingElement'
+
+// Optimized animated particle component
+const AnimatedParticle = memo(({ 
   size = 'w-2 h-2', 
   color = 'bg-green-400', 
   delay = 0,
-  duration = 4,
-  path = { x: [-20, 20, -20], y: [-15, 15, -15] },
   className = ''
 }: {
   size?: string
   color?: string
   delay?: number
-  duration?: number
-  path?: { x: number[], y: number[] }
   className?: string
 }) => {
   const shouldReduceMotion = useReducedMotion()
@@ -107,92 +116,99 @@ const AnimatedParticle = ({
     <motion.div
       className={`absolute ${size} ${color} rounded-full opacity-40 dark:opacity-20 ${className}`}
       animate={shouldReduceMotion ? {} : {
-        x: path.x,
-        y: path.y,
+        x: [-20, 20, -20],
+        y: [-15, 15, -15],
         scale: [1, 1.2, 1],
         opacity: [0.4, 0.8, 0.4]
       }}
       transition={{
-        duration,
+        duration: 4,
         repeat: Infinity,
         ease: "easeInOut",
         delay
       }}
     />
   )
-}
+})
 
-const FloatingIcon = ({ 
-  icon, 
-  delay = 0, 
-  className = '',
-  size = 'text-2xl'
-}: { 
-  icon: string
-  delay?: number
-  className?: string
-  size?: string
-}) => {
+AnimatedParticle.displayName = 'AnimatedParticle'
+
+// Background decoration component
+const BackgroundDecorations = memo(() => {
   const shouldReduceMotion = useReducedMotion()
   
   return (
-    <motion.div
-      className={`absolute ${size} opacity-30 dark:opacity-20 ${className}`}
-      animate={shouldReduceMotion ? {} : {
-        y: [-15, 15, -15],
-        rotate: [-5, 5, -5],
-        scale: [1, 1.1, 1]
-      }}
-      transition={{
-        duration: 5,
-        repeat: Infinity,
-        ease: "easeInOut",
-        delay
-      }}
-    >
-      {icon}
-    </motion.div>
-  )
-}
+    <div className="absolute inset-0 overflow-hidden pointer-events-none">
+      {/* Floating background blobs */}
+      <FloatingElement delay={0} className="top-20 left-10">
+        <div className="w-32 h-32 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full blur-3xl" />
+      </FloatingElement>
+      <FloatingElement delay={2} className="top-40 right-20">
+        <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full blur-2xl" />
+      </FloatingElement>
+      <FloatingElement delay={4} className="bottom-40 left-1/3">
+        <div className="w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full blur-2xl" />
+      </FloatingElement>
 
-const GeometricShape = ({ 
-  shape = 'circle',
-  size = 'w-8 h-8',
-  color = 'border-green-400',
-  delay = 0,
-  className = ''
-}: {
-  shape?: 'circle' | 'square' | 'triangle'
-  size?: string
-  color?: string
-  delay?: number
-  className?: string
-}) => {
-  const shouldReduceMotion = useReducedMotion()
-  
-  const shapeClasses = {
-    circle: 'rounded-full border-2',
-    square: 'border-2',
-    triangle: 'border-l-8 border-r-8 border-b-8 border-l-transparent border-r-transparent'
-  }
-  
-  return (
-    <motion.div
-      className={`absolute ${size} ${color} ${shapeClasses[shape]} opacity-30 dark:opacity-15 ${className}`}
-      animate={shouldReduceMotion ? {} : {
-        rotate: [0, 360],
-        scale: [1, 1.2, 1],
-        opacity: [0.3, 0.6, 0.3]
-      }}
-      transition={{
-        duration: 8,
-        repeat: Infinity,
-        ease: "linear",
-        delay
-      }}
-    />
+      {/* Animated particles */}
+      <AnimatedParticle size="w-3 h-3" color="bg-green-400" delay={0} className="top-32 left-20" />
+      <AnimatedParticle size="w-2 h-2" color="bg-blue-400" delay={1} className="top-48 right-32" />
+      <AnimatedParticle size="w-4 h-4" color="bg-emerald-400" delay={2} className="top-64 left-1/4" />
+      <AnimatedParticle size="w-2 h-2" color="bg-cyan-400" delay={3} className="bottom-48 right-1/4" />
+
+      {/* Floating icons */}
+      {!shouldReduceMotion && [
+        { icon: "📊", delay: 0.5, className: "top-40 left-12 text-3xl" },
+        { icon: "📈", delay: 1.5, className: "top-56 right-24 text-2xl" },
+        { icon: "⚡", delay: 2.5, className: "bottom-56 left-24 text-2xl" },
+        { icon: "🎯", delay: 3.5, className: "bottom-40 right-16 text-3xl" },
+      ].map((item, index) => (
+        <motion.div
+          key={index}
+          className={`absolute opacity-30 dark:opacity-20 ${item.className}`}
+          animate={{
+            y: [-15, 15, -15],
+            rotate: [-5, 5, -5],
+            scale: [1, 1.1, 1]
+          }}
+          transition={{
+            duration: 5,
+            repeat: Infinity,
+            ease: "easeInOut",
+            delay: item.delay
+          }}
+        >
+          {item.icon}
+        </motion.div>
+      ))}
+
+      {/* Geometric shapes */}
+      {!shouldReduceMotion && [
+        { size: "w-6 h-6", color: "border-green-400", delay: 0, className: "top-36 left-32" },
+        { size: "w-5 h-5", color: "border-blue-400", delay: 1, className: "top-52 right-40" },
+        { size: "w-4 h-4", color: "border-emerald-400", delay: 2, className: "bottom-52 left-20" },
+      ].map((shape, index) => (
+        <motion.div
+          key={index}
+          className={`absolute ${shape.size} ${shape.color} rounded-full border-2 opacity-30 dark:opacity-15 ${shape.className}`}
+          animate={{
+            rotate: [0, 360],
+            scale: [1, 1.2, 1],
+            opacity: [0.3, 0.6, 0.3]
+          }}
+          transition={{
+            duration: 8,
+            repeat: Infinity,
+            ease: "linear",
+            delay: shape.delay
+          }}
+        />
+      ))}
+    </div>
   )
-}
+})
+
+BackgroundDecorations.displayName = 'BackgroundDecorations'
 
 export default function HomePage() {
   const { scrollYProgress } = useScroll()
@@ -201,7 +217,7 @@ export default function HomePage() {
   const opacity = useTransform(scrollYProgress, [0, 0.3], [1, 0.8])
   const springY = useSpring(y, { stiffness: 100, damping: 30, restDelta: 0.001 })
 
-  // Fixed variants with proper TypeScript types
+  // Optimized animation variants
   const containerVariants: Variants = {
     hidden: { opacity: 0 },
     visible: {
@@ -244,219 +260,10 @@ export default function HomePage() {
       <MainLayout title={undefined} subtitle={undefined} showBreadcrumb={false}>
         {/* Hero Section */}
         <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden">
-          {/* Animated Background Elements */}
+          {/* Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 via-background to-emerald-50/30 dark:from-green-950/20 dark:via-background dark:to-emerald-950/10" />
           
-          {/* Floating Background Elements */}
-          <FloatingElement delay={0}>
-            <div className="w-32 h-32 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full blur-3xl top-20 left-10" />
-          </FloatingElement>
-          <FloatingElement delay={2}>
-            <div className="w-24 h-24 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full blur-2xl top-40 right-20" />
-          </FloatingElement>
-          <FloatingElement delay={4}>
-            <div className="w-20 h-20 bg-gradient-to-br from-purple-400 to-pink-500 rounded-full blur-2xl bottom-40 left-1/3" />
-          </FloatingElement>
-
-          {/* Animated Particles */}
-          <AnimatedParticle 
-            size="w-3 h-3" 
-            color="bg-green-400" 
-            delay={0} 
-            className="top-32 left-20"
-            path={{ x: [-30, 30, -30], y: [-20, 20, -20] }}
-          />
-          <AnimatedParticle 
-            size="w-2 h-2" 
-            color="bg-blue-400" 
-            delay={1} 
-            className="top-48 right-32"
-            path={{ x: [-25, 25, -25], y: [-15, 15, -15] }}
-          />
-          <AnimatedParticle 
-            size="w-4 h-4" 
-            color="bg-emerald-400" 
-            delay={2} 
-            className="top-64 left-1/4"
-            path={{ x: [-20, 20, -20], y: [-25, 25, -25] }}
-          />
-          <AnimatedParticle 
-            size="w-2 h-2" 
-            color="bg-cyan-400" 
-            delay={3} 
-            className="top-80 right-1/4"
-            path={{ x: [-15, 15, -15], y: [-20, 20, -20] }}
-          />
-          <AnimatedParticle 
-            size="w-3 h-3" 
-            color="bg-purple-400" 
-            delay={4} 
-            className="bottom-48 left-16"
-            path={{ x: [-25, 25, -25], y: [-15, 15, -15] }}
-          />
-          <AnimatedParticle 
-            size="w-2 h-2" 
-            color="bg-pink-400" 
-            delay={5} 
-            className="bottom-64 right-20"
-            path={{ x: [-20, 20, -20], y: [-10, 10, -10] }}
-          />
-
-          {/* Floating Icons */}
-          <FloatingIcon 
-            icon="📊" 
-            delay={0.5} 
-            className="top-40 left-12 text-3xl" 
-          />
-          <FloatingIcon 
-            icon="📈" 
-            delay={1.5} 
-            className="top-56 right-24 text-2xl" 
-          />
-          <FloatingIcon 
-            icon="⚡" 
-            delay={2.5} 
-            className="bottom-56 left-24 text-2xl" 
-          />
-          <FloatingIcon 
-            icon="🎯" 
-            delay={3.5} 
-            className="bottom-40 right-16 text-3xl" 
-          />
-          <FloatingIcon 
-            icon="📝" 
-            delay={4.5} 
-            className="top-72 left-1/3 text-2xl" 
-          />
-          <FloatingIcon 
-            icon="🔒" 
-            delay={5.5} 
-            className="top-44 right-1/3 text-2xl" 
-          />
-
-          {/* Geometric Shapes */}
-          <GeometricShape 
-            shape="circle" 
-            size="w-6 h-6" 
-            color="border-green-400" 
-            delay={0} 
-            className="top-36 left-32" 
-          />
-          <GeometricShape 
-            shape="square" 
-            size="w-5 h-5" 
-            color="border-blue-400" 
-            delay={1} 
-            className="top-52 right-40" 
-          />
-          <GeometricShape 
-            shape="circle" 
-            size="w-4 h-4" 
-            color="border-emerald-400" 
-            delay={2} 
-            className="top-68 left-1/4" 
-          />
-          <GeometricShape 
-            shape="square" 
-            size="w-6 h-6" 
-            color="border-cyan-400" 
-            delay={3} 
-            className="bottom-52 right-32" 
-          />
-          <GeometricShape 
-            shape="circle" 
-            size="w-5 h-5" 
-            color="border-purple-400" 
-            delay={4} 
-            className="bottom-44 left-20" 
-          />
-          <GeometricShape 
-            shape="square" 
-            size="w-4 h-4" 
-            color="border-pink-400" 
-            delay={5} 
-            className="top-60 right-1/4" 
-          />
-
-          {/* Floating Lines */}
-          <motion.div
-            className="absolute top-44 left-28 w-16 h-0.5 bg-gradient-to-r from-green-400 to-transparent opacity-30"
-            animate={{
-              scaleX: [1, 1.5, 1],
-              opacity: [0.3, 0.6, 0.3]
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-          <motion.div
-            className="absolute top-58 right-28 w-12 h-0.5 bg-gradient-to-l from-blue-400 to-transparent opacity-30"
-            animate={{
-              scaleX: [1, 1.3, 1],
-              opacity: [0.3, 0.5, 0.3]
-            }}
-            transition={{
-              duration: 4,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1
-            }}
-          />
-          <motion.div
-            className="absolute bottom-48 left-32 w-20 h-0.5 bg-gradient-to-r from-emerald-400 to-transparent opacity-30"
-            animate={{
-              scaleX: [1, 1.4, 1],
-              opacity: [0.3, 0.7, 0.3]
-            }}
-            transition={{
-              duration: 3.5,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 2
-            }}
-          />
-
-          {/* Pulsing Dots */}
-          <motion.div
-            className="absolute top-50 left-40 w-1 h-1 bg-green-400 rounded-full"
-            animate={{
-              scale: [1, 2, 1],
-              opacity: [0.4, 0.8, 0.4]
-            }}
-            transition={{
-              duration: 2,
-              repeat: Infinity,
-              ease: "easeInOut"
-            }}
-          />
-          <motion.div
-            className="absolute top-66 right-36 w-1 h-1 bg-blue-400 rounded-full"
-            animate={{
-              scale: [1, 1.8, 1],
-              opacity: [0.4, 0.7, 0.4]
-            }}
-            transition={{
-              duration: 2.5,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 0.5
-            }}
-          />
-          <motion.div
-            className="absolute bottom-54 left-36 w-1 h-1 bg-purple-400 rounded-full"
-            animate={{
-              scale: [1, 2.2, 1],
-              opacity: [0.4, 0.9, 0.4]
-            }}
-            transition={{
-              duration: 3,
-              repeat: Infinity,
-              ease: "easeInOut",
-              delay: 1
-            }}
-          />
+          <BackgroundDecorations />
           
           <motion.div 
             className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
@@ -509,7 +316,7 @@ export default function HomePage() {
               </motion.div>
             </div>
 
-            {/* Enhanced Stats Section */}
+            {/* Stats Section */}
             <motion.div 
               className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto"
               variants={itemVariants}
@@ -524,7 +331,6 @@ export default function HomePage() {
 
         {/* Features Section */}
         <section id="features" className="py-20 md:py-32 bg-muted/30 backdrop-blur-sm relative overflow-hidden">
-          {/* Background Pattern */}
           <div className="absolute inset-0 opacity-20 dark:opacity-10">
             <div className="absolute top-0 left-0 w-full h-full bg-grid-pattern" />
           </div>
@@ -623,20 +429,17 @@ export default function HomePage() {
                     {
                       icon: "✓",
                       title: "Tiết kiệm 80% thời gian",
-                      description: "Từ 2 giờ xuống còn 20 phút để hoàn thành báo cáo tuần",
-                      color: "green"
+                      description: "Từ 2 giờ xuống còn 20 phút để hoàn thành báo cáo tuần"
                     },
                     {
                       icon: "✓",
                       title: "Tăng minh bạch 100%",
-                      description: "Mọi hoạt động được ghi nhận và theo dõi chi tiết",
-                      color: "blue"
+                      description: "Mọi hoạt động được ghi nhận và theo dõi chi tiết"
                     },
                     {
                       icon: "✓",
                       title: "Giảm 70% sai sót",
-                      description: "Tự động kiểm tra và cảnh báo các thiếu sót trong báo cáo",
-                      color: "purple"
+                      description: "Tự động kiểm tra và cảnh báo các thiếu sót trong báo cáo"
                     }
                   ].map((benefit, index) => (
                     <motion.div
@@ -649,11 +452,11 @@ export default function HomePage() {
                       whileHover={{ x: shouldReduceMotion ? 0 : 10 }}
                     >
                       <motion.div 
-                        className={`w-8 h-8 bg-${benefit.color}-100 dark:bg-${benefit.color}-900/30 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 group-hover:scale-110 transition-transform`}
+                        className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 group-hover:scale-110 transition-transform"
                         whileHover={{ rotate: shouldReduceMotion ? 0 : 360 }}
                         transition={{ duration: 0.3 }}
                       >
-                        <span className={`text-${benefit.color}-600 dark:text-${benefit.color}-400 font-bold`}>
+                        <span className="text-green-600 dark:text-green-400 font-bold">
                           {benefit.icon}
                         </span>
                       </motion.div>
@@ -680,8 +483,12 @@ export default function HomePage() {
                   whileHover={{ scale: shouldReduceMotion ? 1 : 1.02 }}
                   transition={{ type: "spring", stiffness: 200 }}
                 >
-                  <div className="absolute top-4 right-4 w-20 h-20 bg-white/10 rounded-full animate-pulse" />
-                  <div className="absolute bottom-4 left-4 w-16 h-16 bg-white/5 rounded-full animate-pulse" style={{ animationDelay: "1s" }} />
+                  {!shouldReduceMotion && (
+                    <>
+                      <div className="absolute top-4 right-4 w-20 h-20 bg-white/10 rounded-full animate-pulse" />
+                      <div className="absolute bottom-4 left-4 w-16 h-16 bg-white/5 rounded-full animate-pulse" style={{ animationDelay: "1s" }} />
+                    </>
+                  )}
                   
                   <div className="relative z-10">
                     <h3 className="text-2xl font-bold mb-6">Dashboard Demo</h3>
@@ -730,7 +537,6 @@ export default function HomePage() {
 
         {/* CTA Section */}
         <section className="py-20 md:py-32 bg-gradient-to-br from-green-600 to-emerald-700 dark:from-green-800 dark:to-emerald-900 relative overflow-hidden">
-          {/* Animated Background Elements */}
           <div className="absolute inset-0">
             <FloatingElement delay={0}>
               <div className="w-64 h-64 bg-white/5 rounded-full blur-3xl top-0 left-0" />

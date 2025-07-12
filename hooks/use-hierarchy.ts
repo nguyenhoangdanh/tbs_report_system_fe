@@ -19,10 +19,8 @@ export function useMyHierarchyView(filters?: {
   return useQuery({
     queryKey: ['hierarchy', 'my-view', filters],
     queryFn: async () => {
-      console.log('useMyHierarchyView: Calling HierarchyService.getMyHierarchyView with filters:', filters)
       try {
         const result = await HierarchyService.getMyHierarchyView(filters)
-        console.log('useMyHierarchyView: Success, result:', result)
         return result
       } catch (error) {
         console.error('useMyHierarchyView: Error in queryFn:', error)
@@ -34,7 +32,6 @@ export function useMyHierarchyView(filters?: {
     refetchOnMount: true, // Always refetch when component mounts
     refetchOnWindowFocus: true, // Refetch when window gains focus
     retry: (failureCount, error) => {
-      console.log('useMyHierarchyView: Retry attempt', failureCount, 'Error:', error)
       return failureCount < 3
     },
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),

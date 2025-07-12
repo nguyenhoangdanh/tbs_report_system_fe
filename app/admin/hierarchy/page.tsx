@@ -8,14 +8,9 @@ import HierarchyDashboard from '@/components/hierarchy/hierarchy-dashboard'
 export default function HierarchyPage() {
   return (
     <MainLayout 
+      enableBackgroundAnimation
       title="Báo cáo Hierarchy" 
       subtitle="Quản lý và theo dõi báo cáo theo cấu trúc tổ chức"
-      showBreadcrumb={true}
-      breadcrumbItems={[
-        { label: 'Trang chủ', href: '/dashboard' },
-        { label: 'Admin', href: '/admin' },
-        { label: 'Hierarchy', href: '/admin/hierarchy' }
-      ]}
     >
       <div className="container mx-auto py-6">
         <Suspense 

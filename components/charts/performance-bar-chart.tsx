@@ -23,39 +23,48 @@ export const PerformanceBarChart = memo(({
     compact = false
 }: PerformanceBarChartProps) => {
 
-    const data = [
+    // Always include all categories but filter for display
+    const allData = [
         {
             name: 'Giỏi',
             value: distribution.excellent?.count || 0,
             color: PERFORMANCE_LEVELS[0].color,
             shortName: distribution.excellent?.count || 0,
+            hasValue: (distribution.excellent?.count || 0) > 0
         },
         {
             name: 'Khá',
             value: distribution.good?.count || 0,
             color: PERFORMANCE_LEVELS[1].color,
             shortName: distribution.good?.count || 0,
+            hasValue: (distribution.good?.count || 0) > 0
         },
         {
             name: 'TB',
             value: distribution.average?.count || 0,
             color: PERFORMANCE_LEVELS[2].color,
-            shortName: distribution.average?.count || 0
+            shortName: distribution.average?.count || 0,
+            hasValue: (distribution.average?.count || 0) > 0
         },
         {
             name: 'Yếu',
             value: distribution.belowAverage?.count || 0,
             color: PERFORMANCE_LEVELS[3].color,
-            shortName: distribution.belowAverage?.count || 0
+            shortName: distribution.belowAverage?.count || 0,
+            hasValue: (distribution.belowAverage?.count || 0) > 0
         },
         {
             name: 'Kém',
             value: distribution.poor?.count || 0,
             color: PERFORMANCE_LEVELS[4].color,
-            shortName: distribution.poor?.count || 0
+            shortName: distribution.poor?.count || 0,
+            hasValue: (distribution.poor?.count || 0) > 0
         }
     ]
 
+    // Data for chart (filtered to show only non-zero values)
+    const data = allData.filter(item => item.hasValue)
+    
     const maxValue = Math.max(...data.map(d => d.value))
     const hasData = maxValue > 0
 
@@ -81,6 +90,11 @@ export const PerformanceBarChart = memo(({
         return null
     }
 
+    // Calculate consistent bar width based on total available categories (always 5)
+    const maxBars = 5
+    const barCategoryGap = '20%' // Gap between bars
+    const maxBarSize = Math.floor((width * 0.8) / maxBars) // Reserve 80% width for bars, 20% for margins
+
     return (
         <div className={`flex flex-col items-center ${className}`}>
             {showLabels && !compact && (
@@ -91,6 +105,8 @@ export const PerformanceBarChart = memo(({
                     <BarChart
                         data={data}
                         margin={{ top: 2, right: 2, left: 2, bottom: 2 }}
+                        maxBarSize={maxBarSize}
+                        barCategoryGap={barCategoryGap}
                     >
                         <XAxis
                             dataKey="shortName"
@@ -101,7 +117,11 @@ export const PerformanceBarChart = memo(({
                         />
                         <YAxis hide />
                         <Tooltip content={<CustomTooltip />} />
-                        <Bar dataKey="value" radius={[1, 1, 0, 0]}>
+                        <Bar 
+                            dataKey="value" 
+                            radius={[1, 1, 0, 0]}
+                            maxBarSize={maxBarSize}
+                        >
                             {data.map((entry, index) => (
                                 <Cell key={`cell-${index}`} fill={entry.color} />
                             ))}

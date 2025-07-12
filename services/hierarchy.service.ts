@@ -30,7 +30,6 @@ export class HierarchyService {
    */
   static async getMyHierarchyView(filters?: HierarchyFilters): Promise<HierarchyResponse> {
     try {
-      console.log('HierarchyService.getMyHierarchyView called with filters:', filters)
       
       const params = new URLSearchParams()
       
@@ -41,10 +40,8 @@ export class HierarchyService {
       if (filters?.departmentId) params.append('departmentId', filters.departmentId)
 
       const url = `/hierarchy-reports/my-view${params.toString() ? `?${params.toString()}` : ''}`
-      console.log('API URL:', url)
 
       const response = await api.get<HierarchyResponse>(url)
-      console.log('Raw API response:', response)
 
       // Validate response structure
       if (!response || typeof response !== 'object') {
@@ -56,21 +53,16 @@ export class HierarchyService {
         throw new Error('Response missing viewType')
       }
 
-      console.log('Response viewType:', response.viewType)
-      console.log('Response groupBy:', response.groupBy)
-
       // Handle different response types - KHỚP CHÍNH XÁC VỚI BACKEND
       switch (response.viewType) {
         case 'management':
           if (response.groupBy === 'position' && Array.isArray(response.positions)) {
-            console.log('Valid management hierarchy response')
             return response as ManagementHierarchyResponse
           }
           throw new Error('Invalid management hierarchy structure')
 
         case 'staff':
           if (response.groupBy === 'jobPosition' && Array.isArray(response.jobPositions)) {
-            console.log('Valid staff hierarchy response')
             return response as StaffHierarchyResponse
           }
           throw new Error('Invalid staff hierarchy structure')
@@ -81,15 +73,7 @@ export class HierarchyService {
             const hasPositions = Array.isArray(response.positions)
             const hasJobPositions = Array.isArray(response.jobPositions)
             
-            console.log('Mixed response validation:', {
-              hasPositions,
-              hasJobPositions,
-              positionsLength: response.positions?.length || 0,
-              jobPositionsLength: response.jobPositions?.length || 0
-            })
-
             if (hasPositions || hasJobPositions) {
-              console.log('Valid mixed hierarchy response')
               return response as MixedHierarchyResponse
             }
             
@@ -98,7 +82,6 @@ export class HierarchyService {
           throw new Error('Invalid mixed hierarchy structure - missing groupBy=mixed')
 
         case 'empty':
-          console.log('Empty hierarchy response')
           return response
           
         default:
