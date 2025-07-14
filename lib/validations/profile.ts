@@ -1,3 +1,4 @@
+import { Role } from '@/types'
 import { z } from 'zod'
 
 export const updateProfileSchema = z.object({
@@ -33,8 +34,7 @@ export const updateProfileSchema = z.object({
     .string()
     .min(1, 'Văn phòng là bắt buộc'),
   role: z
-    .enum(['USER', 'ADMIN', 'SUPERADMIN'])
-    .optional(),
+    .nativeEnum(Role)
 })
 
 export const changePasswordSchema = z.object({

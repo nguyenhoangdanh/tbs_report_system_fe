@@ -64,7 +64,7 @@ const UserDetail = memo(({ user }: UserDetailProps) => {
 
   return (
     <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border mt-2">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+      {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         <div className="space-y-2">
           <div>
             <span className="text-gray-500">Chức vụ:</span>
@@ -75,7 +75,7 @@ const UserDetail = memo(({ user }: UserDetailProps) => {
             <span className="ml-2 font-medium">{user.jobPosition?.department?.name || 'N/A'}</span>
           </div>
         </div>
-      </div>
+      </div> */}
 
       {/* Fix: Kiểm tra hasReport và hiển thị đúng dữ liệu */}
       {hasReport ? (
@@ -113,7 +113,7 @@ const UserDetail = memo(({ user }: UserDetailProps) => {
       )}
 
       {/* Action buttons section */}
-      <div className="mt-4 pt-3 border-t">
+      {/* <div className="mt-4 pt-3 border-t">
         <div className="flex items-center justify-between">
           <div className="text-xs text-muted-foreground">
             Các hành động có sẵn:
@@ -134,7 +134,7 @@ const UserDetail = memo(({ user }: UserDetailProps) => {
             </Link>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   )
 })
@@ -204,7 +204,7 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
                     <div className="flex items-center justify-center w-6 h-6 bg-blue-100 dark:bg-blue-900 rounded-full text-xs font-medium text-blue-600 dark:text-blue-400">
-                      #{index + 1}
+                      {index + 1}
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">

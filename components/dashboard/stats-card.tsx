@@ -8,7 +8,7 @@ import { IncompleteReason, IncompleteReasonsDialog } from './incomplete-reasons-
 import { ExternalLink, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import Link from 'next/link'
 import { RankingBadge } from '@/components/ranking/ranking-badge'
-import { EmployeeRanking, calculateRankingFromRate } from '@/services/ranking.service'
+import { EmployeeRanking, Ranking, calculateRankingFromRate } from '@/services/ranking.service'
 import { getPerformanceBadge, getPerformanceColor, classifyPerformance } from '@/utils/performance-classification'
 import { SimplePieChart } from '@/components/charts/simple-pie-chart'
 
@@ -83,21 +83,13 @@ const StatsCard = memo(function StatsCard({
   const ranking = useMemo((): EmployeeRanking => {
     const perf = performanceClassification
     return {
-      rank: perf.level.toLowerCase() as 'excellent' | 'good' | 'average' | 'poor' | 'fail',
+      rank: perf.level as Ranking,
       label: perf.label,
       color: perf.color,
       bgColor: perf.bgColor,
       description: perf.description
     }
   }, [performanceClassification])
-
-  const performanceBadge = useMemo(() => {
-    return getPerformanceBadge(completionRate)
-  }, [completionRate])
-
-  const performanceColor = useMemo(() => {
-    return getPerformanceColor(completionRate)
-  }, [completionRate])
 
   // Transform API data to match IncompleteReason interface
   const transformedReasons = useMemo((): IncompleteReason[] => {
@@ -128,7 +120,9 @@ const StatsCard = memo(function StatsCard({
         }
       }
     })
-  }, [incompleteReasons, uncompleted])
+  }, [incompleteReasons, uncompleted]);
+
+  const reportClassification = classifyPerformance(completionRate)
 
   // Trend icon and color
   const trendConfig = useMemo(() => {
@@ -226,8 +220,8 @@ const StatsCard = memo(function StatsCard({
                 completedPercentage={completionRate}
                 size={80}
                 strokeWidth={5}
-                showLabel={true}
                 className="drop-shadow-lg relative z-10"
+                primaryColor={reportClassification.color}
               />
             </div>
           </div>

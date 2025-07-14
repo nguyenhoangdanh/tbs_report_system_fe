@@ -2,7 +2,7 @@
 
 import { AuthService } from '@/services/auth.service'
 import { useAuth } from '@/components/providers/auth-provider'
-import type { RegisterDto, ChangePasswordDto, User, AuthResponse, LoginDto, ForgotPasswordDto, ResetPasswordDto, ForgotPasswordResponse } from '@/types'
+import type { RegisterDto, ChangePasswordDto, User, AuthResponse, LoginDto, ForgotPasswordDto, ResetPasswordDto, ForgotPasswordResponse, UserRole } from '@/types'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toast-kit'
@@ -35,7 +35,9 @@ export function useLogin() {
   
   return useMutation<void, Error, LoginDto>({
     mutationFn: (data: LoginDto) => login(data),
-    retry: 1,
+    retry: false, // Don't retry login attempts
+    // Prevent duplicate mutations
+    mutationKey: ['auth', 'login'],
   })
 }
 
@@ -71,7 +73,9 @@ export function useLogout() {
   
   return useMutation<void, Error, void>({
     mutationFn: () => logout(),
-    retry: 1,
+    retry: false, // Don't retry logout attempts
+    // Prevent duplicate mutations
+    mutationKey: ['auth', 'logout'],
   })
 }
 
@@ -188,7 +192,7 @@ export function useAuthPermissions() {
     }
   }
   
-  const userRole = user.role as string
+  const userRole = user.role as UserRole;
   
   return {
     canViewAllReports: ['ADMIN', 'SUPERADMIN'].includes(userRole),
@@ -199,8 +203,6 @@ export function useAuthPermissions() {
     canEditOtherUsers: ['ADMIN', 'SUPERADMIN'].includes(userRole),
     isSuperAdmin: userRole === 'SUPERADMIN',
     isAdmin: ['ADMIN', 'SUPERADMIN'].includes(userRole),
-    isOfficeManager: userRole === 'OFFICE_MANAGER',
-    isOfficeAdmin: userRole === 'OFFICE_ADMIN',
     isUser: userRole === 'USER',
   }
 }

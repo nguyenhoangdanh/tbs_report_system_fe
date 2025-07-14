@@ -27,7 +27,6 @@ function DashboardPage() {
     // Refetch data when user changes
     useEffect(() => {
         if (isAuthenticated && user?.id) {
-            console.log('🔄 User changed, refetching dashboard data for:', user.id)
             refetch()
             refetchCurrentWeek()
         }
@@ -38,7 +37,6 @@ function DashboardPage() {
         if (!user?.id) return null
         
         const current = getCurrentWeek()
-        console.log('🔍 Frontend getCurrentWeek() for user', user.id, ':', current)
         
         const { displayInfo } = getWorkWeekRange(current.weekNumber, current.year)
         const isReportingTime = isInReportingPeriod()
@@ -51,17 +49,6 @@ function DashboardPage() {
             reportingStatus: isReportingTime ? 'active' : 'waiting'
         }
     }, [currentWeekReport, user?.id])
-
-    // Debug backend data with user context
-    useMemo(() => {
-        if (user?.id && dashboardData?.dashboardStats) {
-            console.log('🔍 Dashboard stats for user', user.id, ':', dashboardData.dashboardStats)
-            
-            if (dashboardData.dashboardStats.currentWeek) {
-                console.log('🔍 Backend current week for user', user.id, ':', dashboardData.dashboardStats.currentWeek)
-            }
-        }
-    }, [dashboardData, user?.id])
 
     const now = useMemo(() => new Date(), [])
     const currentYear = useMemo(() => now.getFullYear(), [now])
@@ -98,20 +85,6 @@ function DashboardPage() {
         const stat = yearlyTaskStats.yearlyStats.find((item: any) => item.year === currentYear)
         return stat || { year: currentYear, completed: 0, uncompleted: 0, total: 0, topIncompleteReasons: [] }
     }, [yearlyTaskStats, currentYear])
-
-    const overallStats = useMemo(() => {
-        const stats = {
-            totalReports: dashboardStats?.totals?.totalReports || 0,
-            completedReports: dashboardStats?.totals?.completedReports || 0,
-            completionRate: dashboardStats?.totals?.completionRate || 0,
-        }
-        
-        return {
-            ...stats,
-            isExcellent: stats.completionRate >= 90,
-            isGood: stats.completionRate >= 70
-        }
-    }, [dashboardStats])
 
     // Utility functions for activities
     const getActivityColor = useCallback((activity: RecentActivity) => {

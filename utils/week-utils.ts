@@ -147,13 +147,6 @@ export function getWorkWeekRange(weekNumber: number, year: number): {
     resultDaysText: 'Báo cáo: T2, T3, T4, T5'
   };
   
-  console.log('🔍 Frontend getWorkWeekRange - Work week details:', {
-    workWeek: `${weekNumber}/${year}`,
-    startDate: dateFnsFormat(startDate, 'dd/MM/yyyy (E)', { locale: vi }),
-    endDate: dateFnsFormat(endDate, 'dd/MM/yyyy (E)', { locale: vi }),
-    workDays: workDays.map(d => dateFnsFormat(d, 'dd/MM (E)', { locale: vi })),
-    resultDays: resultDays.map(d => dateFnsFormat(d, 'dd/MM (E)', { locale: vi }))
-  });
   
   return {
     startDate,

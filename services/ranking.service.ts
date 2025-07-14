@@ -1,8 +1,10 @@
 import { api } from '@/lib/api'
 
+export type Ranking = 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'POOR' | 'FAIL'
+
 // Updated ranking interface với thang điểm mới
 export interface EmployeeRanking {
-  rank: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+  rank: Ranking;
   label: string
   color: string
   bgColor: string
@@ -41,7 +43,7 @@ export interface EmployeeRankingData {
     totalTasks: number
     completedTasks: number
     completionRate: number
-    ranking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+    ranking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
     rankingLabel: string
     analysisPeriod: {
       weeks: number
@@ -94,7 +96,7 @@ export interface PositionRankingResponse {
     stats: {
       totalEmployees: number
       averageCompletionRate: number
-      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
       rankingDistribution: {
         excellent: { count: number; percentage: number }
         good: { count: number; percentage: number }
@@ -144,7 +146,7 @@ export interface JobPositionRankingResponse {
     stats: {
       totalEmployees: number
       averageCompletionRate: number
-      jobPositionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+      jobPositionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
       rankingDistribution: {
         excellent: { count: number; percentage: number }
         good: { count: number; percentage: number }
@@ -213,7 +215,7 @@ export interface DepartmentRankingResponse {
     stats: {
       totalEmployees: number
       averageCompletionRate: number
-      departmentRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+      departmentRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
       rankingDistribution: {
         excellent: { count: number; percentage: number }
         good: { count: number; percentage: number }
@@ -586,15 +588,15 @@ export function calculateRankingFromRate(completionRate: number): EmployeeRankin
     }
   } else if (completionRate >= 85) {
     return {
-      rank: 'BELOW_AVERAGE',
-      label: 'Dưới trung bình',
+      rank: 'POOR',
+      label: 'Yếu',
       color: '#f97316',
       bgColor: '#fff7ed',
-      description: 'Dưới trung bình (≥85%)'
+      description: 'Yếu (≥85%)'
     }
   } else {
     return {
-      rank: 'POOR',
+      rank: 'FAIL',
       label: 'Kém',
       color: '#ef4444',
       bgColor: '#fef2f2',

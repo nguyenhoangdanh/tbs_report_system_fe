@@ -1,6 +1,6 @@
 "use client"
 
-import { Suspense, useState, useEffect } from 'react'
+import { Suspense, useState, useEffect, useCallback } from 'react'
 import { useParams, useSearchParams, useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useCurrentWeekFilters } from '@/hooks/use-hierarchy'
@@ -21,6 +21,8 @@ import { LoadingSpinner } from '@/components/ui/loading-spinner'
 import { SimplePieChart } from '@/components/charts/simple-pie-chart'
 import { safeString, safeNumber } from '@/utils/type-guards'
 import { UserDetailsResponse } from '@/types/hierarchy'
+import { Role } from '@/types'
+import { ExpandedReportDetails } from './components/expanded-report-details'
 
 function UserDetailsContent() {
   const { user } = useAuth()
@@ -51,7 +53,24 @@ function UserDetailsContent() {
   const [userData, setUserData] = useState<UserDetailsResponse | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+
+  // Move expanded reports state to top level - BEFORE any conditional returns
+  // const [expandedReports, setExpandedReports] = useState<Set<string>>(new Set())
+
   const queryClient = useQueryClient()
+
+  // Move toggle function to top level as well
+  // const toggleReportExpansion = useCallback((reportId: string) => {
+  //   setExpandedReports(prev => {
+  //     const newSet = new Set(prev)
+  //     if (newSet.has(reportId)) {
+  //       newSet.delete(reportId)
+  //     } else {
+  //       newSet.add(reportId)
+  //     }
+  //     return newSet
+  //   })
+  // }, [])
 
   // Update URL when week/year changes - PRESERVE scroll position
   useEffect(() => {
@@ -137,7 +156,7 @@ function UserDetailsContent() {
   if (!user) return <AppLoading text="Đang xác thực..." />
 
   // Check permissions
-  const allowedRoles = ['SUPERADMIN', 'ADMIN', 'OFFICE_MANAGER', 'OFFICE_ADMIN']
+  const allowedRoles = [Role.ADMIN, Role.SUPERADMIN, Role.USER]
   if (!allowedRoles.includes(user.role)) {
     return (
       <MainLayout
@@ -247,7 +266,7 @@ function UserDetailsContent() {
         </div>
 
         {/* User Profile Card */}
-        <Card className="overflow-hidden">
+        {/* <Card className="overflow-hidden">
           <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
               <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
@@ -281,7 +300,7 @@ function UserDetailsContent() {
               </div>
             </div>
           </div>
-        </Card>
+        </Card> */}
 
 
         {/* Chi tiết báo cáo với bộ lọc */}
@@ -292,9 +311,6 @@ function UserDetailsContent() {
                 <BarChart3 className="w-5 h-5" />
                 Chi tiết báo cáo
               </CardTitle>
-
-              {/* Bộ lọc thời gian */}
-
             </div>
           </CardHeader>
           <CardContent>
@@ -333,9 +349,9 @@ function UserDetailsContent() {
                               <Badge className={reportPerformance.className}>
                                 {reportPerformance.label}
                               </Badge>
-                              <Badge variant={report.isCompleted ? 'default' : 'secondary'}>
+                              {/* <Badge variant={report.isCompleted ? 'default' : 'secondary'}>
                                 {report.isCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}
-                              </Badge>
+                              </Badge> */}
                               {report.isLocked && (
                                 <Badge variant="outline">
                                   🔒 Đã khóa
@@ -358,7 +374,7 @@ function UserDetailsContent() {
                             <div className="font-medium text-orange-600 text-lg">{incompleteTasks}</div>
                             <div className="text-muted-foreground">Chưa hoàn thành</div>
                           </div>
-                          <div className="text-center p-3 rounded-lg" style={{ backgroundColor: reportClassification.bgColor }}>
+                          <div className="text-center p-3 rounded-lg dark:bg-yellow-950/30 bg-yellow-50">
                             <div
                               className="font-medium text-lg"
                               style={{ color: reportClassification.color }}
@@ -403,7 +419,7 @@ function UserDetailsContent() {
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3 ml-4">
+                      {/* <div className="flex items-center gap-3 ml-4">
                         <SimplePieChart
                           completedPercentage={reportTaskCompletion}
                           size={60}
@@ -416,8 +432,16 @@ function UserDetailsContent() {
                             Chi tiết
                           </Button>
                         </Link>
-                      </div>
+                      </div> */}
                     </div>
+
+                    {/* Integrated Report Details */}
+                    <ExpandedReportDetails
+                      userId={userId}
+                      reportId={reportId}
+                      // isExpanded={expandedReports.has(reportId)}
+                      // onToggle={() => toggleReportExpansion(reportId)}
+                    />
                   </motion.div>
                 )
               })}

@@ -51,17 +51,17 @@ export function useUserDetails(userId: string, filters?: {
   })
 }
 
+/**
+ * Get report details for admin view
+ */
 export function useReportDetailsForAdmin(userId: string, reportId: string) {
   return useQuery({
     queryKey: ['hierarchy', 'report-details', userId, reportId],
-    queryFn: async () => {
-      // Note: This is a mock - replace with actual API call
-      const response = await fetch(`/api/admin/reports/${reportId}`)
-      if (!response.ok) throw new Error('Failed to fetch report details')
-      return response.json()
-    },
+    queryFn: () => HierarchyService.getReportDetails(userId, reportId),
+      refetchOnMount: true, // Always refetch when component mounts
+    refetchOnWindowFocus: true, // Refetch when window gains focus
     enabled: !!userId && !!reportId,
-    staleTime: 1 * 60 * 1000, // 1 minute
+    staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
 

@@ -34,7 +34,7 @@ export interface User {
   lastName: string
   email: string
   phone: string
-  role: string
+  role:  Role
   isActive: boolean
   office: {
     id: string
@@ -83,10 +83,7 @@ export interface UpdateProfileDto {
   phone?: string
   jobPositionId?: string
   officeId?: string
-  role?: Role // Use Role enum directly
-  phoneNumber?: string
-  address?: string
-  dateOfBirth?: string
+  // role: Role
 }
 
 // Task interface (6-day work week)

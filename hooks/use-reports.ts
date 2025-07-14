@@ -52,8 +52,6 @@ export function useMyReports(page = 1, limit = 10) {
     throwOnError: false,
     // Transform response to handle different response structures
     select: (data: any) => {
-      console.log('Raw API response for user', user?.id, ':', data)
-      
       // If data has pagination structure
       if (data && typeof data === 'object' && 'data' in data) {
         return data

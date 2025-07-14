@@ -63,15 +63,19 @@ const IncompleteReasonsDialog = memo(function IncompleteReasonsDialog({
       <DialogContent className="max-w-4xl max-h-[80vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3">
-            {icon || <TrendingDown className="w-6 h-6 text-orange-500" />}
-            <span>{title}</span>
+            {/* {icon || <TrendingDown className="w-6 h-6 text-orange-500" />} */}
+            {/* <span>{title}</span> */}
+            <h3 className="text-lg font-semibold flex items-center gap-2">
+              <FileText className="w-5 h-5 text-blue-600" />
+              Phân tích lý do chưa hoàn thành ({sortedReasons.length} lý do)
+            </h3>
           </DialogTitle>
         </DialogHeader>
         
         <ScrollArea className="max-h-[60vh] pr-4">
           <div className="space-y-6">
             {/* Summary Section */}
-            <Card className="bg-orange-50 dark:bg-orange-950/20 border-orange-200">
+            {/* <Card className="bg-orange-50 dark:bg-orange-950/20 border-orange-200">
               <CardHeader className="pb-3">
                 <CardTitle className="text-lg flex items-center gap-2">
                   <BarChart3 className="w-5 h-5 text-orange-600" />
@@ -98,14 +102,11 @@ const IncompleteReasonsDialog = memo(function IncompleteReasonsDialog({
                   </div>
                 </div>
               </CardContent>
-            </Card>
+            </Card> */}
 
             {/* Reasons List */}
             <div className="space-y-4">
-              <h3 className="text-lg font-semibold flex items-center gap-2">
-                <FileText className="w-5 h-5 text-blue-600" />
-                Phân tích lý do chưa hoàn thành ({sortedReasons.length} lý do)
-              </h3>
+             
               
               {sortedReasons.map((reasonData, index) => (
                 <Card key={index} className="hover:shadow-md transition-shadow">

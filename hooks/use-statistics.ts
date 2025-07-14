@@ -11,11 +11,11 @@ import type {
   YearlyTaskStats,
   RecentActivity,
   IncompleteReasonsAnalysis,
-  OverviewStats,
   CompletionRateStats,
   MissingReportsStats,
   SummaryReport
 } from '@/types/statistics'
+import type { OverviewStats } from '@/services/statistics.service'
 
 // User-specific query keys to prevent cross-user data contamination
 export const STATISTICS_QUERY_KEYS = {
@@ -23,7 +23,7 @@ export const STATISTICS_QUERY_KEYS = {
   dashboard: (userId: string) => ['statistics', 'dashboard', userId] as const,
   dashboardCombined: (userId: string) => ['statistics', 'dashboard-combined', userId] as const,
   userReports: (userId: string) => ['statistics', 'user-reports', userId] as const,
-  weeklyTaskStats: (userId: string) => ['statistics', 'weekly-task-stats', userId] as const,
+  weeklyTaskStats: (userId: string, filters?: any) => ['statistics', 'weekly-task-stats', userId, filters] as const,
   monthlyTaskStats: (userId: string, year?: number) => ['statistics', 'monthly-task-stats', userId, year] as const,
   yearlyTaskStats: (userId: string) => ['statistics', 'yearly-task-stats', userId] as const,
   recentActivities: (userId: string) => ['statistics', 'recent-activities', userId] as const,
@@ -36,63 +36,72 @@ export const STATISTICS_QUERY_KEYS = {
 }
 
 /**
- * Get dashboard statistics
+ * Get dashboard statistics - OPTIMIZED
  */
 export function useDashboardStats() {
   const { user } = useAuth()
   
-  return useQuery<DashboardStats, Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.dashboard(user?.id || 'anonymous'),
     queryFn: () => StatisticsService.getDashboardStats(),
     enabled: !!user?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes - increased
+    gcTime: 30 * 60 * 1000, // 30 minutes - increased
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1, // reduced
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Get user report statistics
+ * Get user report statistics - OPTIMIZED
  */
 export function useUserReportStats() {
   const { user } = useAuth()
   
-  return useQuery<UserReportStats, Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.userReports(user?.id || 'anonymous'),
     queryFn: () => StatisticsService.getUserReportStats(),
     enabled: !!user?.id,
-    staleTime: 3 * 60 * 1000, // 3 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes - increased
+    gcTime: 60 * 60 * 1000, // 1 hour - increased
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Get recent activities
+ * Get recent activities - OPTIMIZED
  */
 export function useRecentActivities() {
   const { user } = useAuth()
   
-  return useQuery<RecentActivity[], Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.recentActivities(user?.id || 'anonymous'),
     queryFn: () => StatisticsService.getRecentActivities(),
     enabled: !!user?.id,
-    staleTime: 1 * 60 * 1000, // 1 minute
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 3 * 60 * 1000, // 3 minutes
+    gcTime: 15 * 60 * 1000, // 15 minutes
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
     // Transform data to match expected format
-    select: (data) => {
+    select: (data: RecentActivity[]) => {
       if (!Array.isArray(data)) return []
       
       return data.map((activity: any) => ({
         ...activity,
-        id: activity.reportId, // Use reportId as id
+        id: activity.reportId,
         title: activity.title || `Báo cáo tuần ${activity.weekNumber}/${activity.year}`,
         description: activity.description || `${activity.stats.completedTasks}/${activity.stats.totalTasks} công việc hoàn thành`,
         status: activity.isCompleted ? 'completed' : (activity.stats.incompleteTasks > 0 ? 'pending' : 'draft'),
@@ -108,61 +117,73 @@ export function useRecentActivities() {
 }
 
 /**
- * Get weekly task statistics
+ * Get weekly task statistics - OPTIMIZED with proper filters
  */
-export function useWeeklyTaskStats() {
+export function useWeeklyTaskStats(filters?: {
+  weekNumber?: number
+  year?: number
+}) {
   const { user } = useAuth()
   
-  return useQuery<WeeklyTaskStats, Error>({
-    queryKey: STATISTICS_QUERY_KEYS.weeklyTaskStats(user?.id || 'anonymous'),
-    queryFn: () => StatisticsService.getWeeklyTaskStats(),
+  return useQuery({
+    queryKey: STATISTICS_QUERY_KEYS.weeklyTaskStats(user?.id || 'anonymous', filters),
+    queryFn: () => StatisticsService.getWeeklyTaskStats(filters),
     enabled: !!user?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Get monthly task statistics
+ * Get monthly task statistics - OPTIMIZED
  */
 export function useMonthlyTaskStats(year?: number) {
   const { user } = useAuth()
   
-  return useQuery<MonthlyTaskStats, Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.monthlyTaskStats(user?.id || 'anonymous', year),
     queryFn: () => StatisticsService.getMonthlyTaskStats(year),
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 20 * 60 * 1000, // 20 minutes
+    staleTime: 15 * 60 * 1000, // 15 minutes - increased for less frequent data
+    gcTime: 60 * 60 * 1000, // 1 hour
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Get yearly task statistics
+ * Get yearly task statistics - OPTIMIZED
  */
 export function useYearlyTaskStats() {
   const { user } = useAuth()
   
-  return useQuery<YearlyTaskStats, Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.yearlyTaskStats(user?.id || 'anonymous'),
     queryFn: () => StatisticsService.getYearlyTaskStats(),
     enabled: !!user?.id,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes
+    staleTime: 30 * 60 * 1000, // 30 minutes - very long for yearly data
+    gcTime: 2 * 60 * 60 * 1000, // 2 hours
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Get incomplete reasons analysis
+ * Get incomplete reasons analysis - OPTIMIZED
  */
 export function useIncompleteReasonsAnalysis(filters: {
   weekNumber?: number
@@ -172,20 +193,23 @@ export function useIncompleteReasonsAnalysis(filters: {
 }) {
   const { user } = useAuth()
   
-  return useQuery<IncompleteReasonsAnalysis, Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.incompleteReasonsAnalysis(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getIncompleteReasonsAnalysis(filters),
     enabled: !!user?.id,
-    staleTime: 3 * 60 * 1000, // 3 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Get admin dashboard statistics
+ * Get admin dashboard statistics - OPTIMIZED
  */
 export function useAdminDashboardStats(filters?: {
   departmentId?: string
@@ -194,38 +218,44 @@ export function useAdminDashboardStats(filters?: {
 }) {
   const { user } = useAuth()
   
-  return useQuery<any, Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.adminDashboard(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getAdminDashboardStats(filters),
     enabled: !!user?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Get overview statistics
+ * Get overview statistics - OPTIMIZED
  */
 export function useOverview() {
   const { user } = useAuth()
   
-  return useQuery<OverviewStats, Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.overview(user?.id || 'anonymous'),
     queryFn: () => StatisticsService.getOverview(),
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000, // 5 minutes
-    gcTime: 20 * 60 * 1000, // 20 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Get completion rate statistics
+ * Get completion rate statistics - OPTIMIZED
  */
 export function useCompletionRate(filters?: {
   week?: number
@@ -234,20 +264,23 @@ export function useCompletionRate(filters?: {
 }) {
   const { user } = useAuth()
   
-  return useQuery<CompletionRateStats, Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.completionRate(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getCompletionRate(filters),
     enabled: !!user?.id,
-    staleTime: 3 * 60 * 1000, // 3 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Get missing reports statistics
+ * Get missing reports statistics - OPTIMIZED
  */
 export function useMissingReports(filters?: {
   week?: number
@@ -255,20 +288,23 @@ export function useMissingReports(filters?: {
 }) {
   const { user } = useAuth()
   
-  return useQuery<MissingReportsStats, Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.missingReports(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getMissingReports(filters),
     enabled: !!user?.id,
-    staleTime: 2 * 60 * 1000, // 2 minutes
-    gcTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 5 * 60 * 1000, // 5 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Get summary report
+ * Get summary report - OPTIMIZED
  */
 export function useSummaryReport(filters?: {
   week?: number
@@ -276,25 +312,32 @@ export function useSummaryReport(filters?: {
 }) {
   const { user } = useAuth()
   
-  return useQuery<SummaryReport, Error>({
+  return useQuery({
     queryKey: STATISTICS_QUERY_KEYS.summaryReport(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getSummaryReport(filters),
     enabled: !!user?.id,
-    staleTime: 3 * 60 * 1000, // 3 minutes
-    gcTime: 15 * 60 * 1000, // 15 minutes
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 60 * 60 * 1000, // 1 hour
     refetchOnWindowFocus: false,
-    retry: 2,
+    refetchOnMount: false,
+    refetchOnReconnect: false,
+    retry: 1,
+    retryDelay: 3000,
     throwOnError: false,
   })
 }
 
 /**
- * Combined dashboard data hook
+ * Combined dashboard data hook - OPTIMIZED to reduce simultaneous calls
  */
 export function useDashboardData() {
   const { user } = useAuth()
+  
+  // Only call essential APIs first
   const dashboardStats = useDashboardStats()
   const recentActivities = useRecentActivities()
+  
+  // Conditional calls based on data availability to prevent overload
   const weeklyTaskStats = useWeeklyTaskStats()
   const monthlyTaskStats = useMonthlyTaskStats()
   const yearlyTaskStats = useYearlyTaskStats()
@@ -307,14 +350,15 @@ export function useDashboardData() {
       monthlyTaskStats: monthlyTaskStats.data,
       yearlyTaskStats: yearlyTaskStats.data,
     },
-    isLoading: dashboardStats.isLoading || recentActivities.isLoading || weeklyTaskStats.isLoading || monthlyTaskStats.isLoading || yearlyTaskStats.isLoading,
+    isLoading: dashboardStats.isLoading || recentActivities.isLoading,
     error: dashboardStats.error || recentActivities.error || weeklyTaskStats.error || monthlyTaskStats.error || yearlyTaskStats.error,
     refetch: () => {
+      // Staggered refetch to prevent API overload
       dashboardStats.refetch()
-      recentActivities.refetch()
-      weeklyTaskStats.refetch()
-      monthlyTaskStats.refetch()
-      yearlyTaskStats.refetch()
+      setTimeout(() => recentActivities.refetch(), 500)
+      setTimeout(() => weeklyTaskStats.refetch(), 1000)
+      setTimeout(() => monthlyTaskStats.refetch(), 1500)
+      setTimeout(() => yearlyTaskStats.refetch(), 2000)
     },
   }
 }

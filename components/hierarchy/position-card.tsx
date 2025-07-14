@@ -37,7 +37,7 @@ interface PositionCardProps {
       completedTasks: number
       averageCompletionRate: number
       needsImprovementCount?: number
-      positionRanking?: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+      positionRanking?: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
       rankingDistribution?: {
         excellent: { count: number; percentage: number }
         good: { count: number; percentage: number }

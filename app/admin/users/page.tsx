@@ -93,7 +93,7 @@ function AdminUsersContent() {
         phone: editData.phone || undefined,
         jobPositionId: editData.jobPositionId,
         officeId: editData.officeId,
-        role: editData.role,
+        // role: editData.role,
       };
       
       await UserService.updateUser(selectedUser.id, updateData);

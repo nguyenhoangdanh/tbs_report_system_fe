@@ -382,4 +382,17 @@ export class HierarchyService {
     const query = params.toString() ? `?${params}` : ''
     return await api.get<IncompleteReasonsResponse>(`/hierarchy-reports/incomplete-reasons-hierarchy${query}`)
   }
+
+  /**
+   * Get report details for admin view
+   */
+  static async getReportDetails(userId: string, reportId: string): Promise<any> {
+    try {
+      const response = await api.get(`/hierarchy-reports/user/${userId}/report/${reportId}`)
+      return response
+    } catch (error) {
+      console.error('[HIERARCHY] Get report details error:', error)
+      throw error
+    }
+  }
 }

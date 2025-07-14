@@ -87,12 +87,12 @@ const ReportCard = memo(function ReportCard({
             <CardTitle className="text-lg">
               Tuần {report.weekNumber}/{report.year}
             </CardTitle>
-            <Badge 
+            {/* <Badge 
               variant={stats.isReportCompleted ? "default" : "secondary"}
               className={stats.isReportCompleted ? "bg-green-100 text-green-800" : ""}
             >
               {stats.isReportCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}
-            </Badge>
+            </Badge> */}
           </div>
           
           <div className="flex items-center text-sm text-muted-foreground">

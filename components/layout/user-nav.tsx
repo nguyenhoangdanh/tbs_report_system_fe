@@ -61,30 +61,6 @@ export function UserNav() {
           description: 'Quản lý người dùng'
         })
         break
-
-      case 'OFFICE_MANAGER':
-        const officeId = user.office?.id || user.officeId
-        if (officeId) {
-          links.push({
-            href: `/admin/hierarchy/office/${officeId}`,
-            icon: '🏢',
-            label: `Quản lý ${user.office?.name || 'Văn phòng'}`,
-            description: 'Quản lý văn phòng của bạn'
-          })
-        }
-        break
-
-      case 'OFFICE_ADMIN':
-        const departmentId = user.jobPosition?.department?.id || user.jobPosition?.departmentId
-        if (departmentId) {
-          links.push({
-            href: `/admin/hierarchy/department/${departmentId}`,
-            icon: '🏭',
-            label: `Quản lý ${user.jobPosition?.department?.name || 'Phòng ban'}`,
-            description: 'Quản lý phòng ban của bạn'
-          })
-        }
-        break
     }
 
     return links

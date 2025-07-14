@@ -43,7 +43,7 @@ export const PERFORMANCE_LEVELS: PerformanceClassification[] = [
   },
   {
     level: 'AVERAGE',
-    label: 'TB',
+    label: 'TRUNG BÌNH',
     labelEn: 'AVERAGE',
     color: '#eab308', // yellow-500 - Màu vàng như trong ảnh
     bgColor: '#fefce8', // yellow-50

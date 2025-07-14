@@ -149,7 +149,7 @@ export interface ManagementHierarchyResponse {
       totalTasks: number
       completedTasks: number
       averageCompletionRate: number
-      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
       rankingDistribution: RankingDistribution
     }
     userCount: number
@@ -206,7 +206,7 @@ export interface StaffHierarchyResponse {
       totalTasks: number
       completedTasks: number
       averageCompletionRate: number
-      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
       rankingDistribution: RankingDistribution
     }
     userCount: number
@@ -246,7 +246,7 @@ export interface MixedHierarchyResponse {
       totalTasks: number
       completedTasks: number
       averageCompletionRate: number
-      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
       rankingDistribution: RankingDistribution
     }
     userCount: number
@@ -286,7 +286,7 @@ export interface MixedHierarchyResponse {
       totalTasks: number
       completedTasks: number
       averageCompletionRate: number
-      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
       rankingDistribution: RankingDistribution
     }
     userCount: number
@@ -347,7 +347,7 @@ export type HierarchyResponse =
 
 // User ranking interface với thang điểm mới
 export interface UserRanking {
-  rank: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'BELOW_AVERAGE' | 'POOR'
+  rank: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
   label: string
   color: string
   bgColor: string
@@ -581,14 +581,14 @@ export function calculateUserRanking(completionRate: number): UserRanking {
     }
   } else if (completionRate >= 85) {
     return {
-      rank: 'BELOW_AVERAGE',
-      label: 'Dưới trung bình',
+      rank: 'POOR',
+      label: 'Yếu',
       color: '#f97316',
       bgColor: '#fff7ed'
     }
   } else {
     return {
-      rank: 'POOR',
+      rank: 'FAIL',
       label: 'Kém',
       color: '#ef4444',
       bgColor: '#fef2f2'
