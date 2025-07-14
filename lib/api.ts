@@ -37,8 +37,7 @@ export class ApiError extends Error {
   constructor(
     public message: string,
     public status: number,
-    public data?: any,
-    public isUserFriendly: boolean = false // Flag to indicate if error should be shown to user
+    public data?: any
   ) {
     super(message)
     this.name = 'ApiError'
@@ -144,40 +143,38 @@ class ApiClient {
     if (!response.ok) {
       let errorMessage = `HTTP ${response.status}`
       let errorData: any = null
-      let isUserFriendly = false
       
       try {
         if (contentType.includes('application/json')) {
           errorData = await response.json()
           
+          // Enhanced error message extraction to handle backend structure
           if (errorData) {
-            // Extract error message with better UX handling
-            const backendMessage = errorData.message || errorData.error || errorData.statusText
-            
-            if (backendMessage) {
-              errorMessage = backendMessage
-              isUserFriendly = true // Backend messages are usually user-friendly
-            } else {
-              errorMessage = this.getDefaultErrorMessage(response.status)
-              isUserFriendly = true
-            }
+            // Priority order for error message extraction:
+            // 1. message field (most common)
+            // 2. error field
+            // 3. statusText
+            // 4. HTTP status fallback
+            errorMessage = errorData.message || 
+                          errorData.error || 
+                          errorData.statusText ||
+                          response.statusText ||
+                          `HTTP ${response.status}`
           }
         } else {
-          errorMessage = this.getDefaultErrorMessage(response.status)
-          isUserFriendly = true
+          errorMessage = response.statusText || errorMessage
         }
       } catch (parseError) {
-        errorMessage = this.getDefaultErrorMessage(response.status)
-        isUserFriendly = true
+        // If JSON parsing fails, use response status text or default
+        errorMessage = response.statusText || errorMessage
       }
       
       // Ensure message is always a string
       if (typeof errorMessage !== 'string') {
-        errorMessage = this.getDefaultErrorMessage(response.status)
-        isUserFriendly = true
+        errorMessage = String(errorMessage) || `HTTP ${response.status}`
       }
       
-      throw new ApiError(errorMessage, response.status, errorData, isUserFriendly)
+      throw new ApiError(errorMessage, response.status, errorData)
     }
 
     if (contentType.includes('application/json')) {
@@ -198,35 +195,6 @@ class ApiClient {
 
     // For non-JSON responses
     return {} as T
-  }
-
-  private getDefaultErrorMessage(status: number): string {
-    switch (status) {
-      case 400:
-        return 'Dữ liệu không hợp lệ'
-      case 401:
-        return 'Bạn cần đăng nhập để tiếp tục'
-      case 403:
-        return 'Bạn không có quyền thực hiện thao tác này'
-      case 404:
-        return 'Không tìm thấy dữ liệu'
-      case 409:
-        return 'Dữ liệu đã tồn tại'
-      case 422:
-        return 'Dữ liệu không hợp lệ'
-      case 429:
-        return 'Quá nhiều yêu cầu, vui lòng thử lại sau'
-      case 500:
-        return 'Lỗi máy chủ, vui lòng thử lại sau'
-      case 502:
-        return 'Dịch vụ tạm thời không khả dụng'
-      case 503:
-        return 'Dịch vụ đang bảo trì'
-      default:
-        return status >= 500 
-          ? 'Lỗi máy chủ, vui lòng thử lại sau'
-          : 'Có lỗi xảy ra, vui lòng thử lại'
-    }
   }
 
   async request<T>(endpoint: string, config: RequestConfig = {}): Promise<T> {
@@ -280,9 +248,10 @@ class ApiClient {
       signal: controller.signal,
     }
 
-    // Create request promise with better error handling
+    // Create request promise
     const requestPromise = (async (): Promise<T> => {
       try {
+        
         const response = await fetch(url, requestConfig)
         clearTimeout(timeoutId)
         
@@ -302,29 +271,23 @@ class ApiClient {
       } catch (error: any) {
         clearTimeout(timeoutId)
         
-        // Handle different types of errors more gracefully
         if (error instanceof ApiError) {
-          // Log for debugging but don't expose technical details
-          console.error(`[API] ${method} ${endpoint} failed:`, error.message)
           throw error
         }
         
         if (error.name === 'AbortError') {
-          console.warn(`[API] ${method} ${endpoint} timed out`)
-          throw new ApiError('Yêu cầu quá thời gian chờ, vui lòng thử lại', 408, null, true)
+          throw new ApiError('Request timeout', 408)
         }
         
         if (error.name === 'TypeError' && error.message.includes('fetch')) {
-          console.error(`[API] Network error for ${method} ${endpoint}:`, error.message)
-          throw new ApiError('Không thể kết nối mạng, vui lòng kiểm tra kết nối', 0, null, true)
+          throw new ApiError('Network connection failed', 0)
         }
         
-        // Log unexpected errors for debugging
-        console.error(`[API] Unexpected error for ${method} ${endpoint}:`, error)
+        const errorMessage = typeof error.message === 'string' 
+          ? error.message 
+          : String(error.message || 'Request failed')
         
-        // Return user-friendly error message for unexpected errors
-        const errorMessage = 'Có lỗi không xác định xảy ra, vui lòng thử lại'
-        throw new ApiError(errorMessage, error.status || 0, null, true)
+        throw new ApiError(errorMessage, error.status || 0)
         
       } finally {
         // Cleanup pending request
@@ -479,13 +442,4 @@ if (typeof window !== 'undefined') {
   apiClient.checkHealth().catch(() => {
     // Ignore health check failures during initialization
   })
-}
-
-// Export utility functions for error handling
-export const isUserFriendlyError = (error: any): boolean => {
-  return ApiClient.isUserFriendlyError(error)
-}
-
-export const getSafeErrorMessage = (error: any): string => {
-  return ApiClient.getSafeErrorMessage(error)
 }
