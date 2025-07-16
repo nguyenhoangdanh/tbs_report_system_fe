@@ -5,10 +5,11 @@ import { useSearchParams } from "next/navigation"
 import { useResetPassword } from "@/hooks/use-auth"
 import { useState } from "react"
 import { motion, useReducedMotion, Variants } from "framer-motion"
-import { AnimatedBackground } from "@/components/ui/animated-background"
 import Link from "next/link"
 import { LockIcon, Sparkles } from "lucide-react"
 import { FormField } from "@/components/ui/form-field"
+import { useThemeBackground } from "@/hooks/use-theme-background"
+import { ModernAnimatedBackground } from "@/components/layout/modern-animated-background"
 
 // Animation variants (giống LoginPage)
 const containerVariants: Variants = {
@@ -72,8 +73,16 @@ export default function ResetPasswordPage() {
     }
   }
 
+  const { enableAnimation, particleCount, canAnimate, performanceMode } = useThemeBackground()
+
   return (
-    <AnimatedBackground variant="login" particleCount={20}>
+    <ModernAnimatedBackground
+    enableAnimation={enableAnimation}
+    particleCount={particleCount}
+    variant="hero"
+    performanceMode={performanceMode}
+    intensity="vibrant"
+  >
       <div className="flex items-center justify-center min-h-screen p-4">
         <motion.div
           variants={containerVariants}
@@ -251,6 +260,6 @@ export default function ResetPasswordPage() {
           </motion.div>
         </motion.div>
       </div>
-    </AnimatedBackground>
+    </ModernAnimatedBackground>
   )
 }

@@ -1,13 +1,13 @@
-'use client'
+"use client"
 
-import React, { memo, useState } from 'react'
-import { Badge } from '@/components/ui/badge'
-import { Button } from '@/components/ui/button'
-import { ChevronDown, ChevronUp, BarChart3 } from 'lucide-react'
-import { getPerformanceBadge, classifyPerformance } from '@/utils/performance-classification'
-import Link from 'next/link'
+import { memo, useState } from "react"
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { ChevronDown, BarChart3 } from "lucide-react"
+import { getPerformanceBadge, classifyPerformance } from "@/utils/performance-classification"
+import Link from "next/link"
+import { cn } from "@/lib/utils"
 
-// Fix: Update interface để match với backend response structure
 interface PositionUser {
   id: string
   employeeCode: string
@@ -50,52 +50,38 @@ interface UserDetailProps {
   user: PositionUser
 }
 
-// Component để hiển thị chi tiết user trong collapse
 const UserDetail = memo(({ user }: UserDetailProps) => {
-  
   const userCompletionRate = user.stats?.taskCompletionRate || 0
   const hasReport = user.stats?.hasReport || false
   const totalTasks = user.stats?.totalTasks || 0
   const completedTasks = user.stats?.completedTasks || 0
 
-  const userPerformanceBadge = getPerformanceBadge(userCompletionRate)
   const userClassification = classifyPerformance(userCompletionRate)
 
-
   return (
-    <div className="p-4 bg-gray-50 dark:bg-gray-900 rounded-lg border mt-2">
-      {/* <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-        <div className="space-y-2">
-          <div>
-            <span className="text-gray-500">Chức vụ:</span>
-            <span className="ml-2 font-medium">{user.jobPosition?.jobName || 'N/A'}</span>
-          </div>
-          <div>
-            <span className="text-gray-500">Phòng ban:</span>
-            <span className="ml-2 font-medium">{user.jobPosition?.department?.name || 'N/A'}</span>
-          </div>
-        </div>
-      </div> */}
-
-      {/* Fix: Kiểm tra hasReport và hiển thị đúng dữ liệu */}
+    <div className="p-4 glass-green rounded-lg border mt-2 transition-all duration-200">
       {hasReport ? (
-        <div className="mt-3 pt-3 border-t">
+        <div className="space-y-3">
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-center">
-            <div className="p-2 bg-blue-50 dark:bg-blue-950/30 rounded">
-              <div className="font-medium text-blue-600">{totalTasks}</div>
+            <div className="p-3 bg-card rounded-lg border">
+              <div className="font-medium text-foreground">{totalTasks}</div>
               <div className="text-xs text-muted-foreground">Tổng công việc</div>
             </div>
-            <div className="p-2 bg-green-50 dark:bg-green-950/30 rounded">
-              <div className="font-medium text-green-600">{completedTasks}</div>
+            <div className="p-3 bg-card rounded-lg border">
+              <div className="font-medium text-foreground">{completedTasks}</div>
               <div className="text-xs text-muted-foreground">Hoàn thành</div>
             </div>
-            <div className="p-2 bg-yellow-50 dark:bg-yellow-950/30 rounded">
-              <div className="font-medium text-yellow-600">
-                {totalTasks - completedTasks}
-              </div>
+            <div className="p-3 bg-card rounded-lg border">
+              <div className="font-medium text-foreground">{totalTasks - completedTasks}</div>
               <div className="text-xs text-muted-foreground">Chưa hoàn thành</div>
             </div>
-            <div className="p-2 rounded" style={{ backgroundColor: userClassification.bgColor }}>
+            <div
+              className="p-3 rounded-lg border"
+              style={{
+                backgroundColor: userClassification.bgColor,
+                borderColor: userClassification.borderColor,
+              }}
+            >
               <div className="font-medium" style={{ color: userClassification.color }}>
                 {Math.round(userCompletionRate)}%
               </div>
@@ -104,42 +90,16 @@ const UserDetail = memo(({ user }: UserDetailProps) => {
           </div>
         </div>
       ) : (
-        <div className="mt-3 pt-3 border-t">
-          <div className="text-center py-4">
-            <div className="text-red-500 font-medium">Chưa nộp báo cáo</div>
-            <div className="text-xs text-muted-foreground">Nhân viên này chưa nộp báo cáo tuần</div>
-          </div>
+        <div className="text-center py-4">
+          <div className="text-destructive font-medium">Chưa nộp báo cáo</div>
+          <div className="text-xs text-muted-foreground">Nhân viên này chưa nộp báo cáo tuần</div>
         </div>
       )}
-
-      {/* Action buttons section */}
-      {/* <div className="mt-4 pt-3 border-t">
-        <div className="flex items-center justify-between">
-          <div className="text-xs text-muted-foreground">
-            Các hành động có sẵn:
-          </div>
-          <div className="flex gap-2">
-            <Link href={`/admin/hierarchy/user/${user.id}`}>
-              <Button variant="outline" size="sm" className="text-xs">
-                <BarChart3 className="w-3 h-3 mr-1" />
-                Thống kê chi tiết
-              </Button>
-            </Link>
-
-            <Link href={`/admin/hierarchy/user/${user.id}/reports`}>
-              <Button variant="outline" size="sm" className="text-xs">
-                <Eye className="w-3 h-3 mr-1" />
-                Tất cả báo cáo
-              </Button>
-            </Link>
-          </div>
-        </div>
-      </div> */}
     </div>
   )
 })
 
-UserDetail.displayName = 'UserDetail'
+UserDetail.displayName = "UserDetail"
 
 export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTableProps) => {
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set())
@@ -156,14 +116,15 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
 
   if (!users || users.length === 0) {
     return (
-      <div className="text-center py-4 text-muted-foreground">
-        Không có nhân viên nào trong chức danh này
+      <div className="text-center py-8 text-muted-foreground">
+        <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+          <span className="text-2xl">👥</span>
+        </div>
+        <p>Không có nhân viên nào trong chức danh này</p>
       </div>
     )
   }
 
-
-  // Sort users by completion rate (highest first)
   const sortedUsers = [...users].sort((a, b) => {
     const aRate = a.stats?.taskCompletionRate || 0
     const bRate = b.stats?.taskCompletionRate || 0
@@ -171,7 +132,7 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
   })
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h4 className="font-medium text-sm text-muted-foreground">
           Danh sách {positionName} ({users.length} người):
@@ -181,29 +142,26 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
         </Badge>
       </div>
 
-      {/* Compact user list */}
-      <div className="space-y-1 overflow-y-auto">
+      <div className="space-y-2 max-h-96 overflow-y-auto">
         {sortedUsers.map((userItem, index) => {
-          const isExpanded = expandedUsers.has(userItem.id || '')
-          
-          // Fix: Extract correct data với proper mapping
+          const isExpanded = expandedUsers.has(userItem.id || "")
+
           const completionRate = userItem.stats?.taskCompletionRate || 0
           const hasReport = userItem.stats?.hasReport || false
-          const isCompleted = userItem.stats?.isCompleted || false
-          
+
           const userPerformanceBadge = getPerformanceBadge(completionRate)
           const userClassification = classifyPerformance(completionRate)
 
           return (
-            <div key={userItem.id || index} className="border border-gray-200 dark:border-gray-700 rounded-lg overflow-hidden">
-              {/* Compact User Row */}
+            <div key={userItem.id || index} className="border rounded-lg overflow-hidden bg-card">
+              {/* Compact User Row - Simplified animations */}
               <div
-                className="p-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                onClick={() => toggleUserDetail(userItem.id || '')}
+                className="p-3 cursor-pointer hover:bg-muted/50 transition-colors duration-150"
+                onClick={() => toggleUserDetail(userItem.id || "")}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="flex items-center justify-center w-6 h-6 bg-blue-100 dark:bg-blue-900 rounded-full text-xs font-medium text-blue-600 dark:text-blue-400">
+                    <div className="flex items-center justify-center w-6 h-6 bg-muted rounded-full text-xs font-medium text-muted-foreground">
                       {index + 1}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -211,11 +169,12 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
                         <h5 className="font-medium text-sm truncate">
                           {userItem.firstName} {userItem.lastName}
                         </h5>
-                        {isExpanded ? (
-                          <ChevronUp className="h-3 w-3 text-gray-400" />
-                        ) : (
-                          <ChevronDown className="h-3 w-3 text-gray-400" />
-                        )}
+                        <ChevronDown
+                          className={cn(
+                            "h-3 w-3 text-muted-foreground transition-transform duration-150",
+                            isExpanded && "rotate-180",
+                          )}
+                        />
                       </div>
                       <p className="text-xs text-muted-foreground truncate">
                         {userItem.employeeCode} - {userItem.office?.name}
@@ -224,17 +183,17 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
                   </div>
 
                   <div className="flex items-center gap-2">
-                    {/* Fix: Hiển thị đúng status và performance */}
                     {hasReport ? (
                       <>
-                        <Badge className={`${userPerformanceBadge.className} text-xs`}>
+                        <Badge className={userPerformanceBadge.className} variant={userPerformanceBadge.variant}>
                           {userPerformanceBadge.label}
                         </Badge>
                         <div
-                          className="text-xs font-medium px-2 py-1 rounded"
+                          className="text-xs font-medium px-2 py-1 rounded border"
                           style={{
                             color: userClassification.color,
-                            backgroundColor: userClassification.bgColor
+                            backgroundColor: userClassification.bgColor,
+                            borderColor: userClassification.borderColor,
                           }}
                         >
                           {Math.round(completionRate)}%
@@ -246,9 +205,8 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
                       </Badge>
                     )}
 
-                    {/* Quick action button */}
                     <Link href={`/admin/hierarchy/user/${userItem.id}`} onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" className="text-xs h-6 px-2">
+                      <Button variant="ghost" size="sm" className="text-xs h-6 px-2 hover:bg-muted">
                         <BarChart3 className="w-3 h-3" />
                       </Button>
                     </Link>
@@ -256,9 +214,11 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
                 </div>
               </div>
 
-              {/* Expanded User Details */}
+              {/* Expanded User Details - Simple slide animation */}
               {isExpanded && (
-                <UserDetail user={userItem} />
+                <div className="border-t">
+                  <UserDetail user={userItem} />
+                </div>
               )}
             </div>
           )
@@ -268,4 +228,5 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
   )
 })
 
-PositionUsersTable.displayName = 'PositionUsersTable'
+PositionUsersTable.displayName = "PositionUsersTable"
+

@@ -9,7 +9,8 @@ import { LockIcon as UserLock, Sparkles } from "lucide-react"
 import { FormField } from "../ui/form-field"
 import { SubmitButton } from "../ui/submit-button"
 import { useLogin } from "@/hooks/use-auth"
-import { AnimatedBackground } from "../ui/animated-background"
+import { useThemeBackground } from "@/hooks/use-theme-background"
+import { ModernAnimatedBackground } from "../layout/modern-animated-background"
 
 // Fixed animation variants with proper TypeScript types
 const containerVariants: Variants = {
@@ -44,7 +45,7 @@ const itemVariants: Variants = {
 export function LoginPage() {
   const loginMutation = useLogin();
   const shouldReduceMotion = useReducedMotion()
-
+  const { enableAnimation, particleCount, canAnimate, performanceMode } = useThemeBackground()
   const {
     register,
     handleSubmit,
@@ -75,7 +76,13 @@ export function LoginPage() {
   const isLoading = loginMutation.isPending
 
   return (
-    <AnimatedBackground variant="login" particleCount={20}>
+    <ModernAnimatedBackground
+    enableAnimation={enableAnimation}
+    particleCount={particleCount}
+    variant="login"
+    performanceMode={performanceMode}
+    intensity="subtle"
+  >
       <div className="flex items-center justify-center min-h-screen p-4">
         <motion.div 
           variants={containerVariants} 
@@ -236,6 +243,6 @@ export function LoginPage() {
           </motion.div>
         </motion.div>
       </div>
-    </AnimatedBackground>
+    </ModernAnimatedBackground>
   )
 }

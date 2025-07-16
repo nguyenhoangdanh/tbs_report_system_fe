@@ -1,63 +1,86 @@
-import { useState, useEffect, useCallback } from 'react'
-import { useTheme } from 'next-themes'
+"use client"
+
+import { useState, useEffect, useCallback } from "react"
+import { useTheme } from "next-themes"
 
 interface BackgroundSettings {
   enableAnimation: boolean
   particleCount: number
   reducedMotion: boolean
+  performanceMode: boolean
+  intensity: "subtle" | "normal" | "vibrant"
 }
 
 export const useThemeBackground = () => {
   const { theme, resolvedTheme } = useTheme()
-  const currentTheme = resolvedTheme || theme || 'dark'
-  
+  const currentTheme = resolvedTheme || theme || "dark"
+
   const [settings, setSettings] = useState<BackgroundSettings>({
     enableAnimation: true,
-    particleCount: 25,
-    reducedMotion: false
+    particleCount: 20, // Increased for better visual impact
+    reducedMotion: false,
+    performanceMode: false,
+    intensity: "normal",
   })
 
-  // Detect user's motion preference
+  // Enhanced performance detection
   useEffect(() => {
-    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
-    
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
+
+    const isLowPerformance = () => {
+      const connection = (navigator as any).connection
+      const deviceMemory = (navigator as any).deviceMemory
+      const hardwareConcurrency = navigator.hardwareConcurrency || 4
+
+      return (
+        (deviceMemory && deviceMemory < 4) ||
+        (connection && (connection.effectiveType === "2g" || connection.effectiveType === "3g")) ||
+        hardwareConcurrency < 4 ||
+        /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      )
+    }
+
     const handleChange = (e: MediaQueryListEvent) => {
-      setSettings(prev => ({
+      setSettings((prev) => ({
         ...prev,
         reducedMotion: e.matches,
-        enableAnimation: !e.matches && prev.enableAnimation
+        enableAnimation: !e.matches && prev.enableAnimation,
       }))
     }
 
-    setSettings(prev => ({
+    const performanceMode = isLowPerformance()
+
+    setSettings((prev) => ({
       ...prev,
       reducedMotion: mediaQuery.matches,
-      enableAnimation: !mediaQuery.matches && prev.enableAnimation
+      enableAnimation: !mediaQuery.matches && prev.enableAnimation,
+      performanceMode,
+      particleCount: performanceMode ? 10 : currentTheme === "dark" ? 20 : 16,
+      intensity: performanceMode ? "subtle" : "normal",
     }))
 
-    mediaQuery.addEventListener('change', handleChange)
-    return () => mediaQuery.removeEventListener('change', handleChange)
-  }, [])
-
-  // Auto adjust particle count based on theme
-  useEffect(() => {
-    setSettings(prev => ({
-      ...prev,
-      particleCount: currentTheme === 'dark' ? 25 : 20 // Fewer particles in light mode
-    }))
+    mediaQuery.addEventListener("change", handleChange)
+    return () => mediaQuery.removeEventListener("change", handleChange)
   }, [currentTheme])
 
   const toggleAnimation = useCallback(() => {
-    setSettings(prev => ({
+    setSettings((prev) => ({
       ...prev,
-      enableAnimation: !prev.enableAnimation && !prev.reducedMotion
+      enableAnimation: !prev.enableAnimation && !prev.reducedMotion,
     }))
   }, [])
 
   const updateParticleCount = useCallback((count: number) => {
-    setSettings(prev => ({
+    setSettings((prev) => ({
       ...prev,
-      particleCount: Math.max(5, Math.min(50, count))
+      particleCount: Math.max(5, Math.min(prev.performanceMode ? 15 : 30, count)),
+    }))
+  }, [])
+
+  const updateIntensity = useCallback((intensity: "subtle" | "normal" | "vibrant") => {
+    setSettings((prev) => ({
+      ...prev,
+      intensity: prev.performanceMode && intensity === "vibrant" ? "normal" : intensity,
     }))
   }, [])
 
@@ -66,6 +89,7 @@ export const useThemeBackground = () => {
     theme: currentTheme,
     toggleAnimation,
     updateParticleCount,
-    canAnimate: !settings.reducedMotion
+    updateIntensity,
+    canAnimate: !settings.reducedMotion,
   }
 }

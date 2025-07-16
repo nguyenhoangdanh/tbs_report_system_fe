@@ -10,10 +10,11 @@ import Link from "next/link";
 import { forgotPasswordSchema, resetPasswordSchema, type ForgotPasswordFormData, type ResetPasswordFormData } from "@/lib/validations/auth";
 import type { ForgotPasswordResponse } from "@/types";
 import { AppLoading } from '@/components/ui/app-loading'
-import { KeyRound, Shield, Sparkles, Eye, EyeOff } from "lucide-react";
+import { KeyRound, Shield, Sparkles } from "lucide-react";
 import { toast } from "react-toast-kit";
-import { AnimatedBackground } from "@/components/ui/animated-background";
 import { FormField } from "@/components/ui/form-field";
+import { ModernAnimatedBackground } from "@/components/layout/modern-animated-background";
+import { useThemeBackground } from "@/hooks/use-theme-background";
 
 // Fixed animation variants with proper TypeScript types
 const containerVariants: Variants = {
@@ -114,14 +115,21 @@ function ForgotPasswordContent() {
     setUserInfo(null);
     verifyForm.reset();
     resetForm.reset();
-  };
+  }
+  const { enableAnimation, particleCount, canAnimate, performanceMode } = useThemeBackground();
 
   if (isLoading) {
     return <AppLoading />
   }
 
   return (
-    <AnimatedBackground variant="forgot-password" particleCount={20}>
+      <ModernAnimatedBackground
+        enableAnimation={enableAnimation}
+        particleCount={particleCount}
+        variant="login"
+        performanceMode={performanceMode}
+        intensity="subtle"
+      >
       <div className="flex items-center justify-center min-h-screen p-4">
         <motion.div 
           variants={containerVariants} 
@@ -454,7 +462,7 @@ function ForgotPasswordContent() {
           </motion.div>
         </motion.div>
       </div>
-    </AnimatedBackground>
+    </ModernAnimatedBackground>
   );
 }
 
