@@ -9,6 +9,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { PositionUsersTable } from './position-users-table'
 import { PerformanceBarChart, PerformancePieChart } from '@/components/charts'
 import { getPerformanceBadge, classifyPerformance } from '@/utils/performance-classification'
+import { fa } from 'zod/v4/locales';
 
 // Fix: Update interface để match với data structure thực tế
 interface PositionCardProps {
@@ -42,8 +43,8 @@ interface PositionCardProps {
         excellent: { count: number; percentage: number }
         good: { count: number; percentage: number }
         average: { count: number; percentage: number }
-        belowAverage: { count: number; percentage: number }
         poor: { count: number; percentage: number }
+        fail: { count: number; percentage: number }
       }
       users?: any[]
     }
@@ -54,7 +55,7 @@ interface PositionCardProps {
 }
 
 export const PositionCard = memo(({ position }: PositionCardProps) => {
-  const [showDetails, setShowDetails] = useState(false)
+  // const [showDetails, setShowDetails] = useState(false)
 
   // Extract position information
   const positionInfo = {
@@ -76,8 +77,8 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
     excellent: { count: 0, percentage: 0 },
     good: { count: 0, percentage: 0 },
     average: { count: 0, percentage: 0 },
-    belowAverage: { count: 0, percentage: 0 },
-    poor: { count: 0, percentage: 0 }
+    poor: { count: 0, percentage: 0 },
+    fail: { count: 0, percentage: 0 }
   }
 
   const getRankingStats = () => {
@@ -85,8 +86,8 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
       excellent: rankingDistribution.excellent?.count || 0,
       good: rankingDistribution.good?.count || 0,
       average: rankingDistribution.average?.count || 0,
-      poor: rankingDistribution.belowAverage?.count || 0,
-      fail: rankingDistribution.poor?.count || 0,
+      poor: rankingDistribution.poor?.count || 0,
+      fail: rankingDistribution.fail?.count || 0,
     }
   }
 
@@ -129,7 +130,7 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
   return (
     <div className="w-full">
       <Card className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 hover:shadow-lg transition-all duration-200">
-        <Collapsible open={showDetails} onOpenChange={setShowDetails}>
+        {/* <Collapsible open={showDetails} onOpenChange={setShowDetails}> */}
           {/* Main Card Content */}
           <CardContent className="p-4">
             {/* Desktop Layout */}
@@ -272,7 +273,7 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
           </CardContent>
 
           {/* Collapse Button - Bottom Center */}
-          <div className="border-t border-gray-200 dark:border-gray-700">
+          {/* <div className="border-t border-gray-200 dark:border-gray-700">
             <CollapsibleTrigger asChild>
               <Button
                 variant="ghost"
@@ -287,10 +288,10 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                 )}
               </Button>
             </CollapsibleTrigger>
-          </div>
+          </div> */}
 
           {/* Detailed Content - Expandable */}
-          <CollapsibleContent>
+          {/* <CollapsibleContent> */}
             <div className="border-t border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800">
               <CardContent className="p-4">
                 <div className="space-y-4">
@@ -438,8 +439,8 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
                 </div>
               </CardContent>
             </div>
-          </CollapsibleContent>
-        </Collapsible>
+          {/* </CollapsibleContent> */}
+        {/* </Collapsible> */}
       </Card>
     </div>
   )

@@ -53,14 +53,14 @@ export function UserNav() {
         )
         break
 
-      case 'ADMIN':
-        links.push({
-          href: '/admin/users',
-          icon: '👥',
-          label: 'Quản lý Users',
-          description: 'Quản lý người dùng'
-        })
-        break
+      // case 'ADMIN':
+      //   links.push({
+      //     href: '/admin/users',
+      //     icon: '👥',
+      //     label: 'Quản lý Users',
+      //     description: 'Quản lý người dùng'
+      //   })
+      //   break
     }
 
     return links

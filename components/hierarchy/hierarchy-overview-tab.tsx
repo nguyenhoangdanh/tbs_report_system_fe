@@ -92,7 +92,7 @@ export const OverviewTab = memo(({
           </h3>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {jobPositions.slice(0, 6).map((jobPos, index) => (
+            {jobPositions.map((jobPos, index) => (
               <motion.div
                 key={jobPos.jobPosition?.id || `job-${index}`}
                 className="p-4 border rounded-lg transition-all duration-200 hover:shadow-md backdrop-blur-sm bg-card/80"
@@ -119,13 +119,13 @@ export const OverviewTab = memo(({
             ))}
           </div>
 
-          {jobPositions.length > 6 && (
+          {/* {jobPositions.length > 6 && (
             <div className="mt-4 text-center">
               <Badge variant="outline" className="bg-background/50">
                 Còn {jobPositions.length - 6} vị trí khác
               </Badge>
             </div>
-          )}
+          )} */}
         </div>
       )}
 

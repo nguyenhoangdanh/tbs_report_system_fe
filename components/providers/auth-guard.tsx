@@ -5,7 +5,7 @@ import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent } from "@/components/ui/card";
-import { AlertCircle, Shield, User, Building } from "lucide-react";
+import { AlertCircle, Shield, User, Building, RefreshCw } from "lucide-react";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 
@@ -50,7 +50,7 @@ const ROLE_ROUTES = {
 
 // Function to get default route based on user role and profile data
 const getDefaultRouteForUser = (user: any): string => {
-  if (!user) return "/dashboard";
+  if (!user) return "/";
 
   const userRole = user.role as string;
 
@@ -74,8 +74,9 @@ const getDefaultRouteForUser = (user: any): string => {
     //     : "/dashboard";
 
     case "USER":
-    default:
       return "/dashboard";
+    default:
+      return "/";
   }
 };
 
@@ -92,22 +93,6 @@ const hasAccess = (user: any, path: string): boolean => {
   // Check exact match first
   if (allowedRoutes.includes(path)) return true;
 
-  // Check role-specific dynamic routes
-  if (userRole === "OFFICE_MANAGER") {
-    const officeId = user.office?.id || user.officeId;
-    if (officeId && path.startsWith(`/admin/hierarchy/office/${officeId}`)) {
-      return true;
-    }
-  }
-
-  if (userRole === "OFFICE_ADMIN") {
-    const departmentId =
-      user.jobPosition?.department?.id || user.jobPosition?.departmentId;
-    if (departmentId && path.startsWith(`/admin/hierarchy/department/${departmentId}`)) {
-      return true;
-    }
-  }
-
   // Check if user has access to this specific path or parent path
   return allowedRoutes.some((route) => {
     return path === route || path.startsWith(route + "/");
@@ -120,23 +105,26 @@ interface AuthGuardProps {
 
 // Internal component that uses auth context
 function AuthGuardLogic({ children }: AuthGuardProps) {
-  const { user, isLoading, isAuthenticated } = useAuth();
+  const { user, isLoading, isAuthenticated, error, checkAuth, clearError } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isNavigating, setIsNavigating] = useState(false);
   const [initialLoadComplete, setInitialLoadComplete] = useState(false);
+  const [navigationAttempts, setNavigationAttempts] = useState(0);
   const navigationTimeoutRef = useRef<NodeJS.Timeout>();
+  const maxNavigationAttempts = 2; // Reduce max attempts
 
   // Check if current route is public
   const isPublicRoute = PUBLIC_ROUTES.includes(pathname);
 
-  // Safe navigation function with debouncing
+  // Safe navigation function with attempt limiting
   const safeNavigate = useCallback((path: string, reason: string) => {
-    if (isNavigating) {
+    if (isNavigating || navigationAttempts >= maxNavigationAttempts) {
       return;
     }
 
     setIsNavigating(true);
+    setNavigationAttempts(prev => prev + 1);
 
     // Clear any existing timeout
     if (navigationTimeoutRef.current) {
@@ -149,26 +137,41 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
     // Reset navigation state after delay
     navigationTimeoutRef.current = setTimeout(() => {
       setIsNavigating(false);
-    }, 1500);
-  }, [router, isNavigating]);
+    }, 2000);
+  }, [router, isNavigating, navigationAttempts, maxNavigationAttempts]);
 
-  // Handle initial load completion
+  // Handle initial load completion - simplified without dependencies
   useEffect(() => {
     if (!isLoading && !initialLoadComplete) {
       setInitialLoadComplete(true);
     }
-  }, [isLoading, initialLoadComplete]);
+  }, [isLoading, initialLoadComplete, isAuthenticated, user, error, pathname]);
 
-  // Main navigation logic
+  // Reset navigation attempts when pathname changes successfully
   useEffect(() => {
-    // Don't do anything during initial load or if already navigating
+    setNavigationAttempts(0);
+    setIsNavigating(false);
+    if (navigationTimeoutRef.current) {
+      clearTimeout(navigationTimeoutRef.current);
+    }
+  }, [pathname]);
+
+  // Main navigation logic - simplified to avoid infinite loops
+  useEffect(() => {
+    // Skip if still loading or navigating
     if (isLoading || !initialLoadComplete || isNavigating) {
       return;
     }
 
+    // If there's an error and we're not on a public route, don't navigate yet
+    // Let user see the error screen
+    if (error && !isPublicRoute) {
+      return;
+    }
 
     // Case 1: Unauthenticated user trying to access protected route
-    if (!isAuthenticated && !isPublicRoute) {
+    // Only redirect if there's no error (error means we couldn't check auth)
+    if (!isAuthenticated && !isPublicRoute && !error) {
       const returnUrl = encodeURIComponent(pathname);
       safeNavigate(`/login?returnUrl=${returnUrl}`, 'Unauthenticated access to protected route');
       return;
@@ -188,12 +191,12 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
       return;
     }
 
-    // Case 4: Authenticated user - check permissions for protected routes
+    // Case 4: Check permissions for protected routes
     if (isAuthenticated && user && !isPublicRoute) {
       const hasRouteAccess = hasAccess(user, pathname);
       
       if (!hasRouteAccess) {
-        // Don't redirect, show access denied screen
+        console.log(`🚫 Access denied for ${user.employeeCode} to ${pathname}`);
         return;
       }
     }
@@ -203,9 +206,11 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
     initialLoadComplete, 
     isAuthenticated, 
     pathname, 
-    user, 
+    user?.role, // Only depend on role, not entire user object
+    user?.employeeCode, // Only depend on employeeCode
     isPublicRoute, 
     isNavigating,
+    error,
     safeNavigate
   ]);
 
@@ -218,6 +223,23 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
     };
   }, []);
 
+  // Show error screen if there's a persistent error
+  if (error && !isLoading && initialLoadComplete && !isPublicRoute) {
+    return (
+      <ErrorScreen 
+        error={error} 
+        onRetry={() => {
+          clearError();
+          checkAuth();
+        }}
+        onGoToLogin={() => {
+          clearError();
+          router.push('/login');
+        }}
+      />
+    );
+  }
+
   // Show loading screen during initial load or navigation
   if (isLoading || !initialLoadComplete || isNavigating) {
     return <LoadingScreen user={user} pathname={pathname} isNavigating={isNavigating} />;
@@ -229,7 +251,7 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
   }
 
   // Unauthenticated user on protected route - show loading while redirecting
-  if (!isAuthenticated && !isPublicRoute) {
+  if (!isAuthenticated && !isPublicRoute && !error) {
     return <LoadingScreen user={user} pathname={pathname} isNavigating={true} />;
   }
 
@@ -272,13 +294,50 @@ export function AuthGuard({ children }: AuthGuardProps) {
 
   // Prevent hydration mismatch
   if (!mounted) {
-    return null;
+    return <div className="min-h-screen bg-background" />;
   }
 
   return (
     <AuthProvider>
       <AuthGuardLogic>{children}</AuthGuardLogic>
     </AuthProvider>
+  );
+}
+
+// Error screen component
+function ErrorScreen({
+  error,
+  onRetry,
+  onGoToLogin,
+}: {
+  error: string;
+  onRetry: () => void;
+  onGoToLogin: () => void;
+}) {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background p-4">
+      <Card className="w-full max-w-md mx-auto">
+        <CardContent className="p-6">
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertTitle>Lỗi xác thực</AlertTitle>
+            <AlertDescription className="mt-2">
+              {error}
+            </AlertDescription>
+          </Alert>
+
+          <div className="flex gap-2 mt-4">
+            <Button onClick={onRetry} variant="outline" className="flex-1">
+              <RefreshCw className="w-4 h-4 mr-2" />
+              Thử lại
+            </Button>
+            <Button onClick={onGoToLogin} className="flex-1">
+              Đăng nhập
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </div>
   );
 }
 
@@ -306,7 +365,7 @@ function LoadingScreen({
                 {isNavigating ? 'Vui lòng đợi' : 'Đang xác thực người dùng'}
               </p>
             </div>
-            {user && (
+            {/* {user && (
               <div className="w-full space-y-2 mt-4 p-3 bg-muted rounded-lg">
                 <div className="flex items-center gap-2 text-sm">
                   <User className="w-4 h-4" />
@@ -329,7 +388,7 @@ function LoadingScreen({
                   {isNavigating ? 'Đang chuyển từ: ' : 'Đang truy cập: '}{pathname}
                 </div>
               </div>
-            )}
+            )} */}
           </div>
         </CardContent>
       </Card>

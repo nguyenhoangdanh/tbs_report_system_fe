@@ -36,15 +36,15 @@ const nextConfig = {
   },
 
   // Redirects nếu cần
-  async redirects() {
-    return [
-      {
-        source: '/home',
-        destination: '/dashboard',
-        permanent: true,
-      },
-    ]
-  },
+  // async redirects() {
+  //   return [
+  //     {
+  //       source: '/home',
+  //       destination: '/dashboard',
+  //       permanent: true,
+  //     },
+  //   ]
+  // },
 
   // Loại bỏ experimental features gây conflict
   // experimental: {

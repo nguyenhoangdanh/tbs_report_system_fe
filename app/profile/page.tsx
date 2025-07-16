@@ -57,8 +57,8 @@ function ProfileContent() {
         UserService.getJobPositions(),
         UserService.getOffices()
       ])
-      setJobPositions(jobPositionsData)
-      setOffices(officesData)
+      setJobPositions(jobPositionsData?.data || [])
+      setOffices(officesData?.data || [])
     } catch (error) {
       console.error('Failed to load data:', error)
       toast.error('Không thể tải dữ liệu')

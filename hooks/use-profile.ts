@@ -1,10 +1,11 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { AuthService } from '@/services/auth.service'
 import { UserService } from '@/services/user.service'
 import { toast } from 'react-toast-kit'
 import { ChangePasswordDto, UpdateProfileDto } from '@/types'
+import { useApiMutation, useApiQuery } from './use-api-query'
 
 // Query keys for profile data
 const PROFILE_QUERY_KEYS = {
@@ -15,7 +16,7 @@ const PROFILE_QUERY_KEYS = {
  * Get current user profile
  */
 export function useProfile() {
-  return useQuery({
+  return useApiQuery({
     queryKey: PROFILE_QUERY_KEYS.profile,
     queryFn: AuthService.getProfile,
     staleTime: 2 * 60 * 1000, // 2 minutes - shorter for profile data
@@ -37,11 +38,12 @@ export function useProfile() {
 export function useUpdateProfile() {
   const queryClient = useQueryClient()
   
-  return useMutation({
+  return useApiMutation({
     mutationFn: (data: UpdateProfileDto) => UserService.updateProfile(data),
     onSuccess: (updatedUser) => {
-      console.log('✅ Profile updated successfully:', updatedUser.id)
-      
+      const userId = updatedUser?.id;
+      console.log('✅ Profile updated successfully:', userId)
+
       // Update profile cache immediately
       queryClient.setQueryData(PROFILE_QUERY_KEYS.profile, updatedUser)
       
@@ -56,12 +58,12 @@ export function useUpdateProfile() {
       
       // Invalidate user-specific queries to refresh with new user context
       queryClient.invalidateQueries({ 
-        queryKey: ['reports', updatedUser.id],
+        queryKey: ['reports', userId],
         exact: false 
       })
       
       queryClient.invalidateQueries({ 
-        queryKey: ['statistics', updatedUser.id],
+        queryKey: ['statistics', userId],
         exact: false 
       })
       
@@ -79,10 +81,10 @@ export function useUpdateProfile() {
  * Change password mutation
  */
 export function useChangePassword() {
-  return useMutation({
+  return useApiMutation({
     mutationFn: (data: ChangePasswordDto) => AuthService.changePassword(data),
-    onSuccess: () => {
-      console.log('✅ Password changed successfully')
+    onSuccess: (data) => {
+      console.log('✅ Password changed successfully', data)
       toast.success('Đổi mật khẩu thành công!')
     },
     onError: (error: any) => {

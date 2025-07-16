@@ -1,4 +1,4 @@
-import { api } from '@/lib/api'
+import { api, type ApiResult } from '@/lib/api'
 
 // Updated interface types to match backend exactly
 export interface DashboardStats {
@@ -217,14 +217,14 @@ export class StatisticsService {
   /**
    * Get dashboard statistics
    */
-  static async getDashboardStats(): Promise<DashboardStats> {
+  static async getDashboardStats(): Promise<ApiResult<DashboardStats>> {
     return await api.get<DashboardStats>('/statistics/dashboard')
   }
 
   /**
    * Get user report statistics
    */
-  static async getUserReportStats(): Promise<UserReportStats> {
+  static async getUserReportStats(): Promise<ApiResult<UserReportStats>> {
     return await api.get<UserReportStats>('/statistics/user-reports')
   }
 
@@ -234,7 +234,7 @@ export class StatisticsService {
   static async getWeeklyTaskStats(filters?: {
     weekNumber?: number
     year?: number
-  }): Promise<WeeklyTaskStats> {
+  }): Promise<ApiResult<WeeklyTaskStats>> {
     const params = new URLSearchParams()
     
     if (filters?.weekNumber !== undefined) {
@@ -259,7 +259,7 @@ export class StatisticsService {
    */
   static async getRecentActivities(filters?: {
     limit?: number
-  }): Promise<RecentActivity[]> {
+  }): Promise<ApiResult<RecentActivity[]>> {
     const params = new URLSearchParams()
     
     if (filters?.limit !== undefined) {
@@ -276,7 +276,7 @@ export class StatisticsService {
   /**
    * Get monthly task statistics - with proper number validation
    */
-  static async getMonthlyTaskStats(year?: number): Promise<MonthlyTaskStats> {
+  static async getMonthlyTaskStats(year?: number): Promise<ApiResult<MonthlyTaskStats>> {
     const params = new URLSearchParams()
     
     // FIX: Validate year parameter
@@ -294,7 +294,7 @@ export class StatisticsService {
   /**
    * Get yearly task statistics
    */
-  static async getYearlyTaskStats(): Promise<YearlyTaskStats> {
+  static async getYearlyTaskStats(): Promise<ApiResult<YearlyTaskStats>> {
     return await api.get<YearlyTaskStats>('/statistics/yearly-tasks')
   }
 
@@ -306,7 +306,7 @@ export class StatisticsService {
     year?: number
     startDate?: string
     endDate?: string
-  }): Promise<IncompleteReasonsAnalysis> {
+  }): Promise<ApiResult<IncompleteReasonsAnalysis>> {
     const params = new URLSearchParams()
     
     // FIX: Validate numeric parameters
@@ -341,7 +341,7 @@ export class StatisticsService {
     departmentId?: string
     weekNumber?: number
     year?: number
-  }): Promise<any> {
+  }): Promise<ApiResult<any>> {
     const params = new URLSearchParams()
     
     // FIX: Validate parameters
@@ -368,7 +368,7 @@ export class StatisticsService {
   /**
    * Get overview statistics
    */
-  static async getOverview(): Promise<OverviewStats> {
+  static async getOverview(): Promise<ApiResult<OverviewStats>> {
     return await api.get<OverviewStats>('/statistics/overview')
   }
 
@@ -379,7 +379,7 @@ export class StatisticsService {
     week?: number
     year?: number
     departmentId?: string
-  }): Promise<CompletionRateStats> {
+  }): Promise<ApiResult<CompletionRateStats>> {
     const params = new URLSearchParams()
     
     // FIX: Validate numeric parameters
@@ -409,7 +409,7 @@ export class StatisticsService {
   static async getMissingReports(filters?: {
     week?: number
     year?: number
-  }): Promise<MissingReportsStats> {
+  }): Promise<ApiResult<MissingReportsStats>> {
     const params = new URLSearchParams()
     
     // FIX: Validate numeric parameters
@@ -436,7 +436,7 @@ export class StatisticsService {
   static async getSummaryReport(filters?: {
     week?: number
     year?: number
-  }): Promise<SummaryReport> {
+  }): Promise<ApiResult<SummaryReport>> {
     const params = new URLSearchParams()
     
     // FIX: Validate numeric parameters

@@ -9,6 +9,7 @@ import type {
   PaginatedResponse 
 } from '@/types'
 import { toast } from 'react-toast-kit'
+import { useApiMutation, useApiQuery } from './use-api-query'
 
 // Query keys for user data
 const USER_QUERY_KEYS = {
@@ -20,7 +21,7 @@ const USER_QUERY_KEYS = {
  * Get all users (admin only)
  */
 export function useAllUsers(page = 1, limit = 10) {
-  return useQuery<PaginatedResponse<User>, Error>({
+  return useApiQuery<PaginatedResponse<User>, Error>({
     queryKey: USER_QUERY_KEYS.users(page, limit),
     queryFn: () => UserService.getAllUsers(page, limit),
     staleTime: 3 * 60 * 1000,
@@ -35,7 +36,7 @@ export function useAllUsers(page = 1, limit = 10) {
  * Get user by ID
  */
 export function useUserById(id: string) {
-  return useQuery<User, Error>({
+  return useApiQuery<User, Error>({
     queryKey: USER_QUERY_KEYS.userById(id),
     queryFn: () => UserService.getUserById(id),
     enabled: !!id,
@@ -53,7 +54,7 @@ export function useUserById(id: string) {
 export function useCreateUser() {
   const queryClient = useQueryClient()
   
-  return useMutation<User, Error, CreateUserDto>({
+  return useApiMutation<User, CreateUserDto, Error>({
     mutationFn: (data: CreateUserDto) => UserService.createUser(data),
     onSuccess: () => {
       queryClient.invalidateQueries({ 
@@ -75,8 +76,8 @@ export function useCreateUser() {
  */
 export function useUpdateUser() {
   const queryClient = useQueryClient()
-  
-  return useMutation<User, Error, { id: string; data: UpdateProfileDto }>({
+
+  return useApiMutation<User, { id: string; data: UpdateProfileDto }, Error>({
     mutationFn: ({ id, data }) => UserService.updateUser(id, data),
     onSuccess: (updatedUser, variables) => {
       queryClient.setQueryData(USER_QUERY_KEYS.userById(variables.id), updatedUser)
@@ -99,8 +100,8 @@ export function useUpdateUser() {
  */
 export function useDeleteUser() {
   const queryClient = useQueryClient()
-  
-  return useMutation<void, Error, string>({
+
+  return useApiMutation<void, string, Error>({
     mutationFn: (userId: string) => UserService.deleteUser(userId),
     onSuccess: (_, deletedUserId) => {
       queryClient.removeQueries({ queryKey: USER_QUERY_KEYS.userById(deletedUserId) })

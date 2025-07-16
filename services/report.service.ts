@@ -1,4 +1,4 @@
-import { api } from '@/lib/api'
+import { api, ErrorResponse, type ApiResult } from '@/lib/api'
 import type { WeeklyReport, PaginatedResponse } from '@/types'
 
 export interface CreateWeeklyReportDto {
@@ -53,7 +53,7 @@ export class ReportService {
   /**
    * Get my reports with pagination
    */
-  static async getMyReports(params?: PaginationParams): Promise<PaginatedResponse<WeeklyReport>> {
+  static async getMyReports(params?: PaginationParams): Promise<ApiResult<PaginatedResponse<WeeklyReport>>> {
     const searchParams = new URLSearchParams()
     
     // FIX: Validate pagination parameters
@@ -77,14 +77,14 @@ export class ReportService {
   /**
    * Get report by ID
    */
-  static async getReportById(id: string): Promise<WeeklyReport> {
+  static async getReportById(id: string): Promise<ApiResult<WeeklyReport>> {
     return await api.get<WeeklyReport>(`/reports/${id}`)
   }
 
   /**
    * Get report by week and year - with proper number validation
    */
-  static async getReportByWeek(weekNumber: number, year: number): Promise<WeeklyReport> {
+  static async getReportByWeek(weekNumber: number, year: number): Promise<ApiResult<WeeklyReport>> {
     // FIX: Validate inputs are proper numbers
     const validWeekNumber = Number(weekNumber)
     const validYear = Number(year)
@@ -107,18 +107,18 @@ export class ReportService {
   /**
    * Get current week report
    */
-  static async getCurrentWeekReport(): Promise<WeeklyReport> {
+  static async getCurrentWeekReport(): Promise<ApiResult<WeeklyReport>> {
     return await api.get<WeeklyReport>('/reports/current-week')
   }
 
   /**
    * Create weekly report - with proper number validation
    */
-  static async createWeeklyReport(data: CreateWeeklyReportDto): Promise<WeeklyReport> {
+  static async createWeeklyReport(data: CreateWeeklyReportDto): Promise<ApiResult<WeeklyReport>> {
     // FIX: Ensure weekNumber and year are proper numbers
     const validWeekNumber = Number(data.weekNumber)
     const validYear = Number(data.year)
-    
+
     // Validate numbers
     if (isNaN(validWeekNumber) || isNaN(validYear)) {
       throw new Error('Week number and year must be valid numbers')
@@ -154,42 +154,42 @@ export class ReportService {
   /**
    * Update report
    */
-  static async updateReport(id: string, data: UpdateReportDto): Promise<WeeklyReport> {
+  static async updateReport(id: string, data: UpdateReportDto): Promise<ApiResult<WeeklyReport>> {
     return await api.patch<WeeklyReport>(`/reports/${id}`, data)
   }
 
   /**
    * Delete report
    */
-  static async deleteReport(id: string): Promise<void> {
+  static async deleteReport(id: string): Promise<ApiResult<void>> {
     return await api.delete<void>(`/reports/${id}`)
   }
 
   /**
    * Update task
    */
-  static async updateTask(taskId: string, data: UpdateTaskDto): Promise<void> {
+  static async updateTask(taskId: string, data: UpdateTaskDto): Promise<ApiResult<void>> {
     return await api.patch<void>(`/reports/tasks/${taskId}`, data)
   }
 
   /**
    * Delete task
    */
-  static async deleteTask(taskId: string): Promise<void> {
+  static async deleteTask(taskId: string): Promise<ApiResult<void>> {
     return await api.delete<void>(`/reports/tasks/${taskId}`)
   }
 
   /**
    * Complete report
    */
-  static async completeReport(id: string): Promise<WeeklyReport> {
+  static async completeReport(id: string): Promise<ApiResult<WeeklyReport>> {
     return await api.patch<WeeklyReport>(`/reports/${id}/complete`)
   }
 
   /**
    * Reopen report
    */
-  static async reopenReport(id: string): Promise<WeeklyReport> {
+  static async reopenReport(id: string): Promise<ApiResult<WeeklyReport>> {
     return await api.patch<WeeklyReport>(`/reports/${id}/reopen`)
   }
 }

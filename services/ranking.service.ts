@@ -1,4 +1,4 @@
-import { api } from '@/lib/api'
+import { api, type ApiResult } from '@/lib/api'
 
 export type Ranking = 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'POOR' | 'FAIL'
 
@@ -348,7 +348,7 @@ export class RankingService {
     periodWeeks?: number
     positionId?: string
     jobPositionId?: string
-  }): Promise<EmployeeRankingResponse> {
+  }): Promise<ApiResult<EmployeeRankingResponse>> {
     const params = new URLSearchParams()
     
     if (filters?.employeeId && typeof filters.employeeId === 'string') {
@@ -382,7 +382,7 @@ export class RankingService {
     year?: number
     periodWeeks?: number
     timeFrame?: 'week' | 'month' | 'year'
-  }): Promise<PositionRankingResponse> {
+  }): Promise<ApiResult<PositionRankingResponse>> {
     const params = new URLSearchParams()
     
     if (filters?.weekNumber !== undefined && !isNaN(Number(filters.weekNumber))) {
@@ -411,7 +411,7 @@ export class RankingService {
     periodWeeks?: number
     timeFrame?: 'week' | 'month' | 'year'
     departmentId?: string
-  }): Promise<JobPositionRankingResponse> {
+  }): Promise<ApiResult<JobPositionRankingResponse>> {
     const params = new URLSearchParams()
     
     if (filters?.weekNumber !== undefined && !isNaN(Number(filters.weekNumber))) {
@@ -442,7 +442,7 @@ export class RankingService {
     positionId?: string
     jobPositionId?: string
     year?: number
-  }): Promise<TimePerformanceResponse> {
+  }): Promise<ApiResult<TimePerformanceResponse>> {
     const params = new URLSearchParams()
     
     params.append('timeFrame', filters.timeFrame)
@@ -458,6 +458,7 @@ export class RankingService {
     }
     
     const query = params.toString() ? `?${params}` : ''
+    // return await api.get<ApiResult<TimePerformanceResponse>>(`/ranking/time-performance${query}`)
     return await api.get<TimePerformanceResponse>(`/ranking/time-performance${query}`)
   }
 
@@ -470,7 +471,7 @@ export class RankingService {
     weekNumber?: number
     year?: number
     periodWeeks?: number
-  }): Promise<DepartmentRankingResponse> {
+  }): Promise<ApiResult<DepartmentRankingResponse>> {
     const params = new URLSearchParams()
     
     if (filters?.departmentId && typeof filters.departmentId === 'string') {
@@ -501,7 +502,7 @@ export class RankingService {
     weekNumber?: number
     year?: number
     periodWeeks?: number
-  }): Promise<OfficeRankingResponse> {
+  }): Promise<ApiResult<OfficeRankingResponse>> {
     const params = new URLSearchParams()
     
     if (filters?.officeId && typeof filters.officeId === 'string') {
@@ -528,7 +529,7 @@ export class RankingService {
     weekNumber?: number
     year?: number
     periodWeeks?: number
-  }): Promise<OverallRankingResponse> {
+  }): Promise<ApiResult<OverallRankingResponse>> {
     const params = new URLSearchParams()
     
     if (filters?.weekNumber !== undefined && !isNaN(Number(filters.weekNumber))) {
@@ -552,9 +553,13 @@ export class RankingService {
     weekNumber?: number
     year?: number
     periodWeeks?: number
-  }): Promise<EmployeeRankingData | null> {
+  }): Promise<ApiResult<EmployeeRankingData | null>> {
     const response = await this.getEmployeeRanking(filters)
-    return response.employees?.[0] || null
+    if (!response.success || !response.data || response.data.employees.length === 0) {
+      return { success: false }
+    }
+    return { success: true, data: response.data.employees[0] } // Assuming
+    // return response.data?.employees?.[0] || null
   }
 }
 

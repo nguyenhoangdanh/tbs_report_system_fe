@@ -187,9 +187,6 @@ function DashboardPage() {
                         <p className="text-muted-foreground">
                             Tổng quan về hoạt động báo cáo công việc tuần
                         </p>
-                        <div className="text-xs text-muted-foreground">
-                            ID: {user.id} • {user.email}
-                        </div>
                     </motion.div>
 
                     {/* Work Week Status Card */}
@@ -221,12 +218,12 @@ function DashboardPage() {
                                             <div className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
                                                 <p><strong>Khoảng thời gian:</strong> {workWeekInfo.dateRange}</p>
                                                 <p><strong>Ngày làm việc:</strong> {workWeekInfo.workDaysText}</p>
-                                                <p><strong>Ngày báo cáo:</strong> {workWeekInfo.resultDaysText}</p>
+                                                {/* <p><strong>Ngày báo cáo:</strong> {workWeekInfo.resultDaysText}</p> */}
                                             </div>
                                         </div>
                                     </div>
                                     
-                                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
+                                    <div className="flex flex-row items-center gap-3">
                                         {workWeekInfo.hasReport ? (
                                             <>
                                                 <Badge className="bg-green-100 text-green-700 border-green-200 px-4 py-2 text-center">
@@ -254,16 +251,16 @@ function DashboardPage() {
                                     </div>
                                 </div>
                                 
-                                {workWeekInfo.isReportingTime && (
+                                {/* {workWeekInfo.isReportingTime && (
                                     <div className="mt-4 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg border border-green-200 dark:border-green-800">
                                         <div className="flex items-center gap-2 text-green-700 dark:text-green-300">
                                             <Info className="w-4 h-4" />
                                             <span className="text-sm font-medium">
-                                                Đây là thời gian báo cáo (Thứ 2 - Thứ 5). Kết quả sẽ được đánh giá vào cuối thứ 5.
+                                                Kết quả sẽ được đánh giá vào cuối thứ 5.
                                             </span>
                                         </div>
                                     </div>
-                                )}
+                                )} */}
                             </CardContent>
                         </Card>
                     </motion.div>
@@ -279,7 +276,7 @@ function DashboardPage() {
                         {/* Weekly Stats */}
                         <StatsCard
                             title="Công việc tuần này"
-                            subtitle={`${workWeekInfo.weekTitle} • ${workWeekInfo.resultDaysText}`}
+                            subtitle={`${workWeekInfo.weekTitle}`}
                             total={Number(weeklyTaskStats?.total) || 0}
                             completed={Number(weeklyTaskStats?.completed) || 0}
                             uncompleted={Number(weeklyTaskStats?.uncompleted) || 0}
@@ -368,7 +365,7 @@ function DashboardPage() {
                                                     <div className="flex-1 min-w-0">
                                                         <div className="flex items-center gap-2 mb-1">
                                                             <p className="text-foreground font-medium">{activityTitle}</p>
-                                                            <Badge 
+                                                            {/* <Badge 
                                                                 variant={activity.isCompleted ? "default" : "secondary"}
                                                                 className={`text-xs ${
                                                                     activity.isCompleted 
@@ -377,7 +374,7 @@ function DashboardPage() {
                                                                 }`}
                                                             >
                                                                 {activity.isCompleted ? "Hoàn thành" : "Chưa xong"}
-                                                            </Badge>
+                                                            </Badge> */}
                                                         </div>
                                                         <p className="text-muted-foreground text-sm">{activityDescription}</p>
                                                         

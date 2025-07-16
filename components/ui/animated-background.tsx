@@ -169,7 +169,7 @@ const AnimatedBackground = memo(({
 
       {/* Enhanced geometric shapes */}
       <motion.div
-        className="absolute top-[120px] left-10 w-28 h-28 border-2 rounded-lg backdrop-blur-sm"
+        className="absolute top-[160px] left-10 w-28 h-28 border-2 rounded-lg backdrop-blur-sm"
         style={{
           borderColor: currentTheme === 'dark' ? 'rgba(59, 130, 246, 0.4)' : 'rgba(59, 130, 246, 0.3)',
           boxShadow: currentTheme === 'dark' 
@@ -213,7 +213,7 @@ const AnimatedBackground = memo(({
       />
 
       <motion.div
-        className="absolute bottom-1/3 left-16 w-20 h-20 border-2 rounded-md backdrop-blur-sm"
+        className="absolute bottom-40 left-16 w-20 h-20 border-2 rounded-md backdrop-blur-sm"
         style={{
           borderColor: currentTheme === 'dark' ? 'rgba(34, 197, 94, 0.4)' : 'rgba(34, 197, 94, 0.3)',
           boxShadow: currentTheme === 'dark' 

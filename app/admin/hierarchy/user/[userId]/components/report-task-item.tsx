@@ -11,12 +11,13 @@ interface ReportTaskItemProps {
 
 const getDayName = (day: string) => {
   const dayNames: Record<string, string> = {
+    friday: 'Thứ 6',
+    saturday: 'Thứ 7',
     monday: 'Thứ 2',
     tuesday: 'Thứ 3',
     wednesday: 'Thứ 4',
     thursday: 'Thứ 5',
-    friday: 'Thứ 6',
-    saturday: 'Thứ 7',
+
   }
   return dayNames[day] || day
 }
@@ -27,7 +28,6 @@ export const ReportTaskItem = memo(function ReportTaskItem({ task, index }: Repo
   const isCompleted = Boolean(task?.isCompleted)
   const reasonNotDone = safeString(task?.reasonNotDone, '')
   const updatedAt = safeString(task?.updatedAt, new Date().toISOString())
-
   return (
     <motion.div
       initial={{ opacity: 0, x: -20 }}
@@ -67,16 +67,15 @@ export const ReportTaskItem = memo(function ReportTaskItem({ task, index }: Repo
       </div>
 
       <div className="grid grid-cols-6 gap-1">
-        {['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'].map((day) => (
-          <div 
+        {['friday', 'saturday', 'monday', 'tuesday', 'wednesday', 'thursday'].map((day) => (
+          <div
             key={day}
-            className={`text-center p-1 rounded text-xs ${
-              task?.[day] 
-                ? 'bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/30 dark:text-green-300' 
+            className={`text-center p-1 rounded text-xs ${task?.[day]
+                ? 'bg-green-100 text-green-800 border border-green-200 dark:bg-green-900/30 dark:text-green-300'
                 : 'bg-gray-100 text-gray-500 dark:bg-gray-700 dark:text-gray-400'
-            }`}
+              }`}
           >
-            {getDayName(day).slice(0, 2)}
+            {getDayName(day)}
           </div>
         ))}
       </div>

@@ -1,7 +1,7 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
 import { UserService } from '@/services/user.service'
+import { useApiQuery } from './use-api-query'
 import type { Department, Position, JobPosition, Office } from '@/types'
 
 // Query keys for organization data
@@ -16,7 +16,7 @@ const ORGANIZATION_QUERY_KEYS = {
  * Get all departments
  */
 export function useDepartments() {
-  return useQuery<Department[], Error>({
+  return useApiQuery<Department[]>({
     queryKey: ORGANIZATION_QUERY_KEYS.departments,
     queryFn: () => UserService.getDepartments(),
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -31,7 +31,7 @@ export function useDepartments() {
  * Get all positions
  */
 export function usePositions() {
-  return useQuery<Position[], Error>({
+  return useApiQuery<Position[]>({
     queryKey: ORGANIZATION_QUERY_KEYS.positions,
     queryFn: () => UserService.getPositions(),
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -46,7 +46,7 @@ export function usePositions() {
  * Get all job positions
  */
 export function useJobPositions() {
-  return useQuery<JobPosition[], Error>({
+  return useApiQuery<JobPosition[]>({
     queryKey: ORGANIZATION_QUERY_KEYS.jobPositions,
     queryFn: () => UserService.getJobPositions(),
     staleTime: 10 * 60 * 1000, // 10 minutes
@@ -61,7 +61,7 @@ export function useJobPositions() {
  * Get all offices
  */
 export function useOffices() {
-  return useQuery<Office[], Error>({
+  return useApiQuery<Office[]>({
     queryKey: ORGANIZATION_QUERY_KEYS.offices,
     queryFn: () => UserService.getOffices(),
     staleTime: 10 * 60 * 1000, // 10 minutes

@@ -8,8 +8,9 @@ import { TaskTable } from './task-table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'react-toast-kit'
 import { getCurrentWeek, isValidWeekForCreation, WeekValidationResult, getWorkWeekRange, formatWorkWeek } from '@/utils/week-utils'
-import type { WeeklyReport, Task } from '@/types'
+import type { WeeklyReport } from '@/types'
 import { SubmitButton } from '../ui/submit-button'
+import useReportStore from '@/store/report-store'
 
 // Helper functions for week validation
 function isValidWeekForEdit(weekNumber: number, year: number): WeekValidationResult {
@@ -18,12 +19,12 @@ function isValidWeekForEdit(weekNumber: number, year: number): WeekValidationRes
 
 function isValidWeekForDeletion(weekNumber: number, year: number): WeekValidationResult {
   const current = getCurrentWeek()
-  
+
   // Current week
   if (weekNumber === current.weekNumber && year === current.year) {
     return { isValid: true }
   }
-  
+
   // Next week
   let nextWeek = current.weekNumber + 1
   let nextYear = current.year
@@ -31,14 +32,14 @@ function isValidWeekForDeletion(weekNumber: number, year: number): WeekValidatio
     nextWeek = 1
     nextYear = current.year + 1
   }
-  
+
   if (weekNumber === nextWeek && year === nextYear) {
     return { isValid: true }
   }
-  
-  return { 
-    isValid: false, 
-    reason: 'Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo' 
+
+  return {
+    isValid: false,
+    reason: 'Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo'
   }
 }
 
@@ -46,7 +47,7 @@ function isValidWeekForDeletion(weekNumber: number, year: number): WeekValidatio
 function getAvailableWeeksForReporting() {
   const current = getCurrentWeek()
   const weeks = []
-  
+
   // Previous week
   let prevWeek = current.weekNumber - 1
   let prevYear = current.year
@@ -54,7 +55,7 @@ function getAvailableWeeksForReporting() {
     prevWeek = 52
     prevYear = current.year - 1
   }
-  
+
   weeks.push({
     weekNumber: prevWeek,
     year: prevYear,
@@ -62,7 +63,7 @@ function getAvailableWeeksForReporting() {
     isPast: true,
     isFuture: false
   })
-  
+
   // Current week
   weeks.push({
     weekNumber: current.weekNumber,
@@ -71,7 +72,7 @@ function getAvailableWeeksForReporting() {
     isPast: false,
     isFuture: false
   })
-  
+
   // Next week
   let nextWeek = current.weekNumber + 1
   let nextYear = current.year
@@ -79,7 +80,7 @@ function getAvailableWeeksForReporting() {
     nextWeek = 1
     nextYear = current.year + 1
   }
-  
+
   weeks.push({
     weekNumber: nextWeek,
     year: nextYear,
@@ -87,7 +88,7 @@ function getAvailableWeeksForReporting() {
     isPast: false,
     isFuture: true
   })
-  
+
   return weeks
 }
 
@@ -110,53 +111,65 @@ export const ReportForm = memo(function ReportForm({
   year: propYear,
   isLoading
 }: ReportFormProps) {
-  // Get available weeks for display
-  const availableWeeks = useMemo(() => getAvailableWeeksForReporting(), [])
-  const currentWeek = useMemo(() => getCurrentWeek(), [])
+  // Zustand store
+  const {
+    currentTasks,
+    currentWeekNumber,
+    currentYear,
+    selectedReport,
+    isSaving,
+    navigateToWeek,
+    syncReportToStore,
+    setSaving,
+    clearTasks,
+  } = useReportStore()
 
-  const [weekNumber, setWeekNumber] = useState(propWeekNumber || report?.weekNumber || currentWeek.weekNumber)
-  const [year, setYear] = useState(propYear || report?.year || currentWeek.year)
-  const [tasks, setTasks] = useState<Task[]>([])
-  const [isSaving, setIsSaving] = useState(false)
+  // Local UI state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
-  // Sync with parent props
+  // Get available weeks for display
+  const availableWeeks = useMemo(() => getAvailableWeeksForReporting(), [])
+  const defaultWeek = useMemo(() => getCurrentWeek(), [])
+
+  // Use store values with fallbacks
+  const weekNumber = propWeekNumber || currentWeekNumber || defaultWeek.weekNumber
+  const year = propYear || currentYear || defaultWeek.year
+
+  // Sync props to store when they change
   useEffect(() => {
     if (propWeekNumber !== undefined && propYear !== undefined) {
-      setWeekNumber(propWeekNumber)
-      setYear(propYear)
+      navigateToWeek(propWeekNumber, propYear, false)
     }
-  }, [propWeekNumber, propYear])
+  }, [propWeekNumber, propYear, navigateToWeek])
 
-  // Update tasks when report changes
+  // Sync report to store when it changes
   useEffect(() => {
-    if (report) {
-      setTasks(report.tasks || [])
-      if (propWeekNumber === undefined && propYear === undefined) {
-        setWeekNumber(report.weekNumber)
-        setYear(report.year)
-      }
-    } else {
-      setTasks([])
+    syncReportToStore(report || null)
+  }, [report, syncReportToStore])
+
+  // Force clear when no report and week changes
+  useEffect(() => {
+    if (!report && (propWeekNumber !== undefined || propYear !== undefined)) {
+      syncReportToStore(null)
     }
-  }, [report, propWeekNumber, propYear])
+  }, [report, propWeekNumber, propYear, syncReportToStore])
 
   // Validate permissions
   const { canEdit, validation } = useMemo(() => {
     let validationResult: WeekValidationResult
-    if (report) {
+    if (selectedReport) {
       validationResult = isValidWeekForEdit(weekNumber, year)
     } else {
       validationResult = isValidWeekForCreation(weekNumber, year)
     }
 
-    const canEditReport = !report?.isLocked && validationResult.isValid
+    const canEditReport = !selectedReport?.isLocked && validationResult.isValid
 
     return {
       canEdit: canEditReport,
       validation: validationResult
     }
-  }, [report, weekNumber, year])
+  }, [selectedReport, weekNumber, year])
 
   // Week type info
   const weekTypeInfo = useMemo(() => {
@@ -176,7 +189,7 @@ export const ReportForm = memo(function ReportForm({
     return null;
   }, [weekNumber, year]);
 
-  // Week navigation handlers - Allow navigation to any week in the year
+  // Week navigation handlers
   const handlePreviousWeek = useCallback(() => {
     let newWeekNumber = weekNumber - 1
     let newYear = year
@@ -186,15 +199,11 @@ export const ReportForm = memo(function ReportForm({
       newYear = year - 1
     }
 
-    setWeekNumber(newWeekNumber)
-    setYear(newYear)
+    syncReportToStore(null)
+    clearTasks()
+    navigateToWeek(newWeekNumber, newYear, true)
     onWeekChange?.(newWeekNumber, newYear)
-
-    // Only clear tasks if creating new report
-    if (!report) {
-      setTasks([])
-    }
-  }, [weekNumber, year, report, onWeekChange])
+  }, [weekNumber, year, navigateToWeek, onWeekChange])
 
   const handleNextWeek = useCallback(() => {
     let newWeekNumber = weekNumber + 1
@@ -205,149 +214,78 @@ export const ReportForm = memo(function ReportForm({
       newYear = year + 1
     }
 
-    setWeekNumber(newWeekNumber)
-    setYear(newYear)
+    syncReportToStore(null)
+    clearTasks()
+    navigateToWeek(newWeekNumber, newYear, true)
     onWeekChange?.(newWeekNumber, newYear)
-
-    // Only clear tasks if creating new report
-    if (!report) {
-      setTasks([])
-    }
-  }, [weekNumber, year, report, onWeekChange])
+  }, [weekNumber, year, navigateToWeek, onWeekChange])
 
   const handleCurrentWeek = useCallback(() => {
     const current = getCurrentWeek()
-    setWeekNumber(current.weekNumber)
-    setYear(current.year)
+    syncReportToStore(null)
+    clearTasks()
+    navigateToWeek(current.weekNumber, current.year, true)
     onWeekChange?.(current.weekNumber, current.year)
+  }, [navigateToWeek, onWeekChange])
 
-    // Only clear tasks if creating new report
-    if (!report) {
-      setTasks([])
-    }
-  }, [report, onWeekChange])
-
-  // Check if navigation is available - Allow navigation for viewing any week
+  // Check if navigation is available
   const navigationAvailable = useMemo(() => {
     const currentWeekInfo = getCurrentWeek()
-
-    // Check if current week is different
     const isCurrentWeek = weekNumber === currentWeekInfo.weekNumber && year === currentWeekInfo.year
 
     return {
-      canGoPrevious: true, // Always allow navigation
-      canGoNext: true, // Always allow navigation
-      canGoToCurrent: !isCurrentWeek // Allow going to current week if not already there
+      canGoPrevious: true,
+      canGoNext: true,
+      canGoToCurrent: !isCurrentWeek
     }
   }, [weekNumber, year])
 
-  // Check if report can be deleted (only current week and next week)
+  // Check if report can be deleted
   const canDeleteReport = useMemo(() => {
-    if (!report) return false
+    if (!selectedReport) return false
 
-    const deletionValidation = isValidWeekForDeletion(report.weekNumber, report.year)
-    return deletionValidation.isValid && !report.isLocked
-  }, [report])
+    const deletionValidation = isValidWeekForDeletion(selectedReport.weekNumber, selectedReport.year)
+    return deletionValidation.isValid && !selectedReport.isLocked
+  }, [selectedReport])
 
-  // Check if current week can be edited (only for creation/editing validation)
+  // Check if current week can be edited
   const canEditCurrentWeek = useMemo(() => {
-    if (report) {
-      // For existing reports, check edit validation
+    if (selectedReport) {
       const editValidation = isValidWeekForEdit(weekNumber, year)
-      return editValidation.isValid && !report.isLocked
+      return editValidation.isValid && !selectedReport.isLocked
     } else {
-      // For new reports, check creation validation
       const creationValidation = isValidWeekForCreation(weekNumber, year)
       return creationValidation.isValid
     }
-  }, [report, weekNumber, year])
-
-  const handleAddTask = useCallback(() => {
-    if (!canEdit) return
-
-    const newTask: Task = {
-      id: `temp-${Date.now()}-${Math.random()}`,
-      taskName: '',
-      monday: false,
-      tuesday: false,
-      wednesday: false,
-      thursday: false,
-      friday: false,
-      saturday: false,
-      isCompleted: false,
-      reasonNotDone: '',
-      reportId: report?.id || '',
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    }
-
-    setTasks(prev => [...prev, newTask])
-  }, [canEdit, report?.id])
-
-  const handleTaskChange = useCallback((taskId: string, field: string, value: any) => {
-    setTasks(prev => {
-      const taskExists = prev.find(task => task.id === taskId)
-      if (!taskExists) {
-        const newTask: Task = {
-          id: taskId,
-          taskName: field === 'taskName' ? value : '',
-          monday: field === 'monday' ? value : false,
-          tuesday: field === 'tuesday' ? value : false,
-          wednesday: field === 'wednesday' ? value : false,
-          thursday: field === 'thursday' ? value : false,
-          friday: field === 'friday' ? value : false,
-          saturday: field === 'saturday' ? value : false,
-          isCompleted: field === 'isCompleted' ? value : false,
-          reasonNotDone: field === 'reasonNotDone' ? value : '',
-          reportId: report?.id || '',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
-        }
-        return [...prev, newTask]
-      }
-
-      return prev.map(task => {
-        if (task.id !== taskId) return task
-
-        if (field === 'isCompleted' && value === true) {
-          return { ...task, [field]: value, reasonNotDone: '' }
-        }
-        return { ...task, [field]: value }
-      })
-    })
-  }, [report?.id])
-
-  const handleRemoveTask = useCallback((taskId: string) => {
-    setTasks(prev => prev.filter(task => task.id !== taskId))
-  }, [])
+  }, [selectedReport, weekNumber, year])
 
   const validateTasks = useCallback(() => {
-    if (tasks.length === 0) {
+    if (currentTasks.length === 0) {
       toast.error('Vui lòng thêm ít nhất một công việc')
       return false
     }
 
-    const emptyTasks = tasks.filter(task => !task.taskName?.trim())
+    const emptyTasks = currentTasks.filter(task => !task.taskName?.trim())
     if (emptyTasks.length > 0) {
       toast.error('Vui lòng nhập tên cho tất cả công việc')
       return false
     }
 
-    const incompleteTasks = tasks.filter(task => !task.isCompleted && (!task.reasonNotDone?.trim()))
+    const incompleteTasks = currentTasks.filter(task => !task.isCompleted && (!task.reasonNotDone?.trim()))
     if (incompleteTasks.length > 0) {
       toast.error('Vui lòng nhập lý do cho các công việc chưa hoàn thành')
       return false
     }
 
     return true
-  }, [tasks])
+  }, [currentTasks])
 
   const handleSave = useCallback(async () => {
     if (!validateTasks()) {
       return
     }
 
-    if (!report) {
+    if (!selectedReport) {
       const validationResult = isValidWeekForCreation(weekNumber, year)
       if (!validationResult.isValid) {
         toast.error(validationResult.reason!)
@@ -361,13 +299,13 @@ export const ReportForm = memo(function ReportForm({
       }
     }
 
-    setIsSaving(true)
+    setSaving(true)
     try {
       let reportData: any
 
-      if (report) {
+      if (selectedReport) {
         reportData = {
-          tasks: tasks.map(task => ({
+          tasks: currentTasks.map(task => ({
             taskName: task.taskName.trim(),
             monday: task.monday || false,
             tuesday: task.tuesday || false,
@@ -377,13 +315,15 @@ export const ReportForm = memo(function ReportForm({
             saturday: task.saturday || false,
             isCompleted: task.isCompleted || false,
             reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined)
-          }))
+          })),
+          weekNumber,
+          year,
         }
       } else {
         reportData = {
           weekNumber: Number(weekNumber),
           year: Number(year),
-          tasks: tasks.map(task => ({
+          tasks: currentTasks.map(task => ({
             taskName: task.taskName.trim(),
             monday: task.monday || false,
             tuesday: task.tuesday || false,
@@ -393,33 +333,30 @@ export const ReportForm = memo(function ReportForm({
             saturday: task.saturday || false,
             isCompleted: task.isCompleted || false,
             reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined)
-          }))
+          })),
         }
       }
 
       const result = await onSave(reportData)
 
-      if (result && result.tasks) {
-        setTasks(result.tasks)
-      }
     } catch (error: any) {
-      console.error('Save failed:', error)
+      console.error('❌ ReportForm: Save failed:', error)
     } finally {
-      setIsSaving(false)
+      setSaving(false)
     }
-  }, [validateTasks, report, weekNumber, year, tasks, onSave])
+  }, [validateTasks, selectedReport, weekNumber, year, currentTasks, onSave, setSaving])
 
   const handleDelete = useCallback(async () => {
-    if (!report || !onDelete) return
+    if (!selectedReport || !onDelete) return
 
     try {
-      await onDelete(report.id)
+      await onDelete(selectedReport.id)
       setShowDeleteDialog(false)
-      toast.success('Xóa báo cáo thành công!')
     } catch (error: any) {
       toast.error(error.message || 'Không thể xóa báo cáo')
     }
-  }, [report, onDelete])
+  }, [selectedReport, onDelete])
+  
 
   return (
     <div className="space-y-6">
@@ -439,9 +376,6 @@ export const ReportForm = memo(function ReportForm({
                   <div className="text-xs text-gray-500 dark:text-gray-500">
                     {workWeekDisplayInfo.workDaysText}
                   </div>
-                  <div className="text-xs text-blue-600 dark:text-blue-400 font-medium">
-                    {workWeekDisplayInfo.resultDaysText}
-                  </div>
                 </div>
               )}
               {weekTypeInfo.label && (
@@ -451,9 +385,8 @@ export const ReportForm = memo(function ReportForm({
               )}
             </div>
 
-            {/* Week Navigation Buttons - Always show */}
+            {/* Week Navigation Buttons */}
             <div className="flex items-center justify-center gap-2">
-              {/* Previous Week Button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -466,15 +399,14 @@ export const ReportForm = memo(function ReportForm({
                 <span className="hidden sm:inline">Trước</span>
               </Button>
 
-              {/* Current Week Button */}
               <Button
                 variant={weekTypeInfo.color === 'text-green-600' ? 'default' : 'outline'}
                 size="sm"
                 onClick={handleCurrentWeek}
                 disabled={!navigationAvailable.canGoToCurrent || isLoading}
                 className={`flex items-center gap-1 ${weekTypeInfo.color === 'text-green-600'
-                    ? 'bg-green-600 hover:bg-green-700 text-white'
-                    : 'text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-950/20'
+                  ? 'bg-green-600 hover:bg-green-700 text-white'
+                  : 'text-green-600 border-green-200 hover:bg-green-50 dark:hover:bg-green-950/20'
                   } ${!navigationAvailable.canGoToCurrent ? 'opacity-50' : ''}`}
                 title="Xem tuần hiện tại"
               >
@@ -482,7 +414,6 @@ export const ReportForm = memo(function ReportForm({
                 <span className="hidden sm:inline">Hiện tại</span>
               </Button>
 
-              {/* Next Week Button */}
               <Button
                 variant="outline"
                 size="sm"
@@ -496,20 +427,20 @@ export const ReportForm = memo(function ReportForm({
               </Button>
             </div>
 
-            {/* Week information and creation/edit restrictions */}
-            {!report && (
+            {/* Week information and restrictions */}
+            {!selectedReport && (
               <div className="text-xs text-muted-foreground">
                 <div className="flex justify-center gap-2 flex-wrap">
                   {availableWeeks.map((week) => (
                     <span
                       key={`${week.weekNumber}-${week.year}`}
                       className={`px-2 py-1 rounded text-xs ${week.weekNumber === weekNumber && week.year === year
-                          ? 'bg-primary text-primary-foreground'
-                          : week.isCurrent
-                            ? 'bg-green-100 text-green-700'
-                            : week.isPast
-                              ? 'bg-orange-100 text-orange-700'
-                              : 'bg-blue-100 text-blue-700'
+                        ? 'bg-primary text-primary-foreground'
+                        : week.isCurrent
+                          ? 'bg-green-100 text-green-700'
+                          : week.isPast
+                            ? 'bg-orange-100 text-orange-700'
+                            : 'bg-blue-100 text-blue-700'
                         }`}
                     >
                       Tuần {week.weekNumber}
@@ -531,7 +462,7 @@ export const ReportForm = memo(function ReportForm({
             )}
 
             {/* Edit restrictions notice for existing reports */}
-            {report && (
+            {selectedReport && (
               <div className="text-xs text-center">
                 {canEditCurrentWeek ? (
                   <span className="text-green-600 bg-green-50 dark:bg-green-950/20 px-3 py-2 rounded border border-green-200 dark:border-green-800">
@@ -545,8 +476,8 @@ export const ReportForm = memo(function ReportForm({
               </div>
             )}
 
-            {/* Delete restrictions notice for existing reports */}
-            {report && !canDeleteReport && (
+            {/* Delete restrictions notice */}
+            {selectedReport && !canDeleteReport && (
               <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 px-3 py-2 rounded border border-red-200 dark:border-red-800 text-center">
                 🚫 Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo
               </div>
@@ -556,7 +487,7 @@ export const ReportForm = memo(function ReportForm({
       </Card>
 
       {/* Loading indicator */}
-      {!report && isLoading && (
+      {!selectedReport && isLoading && (
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-center py-8">
@@ -579,7 +510,7 @@ export const ReportForm = memo(function ReportForm({
               <AlertCircle className="w-5 h-5 flex-shrink-0" />
               <div>
                 <p className="font-medium">
-                  {report ? 'Không thể chỉnh sửa báo cáo này' : 'Không thể tạo báo cáo cho tuần này'}
+                  {selectedReport ? 'Không thể chỉnh sửa báo cáo này' : 'Không thể tạo báo cáo cho tuần này'}
                 </p>
                 <p className="text-sm">
                   {validation.reason}
@@ -591,34 +522,29 @@ export const ReportForm = memo(function ReportForm({
       )}
 
       {/* Main Content */}
-      {((!isLoading || report) && canEdit) && (
+      {((!isLoading || selectedReport) && canEdit) && (
         <div className="space-y-6">
           <TaskTable
-            tasks={tasks}
             weekNumber={weekNumber}
             year={year}
-            isEditable={canEditCurrentWeek} // Use new validation
-            onTaskChange={handleTaskChange}
-            onAddTask={handleAddTask}
-            onRemoveTask={handleRemoveTask}
-            onSave={canEditCurrentWeek && tasks.length > 0 ? handleSave : undefined} // Use new validation
-            isSaving={isSaving}
+            isEditable={canEditCurrentWeek}
+            onSave={canEditCurrentWeek && currentTasks.length > 0 ? handleSave : undefined}
           />
           <div className="flex justify-end items-center gap-2">
-            {/* Save button for new or existing reports */}
-            {(tasks.length !== 0) && (
+            {/* Save button */}
+            {(currentTasks.length !== 0) && (
               <SubmitButton
                 disabled={isSaving}
-                onClick={canEditCurrentWeek && tasks.length > 0 ? handleSave : undefined} // Use new validation
+                onClick={canEditCurrentWeek && currentTasks.length > 0 ? handleSave : undefined}
                 loading={isSaving}
                 text='Lưu báo cáo'
                 icon={<Save className="w-4 h-4" />}
                 className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700"
-              /> 
+              />
             )}
 
-            {/* Delete button for existing reports - Updated condition */}
-            {report && canDeleteReport && onDelete && (
+            {/* Delete button */}
+            {selectedReport && canDeleteReport && onDelete && (
               <Button
                 variant="destructive"
                 onClick={() => setShowDeleteDialog(true)}

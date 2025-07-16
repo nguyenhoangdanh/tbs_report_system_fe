@@ -97,19 +97,22 @@ function ReportsPage() {
 
   // Memoized data processing - FIX: Handle API response structure correctly
   const reports = useMemo(() => {
-    // Backend returns paginated response with 'data' property
-    if (reportsData && typeof reportsData === 'object' && 'data' in reportsData) {
-      return Array.isArray(reportsData.data) ? reportsData.data : []
+    
+    // Handle direct array response or paginated response
+    if (Array.isArray(reportsData?.data)) {
+      return reportsData.data
     }
-    // Handle direct array response
     if (Array.isArray(reportsData)) {
       return reportsData
     }
+    // Handle paginated response structure
+    if (reportsData?.data && Array.isArray(reportsData.data)) {
+      return reportsData.data
+    }
+   
+    console.log('⚠️ Unexpected reports data structure:', reportsData)
     return []
   }, [reportsData])
-
-  console.log('🔄 Reports data:', reportsData)
-  console.log('🔄 Processed reports:', reports)
 
   const filteredReports = useMemo(() => {
     if (!Array.isArray(reports)) return []
@@ -168,7 +171,11 @@ function ReportsPage() {
   // Effect to sync selected report with week report
   useEffect(() => {
     if (viewMode === 'form') {
-      setSelectedReport(weekReport || null)
+      if (weekReport?.id) {
+        setSelectedReport(weekReport)
+      } else {
+        setSelectedReport(null)
+      }
     }
   }, [weekReport, viewMode])
 
@@ -189,15 +196,17 @@ function ReportsPage() {
     // Use replace to avoid adding to history
     window.history.replaceState(null, '', newURL)
     
-    console.log('🔄 URL updated (client-side only):', newURL)
   }, []) // Remove router dependency to prevent re-renders
 
   // Event handlers with stable references
   const handleWeekChange = useCallback((newWeekNumber: number, newYear: number) => {
-    setSelectedReport(null)
+    setSelectedReport(null) // reset report ngay lập tức
     setCurrentWeekNumber(newWeekNumber)
     setCurrentYear(newYear)
-  }, [])
+    setTimeout(() => {
+      refetchReports()
+    }, 100)
+  }, [refetchReports])
 
   const handleFilterTabChange = useCallback((tab: FilterTab) => {
     setFilterTab(tab)
@@ -252,7 +261,12 @@ function ReportsPage() {
     try {
       let result: WeeklyReport;
 
-      if (selectedReport) {
+      console.log('🔄 Starting report mutation with data:', selectedReport)
+
+      const currentSelectedReport = selectedReport
+      const isUpdating = currentSelectedReport && currentSelectedReport.id
+
+      if (isUpdating) {
         const updateData: UpdateReportDto = {
           tasks: reportData.tasks.map((task: any) => ({
             taskName: task.taskName.trim(),
@@ -266,8 +280,9 @@ function ReportsPage() {
             reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined)
           }))
         };
+        
+        console.log('🔄 Updating report:', { id: selectedReport.id, data: updateData })
         result = await updateReportMutation.mutateAsync({ id: selectedReport.id, data: updateData });
-        toast.success('Cập nhật báo cáo thành công!');
       } else {
         const createData = {
           weekNumber: Number(reportData.weekNumber),
@@ -285,13 +300,20 @@ function ReportsPage() {
           }))
         };
 
+        console.log('➕ Creating report:', createData)
         result = await createReportMutation.mutateAsync(createData);
-        toast.success('Tạo báo cáo thành công!');
       }
 
-      // FIXED: Call refetch and navigation directly instead of through dependency
-      refetchReports();
-      refetchCurrentWeek();
+      console.log('✅ Mutation completed, result:', result)
+
+      // Wait for mutations to complete and caches to update
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      // Force refetch to ensure UI updates
+      await Promise.all([
+        refetchReports(),
+        refetchCurrentWeek()
+      ])
       
       // Navigate back to list
       setSelectedReport(null);
@@ -300,7 +322,7 @@ function ReportsPage() {
 
       return result;
     } catch (error: any) {
-      console.error('Save report error:', error);
+      console.error('❌ Save report error:', error);
       const message = error.message || 'Không thể lưu báo cáo. Vui lòng thử lại.';
       toast.error(message);
       throw error;
@@ -338,18 +360,21 @@ function ReportsPage() {
   const handleDeleteReport = useCallback(async (reportId: string): Promise<void> => {
     try {
       await deleteReportMutation.mutateAsync(reportId)
-
       if (selectedReport?.id === reportId) {
         setSelectedReport(null)
         setViewMode('list')
       }
-
-      refetchReports()
-      refetchCurrentWeek()
-
-      toast.success('Xóa báo cáo thành công!')
+      // Wait for deletion to complete
+      await new Promise(resolve => setTimeout(resolve, 300))
+      // Force refetch to ensure UI updates
+      await Promise.all([
+        refetchReports(),
+        refetchCurrentWeek()
+      ])
+      // Sau khi refetch, nếu tuần hiện tại không còn báo cáo thì setSelectedReport(null)
+      // (đã xử lý ở useEffect phía trên)
     } catch (error: any) {
-      console.error('Delete report error:', error)
+      console.error('❌ Delete report error:', error)
       if (error.message.includes('tuần hiện tại') || error.message.includes('tuần tiếp theo')) {
         toast.error('Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo')
       } else {
@@ -426,7 +451,6 @@ function ReportsPage() {
     setCurrentYear(year)
     setViewMode('form')
     
-    console.log(`Creating report for ${weekType} week: ${weekNumber}/${year}`)
   }, [])
 
   // Loading states
@@ -446,6 +470,12 @@ function ReportsPage() {
   }
 
   const isFormLoading = createReportMutation.isPending || updateReportMutation.isPending || weekReportLoading
+
+  // Add a resetKey to force remount ReportForm when week changes
+  const resetKey = useMemo(
+    () => `${currentWeekNumber}-${currentYear}-${selectedReport?.id ?? 'no-report'}`,
+    [currentWeekNumber, currentYear, selectedReport?.id]
+  )
 
   return (
     <MainLayout
@@ -665,7 +695,8 @@ function ReportsPage() {
             </div>
 
             <ReportForm
-              report={selectedReport}
+              key={resetKey}
+              report={selectedReport} // sẽ là null nếu không còn báo cáo tuần này
               onSave={handleCreateOrUpdateReport}
               onDelete={handleDeleteReport}
               onWeekChange={handleWeekChange}

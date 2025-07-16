@@ -673,7 +673,6 @@ const HierarchyDashboard = memo(() => {
       })
     }
 
-    console.log('Generated tabs:', tabs.map(t => ({ id: t.id, label: t.label, show: t.show })))
     return tabs.filter(tab => tab.show)
   }, [managementPositions, employeeJobPositions, userPermissions])
 

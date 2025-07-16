@@ -96,9 +96,9 @@ export function RegisterForm() {
         UserService.getDepartments(),
         UserService.getJobPositions()
       ])
-      setOffices(officesData)
-      setDepartments(departmentsData)
-      setJobPositions(jobPositionsData)
+      setOffices(officesData.data || [])
+      setDepartments(departmentsData.data || [])
+      setJobPositions(jobPositionsData.data || [])
     } catch (error) {
       console.error('Failed to load data:', error)
       toast.error('Không thể tải dữ liệu. Vui lòng kiểm tra kết nối mạng.')

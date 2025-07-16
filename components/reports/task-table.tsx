@@ -1,99 +1,113 @@
 'use client'
 
-import { memo, useState, useCallback, useMemo } from 'react'
+import { memo, useState, useCallback, useMemo, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Textarea } from '@/components/ui/textarea'
 import { Switch } from '@/components/ui/switch'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Badge } from '@/components/ui/badge'
-import { Plus, Save, Trash2, Copy, Edit3, BarChart3, Calendar } from 'lucide-react'
+import { Plus, Save, Trash2, Copy, Calendar, BarChart3 } from 'lucide-react'
 import { toast } from 'react-toast-kit'
 import type { Task } from '@/types'
 import { SubmitButton } from '../ui/submit-button'
 import { formatWorkWeek } from '@/utils/week-utils'
+import useReportStore from '@/store/report-store'
 
 interface TaskTableProps {
-  tasks: Task[]
   weekNumber: number
   year: number
   isEditable: boolean
-  onTaskChange: (taskId: string, field: string, value: any) => void
-  onAddTask: () => void
-  onRemoveTask: (taskId: string) => void
   onSave?: () => void
-  isSaving?: boolean
 }
 
-// Mobile Task Card Component
+// Mobile Task Card Component with Zustand integration
 const TaskCard = memo(function TaskCard({
   task,
   index,
   isEditable,
-  onTaskChange,
-  onRemove,
-  onDuplicate,
   weekdays
 }: {
   task: Task
   index: number
   isEditable: boolean
-  onTaskChange: (taskId: string, field: string, value: any) => void
-  onRemove: (taskId: string) => void
-  onDuplicate: (task: Task) => void
   weekdays: Array<{ key: string; label: string; short: string }>
 }) {
   const [editingTask, setEditingTask] = useState(false)
   const [editingReason, setEditingReason] = useState(false)
+  const { updateTask, removeTask } = useReportStore()
 
   const handleTaskNameEdit = useCallback((value: string) => {
-    onTaskChange(task.id, 'taskName', value)
-  }, [onTaskChange, task.id])
+    updateTask(task.id, 'taskName', value)
+  }, [updateTask, task.id])
 
   const handleReasonEdit = useCallback((value: string) => {
-    onTaskChange(task.id, 'reasonNotDone', value)
-  }, [onTaskChange, task.id])
+    updateTask(task.id, 'reasonNotDone', value)
+  }, [updateTask, task.id])
 
   const handleDayToggle = useCallback((day: string, checked: boolean) => {
-    onTaskChange(task.id, day, checked)
-  }, [onTaskChange, task.id])
+    updateTask(task.id, day as keyof Task, checked)
+  }, [updateTask, task.id])
 
   const handleCompletionToggle = useCallback((completed: boolean) => {
-    onTaskChange(task.id, 'isCompleted', completed)
+    updateTask(task.id, 'isCompleted', completed)
     if (completed) {
-      onTaskChange(task.id, 'reasonNotDone', '')
+      updateTask(task.id, 'reasonNotDone', '')
     }
-  }, [onTaskChange, task.id])
+  }, [updateTask, task.id])
 
   const handleRemove = useCallback(() => {
-    onRemove(task.id)
+    removeTask(task.id)
     toast.success('Đã xóa công việc')
-  }, [onRemove, task.id])
+  }, [removeTask, task.id])
+
+  const handleDuplicate = useCallback(() => {
+    const newTask: Task = {
+      id: `temp-${Date.now()}-${Math.random()}`,
+      taskName: `${task.taskName} (Copy)`,
+      monday: task.monday,
+      tuesday: task.tuesday,
+      wednesday: task.wednesday,
+      thursday: task.thursday,
+      friday: task.friday,
+      saturday: task.saturday,
+      isCompleted: false,
+      reasonNotDone: '',
+      reportId: task.reportId,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+
+    // Add the new task using store
+    Object.entries(newTask).forEach(([key, value]) => {
+      updateTask(newTask.id, key as keyof Task, value)
+    })
+
+    toast.success('Đã sao chép công việc!')
+  }, [task, updateTask])
 
   return (
-    <Card className={`border-2 transition-colors ${
-      task.isCompleted 
-        ? 'border-green-200 bg-green-50/30 dark:bg-green-950/20' 
+    <Card className={`border-2 transition-colors ${task.isCompleted
+        ? 'border-green-200 bg-green-50/30 dark:bg-green-950/20'
         : 'border-gray-200 hover:border-green-200'
-    }`}>
+      }`}>
       <CardContent className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center justify-between">
-          <Badge 
+          <Badge
             variant={task.isCompleted ? "default" : "secondary"}
-            className={`w-8 h-8 rounded-full flex items-center justify-center p-0 text-sm font-bold ${
-              task.isCompleted 
-                ? 'bg-green-600 text-white' 
+            className={`w-8 h-8 rounded-full flex items-center justify-center p-0 text-sm font-bold ${task.isCompleted
+                ? 'bg-green-600 text-white'
                 : 'bg-gray-200 text-gray-700'
-            }`}
+              }`}
           >
             {index + 1}
           </Badge>
-          
+
           {isEditable && (
             <div className="flex items-center gap-2">
               <Button
-                onClick={() => onDuplicate(task)}
+                onClick={handleDuplicate}
                 variant="ghost"
                 size="sm"
                 className="h-8 w-8 p-0 text-blue-600 hover:bg-blue-50"
@@ -139,11 +153,10 @@ const TaskCard = memo(function TaskCard({
             />
           ) : (
             <div
-              className={`text-sm leading-relaxed p-3 rounded-md border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                !task.taskName.trim() 
-                  ? 'text-red-500 italic border-red-200 bg-red-50' 
+              className={`text-sm leading-relaxed p-3 rounded-md border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${!task.taskName.trim()
+                  ? 'text-red-500 italic border-red-200 bg-red-50'
                   : 'border-gray-200'
-              }`}
+                }`}
               onClick={() => isEditable && setEditingTask(true)}
               title={isEditable ? 'Nhấn để chỉnh sửa' : ''}
             >
@@ -165,7 +178,7 @@ const TaskCard = memo(function TaskCard({
                 </span>
                 <Checkbox
                   checked={task[day.key as keyof Task] as boolean}
-                  onCheckedChange={(checked) => 
+                  onCheckedChange={(checked) =>
                     isEditable && handleDayToggle(day.key, !!checked)
                   }
                   disabled={!isEditable}
@@ -189,10 +202,9 @@ const TaskCard = memo(function TaskCard({
                 disabled={!isEditable}
                 className="data-[state=checked]:bg-green-600"
               />
-              <span className={`text-sm font-medium ${
-                task.isCompleted ? 'text-green-600' : 'text-orange-600'
-              }`}>
-                {task.isCompleted ? 'Hoan thành' : 'Chưa hoàn thành'}
+              <span className={`text-sm font-medium ${task.isCompleted ? 'text-green-600' : 'text-orange-600'
+                }`}>
+                {task.isCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}
               </span>
             </div>
           </div>
@@ -224,11 +236,10 @@ const TaskCard = memo(function TaskCard({
                 />
               ) : (
                 <div
-                  className={`text-sm leading-relaxed p-3 rounded-md border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${
-                    !task.reasonNotDone?.trim() 
-                      ? 'text-red-500 italic border-red-200 bg-red-50' 
+                  className={`text-sm leading-relaxed p-3 rounded-md border cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800 ${!task.reasonNotDone?.trim()
+                      ? 'text-red-500 italic border-red-200 bg-red-50'
                       : 'border-gray-200'
-                  }`}
+                    }`}
                   onClick={() => isEditable && setEditingReason(true)}
                   title={isEditable ? 'Nhấn để chỉnh sửa' : ''}
                 >
@@ -244,18 +255,33 @@ const TaskCard = memo(function TaskCard({
 })
 
 export const TaskTable = memo(function TaskTable({
-  tasks,
   weekNumber,
   year,
   isEditable,
-  onTaskChange,
-  onAddTask,
-  onRemoveTask,
-  onSave,
-  isSaving = false
+  onSave
 }: TaskTableProps) {
+  // Zustand store - single source of truth
+  const {
+    currentTasks,
+    addTask,
+    removeTask,
+    updateTask,
+    isSaving,
+    selectedReport
+  } = useReportStore()
+
   const [editingTask, setEditingTask] = useState<string | null>(null)
   const [editingReason, setEditingReason] = useState<string | null>(null)
+
+  // Debug logging for tasks changes
+  useEffect(() => {
+    console.log('🔄 TaskTable: currentTasks changed:', {
+      count: currentTasks.length,
+      weekNumber,
+      year,
+      reportId: selectedReport?.id
+    })
+  }, [currentTasks, weekNumber, year, selectedReport?.id])
 
   // Weekday headers
   const weekdays = useMemo(() => [
@@ -267,44 +293,38 @@ export const TaskTable = memo(function TaskTable({
     { key: 'thursday', label: 'Thứ 5', short: 'T5' },
   ], [])
 
-  // Calculate statistics
+  // Calculate statistics from store
   const stats = useMemo(() => {
-    const total = tasks.length
-    const completed = tasks.filter(task => task.isCompleted).length
+    const total = currentTasks.length
+    const completed = currentTasks.filter(task => task.isCompleted).length
     const incomplete = total - completed
     const completionRate = total > 0 ? Math.round((completed / total) * 100) : 0
-
     return { total, completed, incomplete, completionRate }
-  }, [tasks])
+  }, [currentTasks])
 
   const weekDisplayTitle = useMemo(() => {
     return formatWorkWeek(weekNumber, year, 'full');
   }, [weekNumber, year]);
 
-  // Direct remove handler - no dialog
-  const handleRemoveTask = useCallback((taskId: string) => {
-    onRemoveTask(taskId)
-    // toast.success('Đã xóa công việc')
-  }, [onRemoveTask])
-
+  // Task handlers using store actions
   const handleTaskNameEdit = useCallback((taskId: string, value: string) => {
-    onTaskChange(taskId, 'taskName', value)
-  }, [onTaskChange])
+    updateTask(taskId, 'taskName', value)
+  }, [updateTask])
 
   const handleReasonEdit = useCallback((taskId: string, value: string) => {
-    onTaskChange(taskId, 'reasonNotDone', value)
-  }, [onTaskChange])
+    updateTask(taskId, 'reasonNotDone', value)
+  }, [updateTask])
 
   const handleDayToggle = useCallback((taskId: string, day: string, checked: boolean) => {
-    onTaskChange(taskId, day, checked)
-  }, [onTaskChange])
+    updateTask(taskId, day as keyof Task, checked)
+  }, [updateTask])
 
   const handleCompletionToggle = useCallback((taskId: string, completed: boolean) => {
-    onTaskChange(taskId, 'isCompleted', completed)
+    updateTask(taskId, 'isCompleted', completed)
     if (completed) {
-      onTaskChange(taskId, 'reasonNotDone', '')
+      updateTask(taskId, 'reasonNotDone', '')
     }
-  }, [onTaskChange])
+  }, [updateTask])
 
   const duplicateTask = useCallback((task: Task) => {
     const newTask: Task = {
@@ -322,12 +342,16 @@ export const TaskTable = memo(function TaskTable({
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     }
-    
-    onTaskChange(newTask.id, 'taskName', newTask.taskName)
-    toast.success('Đã sao chép công việc!')
-  }, [onTaskChange])
 
-  if (tasks.length === 0) {
+    // Add task using store
+    Object.entries(newTask).forEach(([key, value]) => {
+      updateTask(newTask.id, key as keyof Task, value)
+    })
+
+    toast.success('Đã sao chép công việc!')
+  }, [updateTask])
+
+  if (currentTasks.length === 0) {
     return (
       <Card>
         <CardContent className="p-8 text-center">
@@ -337,7 +361,7 @@ export const TaskTable = memo(function TaskTable({
             <p className="text-gray-600">Bắt đầu thêm công việc để tạo báo cáo tuần {weekNumber}/{year}</p>
           </div>
           {isEditable && (
-            <Button onClick={onAddTask} className="bg-green-600 hover:bg-green-700">
+            <Button onClick={addTask} className="bg-green-600 hover:bg-green-700">
               <Plus className="w-4 h-4 mr-2" />
               Thêm công việc đầu tiên
             </Button>
@@ -351,7 +375,6 @@ export const TaskTable = memo(function TaskTable({
     <Card>
       <CardHeader className="space-y-4">
         <div className="flex flex-col space-y-4">
-          {/* Title with enhanced week info */}
           <div>
             <CardTitle className="text-xl sm:text-2xl">
               Báo cáo công việc {weekDisplayTitle}
@@ -360,8 +383,8 @@ export const TaskTable = memo(function TaskTable({
               Kế hoạch: T6, T7, T2, T3, T4, T5 • Kết quả: T2, T3, T4, T5
             </p>
           </div>
-          
-          {/* Statistics - Mobile Optimized */}
+
+          {/* Statistics */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <div className="flex items-center gap-2 p-3 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
               <div className="w-3 h-3 bg-blue-500 rounded-full flex-shrink-0"></div>
@@ -370,7 +393,7 @@ export const TaskTable = memo(function TaskTable({
                 <div className="text-blue-600/70 text-xs">Tổng CV</div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 p-3 bg-green-50 dark:bg-green-950/20 rounded-lg">
               <div className="w-3 h-3 bg-green-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
@@ -378,7 +401,7 @@ export const TaskTable = memo(function TaskTable({
                 <div className="text-green-600/70 text-xs">Hoàn thành</div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 p-3 bg-orange-50 dark:bg-orange-950/20 rounded-lg">
               <div className="w-3 h-3 bg-orange-500 rounded-full flex-shrink-0"></div>
               <div className="text-sm">
@@ -386,7 +409,7 @@ export const TaskTable = memo(function TaskTable({
                 <div className="text-orange-600/70 text-xs">Chưa hoàn thành</div>
               </div>
             </div>
-            
+
             <div className="flex items-center gap-2 p-3 bg-purple-50 dark:bg-purple-950/20 rounded-lg">
               <BarChart3 className="w-3 h-3 text-purple-600 flex-shrink-0" />
               <div className="text-sm">
@@ -400,7 +423,7 @@ export const TaskTable = memo(function TaskTable({
           <div className="flex items-center gap-3">
             {isEditable && (
               <Button
-                onClick={onAddTask}
+                onClick={addTask}
                 variant="outline"
                 className="flex-1 sm:flex-none bg-green-50 border-green-200 text-green-700 hover:bg-green-100"
               >
@@ -416,7 +439,7 @@ export const TaskTable = memo(function TaskTable({
                 text='Lưu báo cáo'
                 icon={<Save className="w-4 h-4" />}
                 className="flex-1 sm:flex-none bg-green-600 hover:bg-green-700"
-            />
+              />
             )}
           </div>
         </div>
@@ -425,15 +448,12 @@ export const TaskTable = memo(function TaskTable({
       <CardContent className="p-0">
         {/* Mobile View - Cards */}
         <div className="block lg:hidden p-4 space-y-4">
-          {tasks.map((task, index) => (
+          {currentTasks.map((task, index) => (
             <TaskCard
               key={task.id}
               task={task}
               index={index}
               isEditable={isEditable}
-              onTaskChange={onTaskChange}
-              onRemove={handleRemoveTask}
-              onDuplicate={duplicateTask}
               weekdays={weekdays}
             />
           ))}
@@ -474,24 +494,22 @@ export const TaskTable = memo(function TaskTable({
 
             {/* Table Body */}
             <tbody>
-              {tasks.map((task, index) => (
+              {currentTasks.map((task, index) => (
                 <tr
                   key={task.id}
-                  className={`hover:bg-gray-50 dark:hover:bg-gray-900/30 border-b ${
-                    task.isCompleted 
-                      ? 'bg-green-50/50 dark:bg-green-950/20' 
+                  className={`hover:bg-gray-50 dark:hover:bg-gray-900/30 border-b ${task.isCompleted
+                      ? 'bg-green-50/50 dark:bg-green-950/20'
                       : 'bg-white dark:bg-background'
-                  }`}
+                    }`}
                 >
                   {/* STT */}
                   <td className="sticky left-0 bg-inherit border-r px-4 py-3 text-center">
-                    <Badge 
+                    <Badge
                       variant={task.isCompleted ? "default" : "secondary"}
-                      className={`w-6 h-6 rounded-full flex items-center justify-center p-0 text-xs ${
-                        task.isCompleted 
-                          ? 'bg-green-600 text-white' 
+                      className={`w-6 h-6 rounded-full flex items-center justify-center p-0 text-xs ${task.isCompleted
+                          ? 'bg-green-600 text-white'
                           : 'bg-gray-200 text-gray-700'
-                      }`}
+                        }`}
                     >
                       {index + 1}
                     </Badge>
@@ -519,9 +537,8 @@ export const TaskTable = memo(function TaskTable({
                       />
                     ) : (
                       <div
-                        className={`text-sm leading-relaxed p-2 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                          !task.taskName.trim() ? 'text-red-500 italic' : ''
-                        }`}
+                        className={`text-sm leading-relaxed p-2 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${!task.taskName.trim() ? 'text-red-500 italic' : ''
+                          }`}
                         onClick={() => isEditable && setEditingTask(task.id)}
                         title={isEditable ? 'Click để chỉnh sửa' : ''}
                       >
@@ -530,11 +547,12 @@ export const TaskTable = memo(function TaskTable({
                     )}
                   </td>
 
+                  {/* Days of Week */}
                   {weekdays.map((day) => (
                     <td key={day.key} className="border-r px-2 py-3 text-center">
                       <Checkbox
                         checked={task[day.key as keyof Task] as boolean}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           isEditable && handleDayToggle(task.id, day.key, !!checked)
                         }
                         disabled={!isEditable}
@@ -543,24 +561,25 @@ export const TaskTable = memo(function TaskTable({
                     </td>
                   ))}
 
+                  {/* Completion Status */}
                   <td className="border-r px-4 py-3 text-center">
                     <div className="flex flex-col items-center gap-1">
                       <Switch
                         checked={task.isCompleted}
-                        onCheckedChange={(checked) => 
+                        onCheckedChange={(checked) =>
                           isEditable && handleCompletionToggle(task.id, checked)
                         }
                         disabled={!isEditable}
                         className="data-[state=checked]:bg-green-600"
                       />
-                      <span className={`text-xs font-medium ${
-                        task.isCompleted ? 'text-green-600' : 'text-orange-600'
-                      }`}>
+                      <span className={`text-xs font-medium ${task.isCompleted ? 'text-green-600' : 'text-orange-600'
+                        }`}>
                         {task.isCompleted ? 'Xong' : 'Chưa'}
                       </span>
                     </div>
                   </td>
 
+                  {/* Reason for Not Completion */}
                   <td className="border-r px-4 py-3">
                     {!task.isCompleted && (
                       <>
@@ -585,11 +604,10 @@ export const TaskTable = memo(function TaskTable({
                           />
                         ) : (
                           <div
-                            className={`text-sm leading-relaxed p-2 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${
-                              !task.reasonNotDone?.trim() 
-                                ? 'text-red-500 italic border border-red-200 bg-red-50' 
+                            className={`text-sm leading-relaxed p-2 rounded cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-800 ${!task.reasonNotDone?.trim()
+                                ? 'text-red-500 italic border border-red-200 bg-red-50'
                                 : ''
-                            }`}
+                              }`}
                             onClick={() => isEditable && setEditingReason(task.id)}
                             title={isEditable ? 'Click để chỉnh sửa' : ''}
                           >
@@ -600,6 +618,7 @@ export const TaskTable = memo(function TaskTable({
                     )}
                   </td>
 
+                  {/* Actions */}
                   {isEditable && (
                     <td className="px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
@@ -613,7 +632,7 @@ export const TaskTable = memo(function TaskTable({
                           <Copy className="w-3 h-3" />
                         </Button>
                         <Button
-                          onClick={() => handleRemoveTask(task.id)}
+                          onClick={() => removeTask(task.id)}
                           variant="ghost"
                           size="sm"
                           className="h-8 w-8 p-0 text-red-600 hover:bg-red-50"
@@ -647,8 +666,8 @@ export const TaskTable = memo(function TaskTable({
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-24 bg-gray-200 rounded-full h-2">
-                  <div 
-                    className="bg-green-500 h-2 rounded-full transition-all duration-300" 
+                  <div
+                    className="bg-green-500 h-2 rounded-full transition-all duration-300"
                     style={{ width: `${stats.completionRate}%` }}
                   />
                 </div>

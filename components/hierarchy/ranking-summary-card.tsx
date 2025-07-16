@@ -83,12 +83,12 @@ export const RankingSummaryCard = memo(function RankingSummaryCard({
       data: normalizedRanking.average
     },
     {
-      key: 'belowAverage',
+      key: 'poor',
       label: 'YẾU',
       color: 'bg-orange-500',
       bgColor: 'bg-orange-50',
       textColor: 'text-orange-700',
-      data: normalizedRanking.belowAverage
+      data: normalizedRanking.poor
     },
     {
       key: 'fail',
@@ -96,7 +96,7 @@ export const RankingSummaryCard = memo(function RankingSummaryCard({
       color: 'bg-red-500',
       bgColor: 'bg-red-50',
       textColor: 'text-red-700',
-      data: normalizedRanking.poor
+      data: normalizedRanking.fail
     }
   ]
 

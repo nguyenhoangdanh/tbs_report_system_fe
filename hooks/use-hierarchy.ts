@@ -1,23 +1,22 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
 import { HierarchyService } from '@/services/hierarchy.service'
 import { getCurrentWeek } from '@/utils/week-utils'
 import type { 
-  HierarchyResponse, 
   ManagementHierarchyResponse,
   StaffHierarchyResponse,
   UserDetailsResponse,
   MixedHierarchyResponse 
 } from '@/types/hierarchy'
+import { useApiQuery } from './use-api-query'
 
 export function useMyHierarchyView(filters?: {
   weekNumber?: number
   year?: number
   month?: number
 }) {
-  return useQuery({
-    queryKey: ['hierarchy', 'my-view', filters],
+  return useApiQuery({
+    queryKey: ['hierarchy', 'my-view', JSON.stringify(filters || {})],
     queryFn: async () => {
       try {
         const result = await HierarchyService.getMyHierarchyView(filters)
@@ -43,7 +42,7 @@ export function useUserDetails(userId: string, filters?: {
   year?: number
   limit?: number
 }) {
-  return useQuery<UserDetailsResponse>({
+  return useApiQuery<UserDetailsResponse>({
     queryKey: ['hierarchy', 'user-details', userId, filters],
     queryFn: () => HierarchyService.getUserDetails(userId, filters),
     enabled: !!userId,
@@ -55,7 +54,7 @@ export function useUserDetails(userId: string, filters?: {
  * Get report details for admin view
  */
 export function useReportDetailsForAdmin(userId: string, reportId: string) {
-  return useQuery({
+  return useApiQuery({
     queryKey: ['hierarchy', 'report-details', userId, reportId],
     queryFn: () => HierarchyService.getReportDetails(userId, reportId),
       refetchOnMount: true, // Always refetch when component mounts
@@ -70,7 +69,7 @@ export function useUserReportsForAdmin(userId: string, filters?: {
   limit?: number
   year?: number
 }) {
-  return useQuery({
+  return useApiQuery({
     queryKey: ['hierarchy', 'user-reports', userId, filters],
     queryFn: async () => {
       // Note: This is a mock - replace with actual API call

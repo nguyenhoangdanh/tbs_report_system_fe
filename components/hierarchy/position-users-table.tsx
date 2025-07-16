@@ -3,7 +3,7 @@
 import React, { memo, useState } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Eye,  ChevronDown, ChevronUp, BarChart3 } from 'lucide-react'
+import { ChevronDown, ChevronUp, BarChart3 } from 'lucide-react'
 import { getPerformanceBadge, classifyPerformance } from '@/utils/performance-classification'
 import Link from 'next/link'
 
@@ -182,7 +182,7 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
       </div>
 
       {/* Compact user list */}
-      <div className="space-y-1 max-h-64 overflow-y-auto">
+      <div className="space-y-1 overflow-y-auto">
         {sortedUsers.map((userItem, index) => {
           const isExpanded = expandedUsers.has(userItem.id || '')
           

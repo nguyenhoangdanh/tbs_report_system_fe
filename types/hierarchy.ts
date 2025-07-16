@@ -122,8 +122,8 @@ export interface RankingDistribution {
   excellent: { count: number; percentage: number }
   good: { count: number; percentage: number }
   average: { count: number; percentage: number }
-  belowAverage: { count: number; percentage: number }
   poor: { count: number; percentage: number }
+  fail: { count: number; percentage: number }
 }
 
 // Management hierarchy response (Group by Position)
@@ -504,6 +504,11 @@ export interface UserDetailsResponse {
           name: string
         }
       }
+      position: {
+        id: string
+        name: string
+        description?: string
+      }
     }
   }
   overallStats: {
@@ -606,8 +611,8 @@ export function normalizeRankingDistribution(
     excellent: distribution?.excellent || defaultRankItem,
     good: distribution?.good || defaultRankItem,
     average: distribution?.average || defaultRankItem,
-    belowAverage: distribution?.belowAverage || defaultRankItem,
     poor: distribution?.poor || defaultRankItem,
+    fail: distribution?.fail || defaultRankItem,
   }
 }
 

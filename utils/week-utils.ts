@@ -100,7 +100,7 @@ export function getWorkWeekRange(weekNumber: number, year: number): {
     weekTitle: string;
     dateRange: string;
     workDaysText: string;
-    resultDaysText: string;
+    // resultDaysText: string;
   };
 } {
   // Step 1: Tìm thứ 2 đầu tiên của năm (ISO week 1)
@@ -141,10 +141,10 @@ export function getWorkWeekRange(weekNumber: number, year: number): {
   
   // Display information
   const displayInfo = {
-    weekTitle: `Tuần ${weekNumber}/${year}`,
+    weekTitle: `Tuần ${weekNumber}`,
     dateRange: `${dateFnsFormat(startDate, 'dd/MM', { locale: vi })} - ${dateFnsFormat(endDate, 'dd/MM/yyyy', { locale: vi })}`,
     workDaysText: 'Làm việc: T6, T7, T2, T3, T4, T5',
-    resultDaysText: 'Báo cáo: T2, T3, T4, T5'
+    // resultDaysText: 'Báo cáo: T2, T3, T4, T5'
   };
   
   

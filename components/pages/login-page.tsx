@@ -231,7 +231,8 @@ export function LoginPage() {
 
           {/* Footer */}
           <motion.div variants={itemVariants} className="text-center mt-6 text-sm text-gray-500">
-            <p>© 2024 Weekly Report System. All rights reserved.</p>
+            {/* <p>© 2024 Weekly Report System. All rights reserved.</p> */}
+            <p>© {new Date().getFullYear()} Weekly Report System. All rights reserved.</p>
           </motion.div>
         </motion.div>
       </div>

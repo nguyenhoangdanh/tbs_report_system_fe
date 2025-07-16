@@ -4,7 +4,6 @@ import { FileText, ChevronDown, ChevronUp } from 'lucide-react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useReportDetailsForAdmin } from '@/hooks/use-hierarchy'
 import { ReportTaskItem } from './report-task-item'
-import { ReportStatistics } from './report-statistics'
 import { IncompleteReasons } from './incomplete-reasons'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
 
@@ -18,7 +17,6 @@ export const ExpandedReportDetails = memo(function ExpandedReportDetails({
   reportId,
 }: ExpandedReportDetailsProps) {
   const { data: reportData, isLoading, error } = useReportDetailsForAdmin(userId, reportId)
-
   return (
     <div className="mt-4">
       <AnimatePresence>

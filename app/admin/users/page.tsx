@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useState, useEffect } from 'react';
+import { Suspense, useState, useEffect, useMemo } from 'react';
 import { useAuth } from '@/components/providers/auth-provider';
 import { UserService } from '@/services/user.service';
 import { motion } from 'framer-motion';
@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from 'react-toast-kit'
 import type { User, Office, JobPosition, UserRole, UpdateProfileDto } from '@/types';
+import { PaginatedResponse } from '@/lib/api';
 
 interface EditUser{
   employeeCode: string;
@@ -27,7 +28,7 @@ interface EditUser{
 
 function AdminUsersContent() {
   const { user: currentUser } = useAuth();
-  const [users, setUsers] = useState<User[]>([]);
+  const [users, setUsers] = useState<PaginatedResponse<User>>();
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [offices, setOffices] = useState<Office[]>([]);
@@ -56,9 +57,11 @@ function AdminUsersContent() {
         UserService.getOffices(),
         UserService.getJobPositions()
       ]);
-      setUsers(usersData.data || usersData);
-      setOffices(officesData);
-      setJobPositions(jobPositionsData);
+      if (usersData.success && usersData.data) {
+        setUsers(usersData.data);
+      }
+      setOffices(officesData?.data || []);
+      setJobPositions(jobPositionsData?.data || []);
     } catch (error) {
       console.error('Failed to load data:', error);
       toast.error('Không thể tải dữ liệu');
@@ -105,11 +108,30 @@ function AdminUsersContent() {
     }
   };
 
-  const filteredUsers = users.filter(user =>
-    user.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // const filteredUsers = users.filter(user =>
+  //   user.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //   `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  //   user.email?.toLowerCase().includes(searchTerm.toLowerCase())
+  // );
+
+  console.log('Users:', users);
+  const filteredUsers = useMemo(() => {
+    if (!users?.data) return [];
+    // Lọc bỏ phần tử không phải mảng, sau đó flat
+    const allUsers = users.data
+      .filter((arr) => Array.isArray(arr))
+      .flat();
+    return allUsers.filter((user: User) => {
+      const fullName = `${user.firstName} ${user.lastName}`.toLowerCase();
+      return (
+        user.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        fullName.includes(searchTerm.toLowerCase()) ||
+        (user.email ? user.email.toLowerCase().includes(searchTerm.toLowerCase()) : false)
+      );
+    });
+  }, [users, searchTerm]);
+
+  console.log('Filtered users:', filteredUsers);
 
   // Remove or comment out this permission check since RouteGuard handles it
   // if (currentUser?.role !== 'SUPERADMIN') {
@@ -226,7 +248,7 @@ function AdminUsersContent() {
 
         {/* Users List */}
         <div className="grid gap-4">
-          {filteredUsers.map((user) => (
+          {filteredUsers.map((user: User) => (
             <motion.div
               key={user.id}
               initial={{ opacity: 0, x: -20 }}

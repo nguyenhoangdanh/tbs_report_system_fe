@@ -7,7 +7,7 @@ import { Check, X, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import * as ExcelJS from 'exceljs';
 import type { WeeklyReport } from '@/types';
-import { formatWorkWeek, getWorkWeekRange } from '@/utils/week-utils';
+import {  getWorkWeekRange } from '@/utils/week-utils';
 
 interface ReportTemplateProps {
   report: WeeklyReport;
@@ -43,7 +43,9 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
     try {
       // Create workbook and worksheet
       const workbook = new ExcelJS.Workbook();
-      const worksheet = workbook.addWorksheet(`TUẦN ${report.weekNumber}`);
+      const worksheet = workbook.addWorksheet(`TUẦN ${report.weekNumber}`, {
+        views: [{ showGridLines: false }],
+      });
 
       // Set column widths to EXACTLY match template in image 2
       worksheet.columns = [
@@ -55,10 +57,9 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         { width: 7 },   // F: Thứ 5
         { width: 7 },   // G: Thứ 6
         { width: 7 },   // H: Thứ 7
-        { width: 5 },   // I: CN
-        { width: 6 },   // J: YES
-        { width: 6 },   // K: NO
-        { width: 60 }   // L: Nguyên nhân - giải pháp (wider for text wrapping)
+        { width: 6 },   // I: YES
+        { width: 6 },   // J: NO
+        { width: 60 }   // K: Nguyên nhân - giải pháp (wider for text wrapping)
       ];
 
       // Try to add logo image, fallback to text if image not available
@@ -84,10 +85,10 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
           // Style the logo cell background
           worksheet.getCell('B1').style = {
             fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } },
-            border: {
-              top: { style: 'thin' }, bottom: { style: 'thin' },
-              left: { style: 'thin' }, right: { style: 'thin' }
-            }
+            // border: {
+            //   top: { style: 'thin' }, bottom: { style: 'thin' },
+            //   left: { style: 'thin' }, right: { style: 'thin' }
+            // }
           };
         } else {
           throw new Error('Logo not found');
@@ -100,16 +101,16 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
           font: { bold: true, size: 12, name: 'Time New Roman', color: { argb: 'FFFFFFFF' } },
           alignment: { horizontal: 'center', vertical: 'middle' },
           fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } },
-          border: {
-            top: { style: 'thin' }, bottom: { style: 'thin' },
-            left: { style: 'thin' }, right: { style: 'thin' }
-          }
+          // border: {
+          //   top: { style: 'thin' }, bottom: { style: 'thin' },
+          //   left: { style: 'thin' }, right: { style: 'thin' }
+          // }
         };
       }
 
       // Row 1: Title (B1:L1) - exactly like image 2
       worksheet.getCell('B1').value = `KQ CÔNG VIỆC CHI TIẾT NGÀY - TUẦN ${report.weekNumber}`;
-      worksheet.mergeCells('B1:L1');
+      worksheet.mergeCells('B1:K1');
 
       // Style title row (B1:L1) - light blue background like image 2
       worksheet.getCell('B1').style = {
@@ -117,10 +118,10 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         alignment: { horizontal: 'center', vertical: 'middle' },
         fill: { type: 'pattern', pattern: 'solid' },
         // fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCE5FF' } },
-        border: {
-          top: { style: 'thin' }, bottom: { style: 'thin' },
-          left: { style: 'thin' }, right: { style: 'thin' }
-        }
+        // border: {
+        //   top: { style: 'thin' }, bottom: { style: 'thin' },
+        //   left: { style: 'thin' }, right: { style: 'thin' }
+        // }
       };
 
       // Set title row height
@@ -157,10 +158,10 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         worksheet.getCell(cellAddr).style = {
           font: { bold: true, size: 11, name: 'Time New Roman' },
           alignment: { horizontal: 'left', vertical: 'middle' },
-          border: {
-            top: { style: 'thin' }, bottom: { style: 'thin' },
-            left: { style: 'thin' }, right: { style: 'thin' }
-          }
+          // border: {
+          //   top: { style: 'thin' }, bottom: { style: 'thin' },
+          //   left: { style: 'thin' }, right: { style: 'thin' }
+          // }
         };
       });
 
@@ -169,10 +170,10 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         worksheet.getCell(cellAddr).style = {
           font: { size: 11, name: 'Time New Roman' },
           alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
-          border: {
-            top: { style: 'thin' }, bottom: { style: 'thin' },
-            left: { style: 'thin' }, right: { style: 'thin' }
-          }
+          // border: {
+          //   top: { style: 'thin' }, bottom: { style: 'thin' },
+          //   left: { style: 'thin' }, right: { style: 'thin' }
+          // }
         };
       });
 
@@ -181,7 +182,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       worksheet.getRow(3).height = 25;
 
       // Row 4: Table headers exactly like image 2
-      const headers = ['STT', 'KH-KQCV TUẦN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 'Thứ 7', 'CN', 'YES', 'NO', 'Nguyên nhân - giải pháp'];
+      const headers = ['STT', 'KH-KQCV TUẦN', 'Thứ 6', 'Thứ 7', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5',  'YES', 'NO', 'Nguyên nhân - giải pháp'];
 
       headers.forEach((header, index) => {
         const cell = worksheet.getCell(4, index + 1);
@@ -209,12 +210,12 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         row.values = [
           index + 1,                    // STT
           task.taskName,               // KH-KQCV TUẦN
+          task.friday ? 'x' : '',      // Thứ 6
+          task.saturday ? 'x' : '',    // Thứ 7
           task.monday ? 'x' : '',      // Thứ 2
           task.tuesday ? 'x' : '',     // Thứ 3
           task.wednesday ? 'x' : '',   // Thứ 4
           task.thursday ? 'x' : '',    // Thứ 5
-          task.friday ? 'x' : '',      // Thứ 6
-          task.saturday ? 'x' : '',    // Thứ 7
           task.isCompleted ? 'x' : '', // YES
           !task.isCompleted ? 'x' : '',// NO
           !task.isCompleted && task.reasonNotDone ? task.reasonNotDone : ''
@@ -240,7 +241,6 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
             },
             border: {
               top: { style: 'thin' }, bottom: { style: 'thin' },
-
               left: { style: 'thin' }, right: { style: 'thin' }
             }
           };
@@ -264,17 +264,63 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       // worksheet.mergeCells(`A${summaryRowStart}:A${summaryRowStart+1}`);
       // Summary row 1 - merged across all columns
       worksheet.getCell(`B${summaryRowStart}`).value = `SỐ ĐẦU VIỆC HOÀN THÀNH/CHƯA HOÀN THÀNH:`;
-      worksheet.getCell(`J${summaryRowStart}`).value = `${completedTasks}`;
-      worksheet.getCell(`K${summaryRowStart}`).value = `${totalTasks - completedTasks}`;
-      worksheet.mergeCells(`B${summaryRowStart}:I${summaryRowStart}`);
+      worksheet.getCell(`I${summaryRowStart}`).value = `${completedTasks}`;
+      worksheet.getCell(`J${summaryRowStart}`).value = `${totalTasks - completedTasks}`;
+      worksheet.mergeCells(`B${summaryRowStart}:H${summaryRowStart}`);
+      // worksheet.getCell(`I${summaryRowStart}`).style = {
+      //   border: {
+      //     top: { style: 'thin' }, bottom: { style: 'thin' },
+      //     left: { style: 'thin' }, right: { style: 'thin' }
+      //   }
+      // };
+      // worksheet.getCell(`J${summaryRowStart}`).style = {
+      //   border: {
+      //     top: { style: 'thin' }, bottom: { style: 'thin' },
+      //     left: { style: 'thin' }, right: { style: 'thin' }
+      //   }
+      // };
+      [`A${summaryRowStart}`, `B${summaryRowStart}`, `C${summaryRowStart}`, `D${summaryRowStart}`, `E${summaryRowStart}`, `F${summaryRowStart}`, `G${summaryRowStart}`, `H${summaryRowStart}`, `I${summaryRowStart}`, `J${summaryRowStart}`, `K${summaryRowStart}`].forEach(cellAddr => {
+        worksheet.getCell(cellAddr).style = {
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
+          border: {
+            top: { style: 'thin' }, bottom: { style: 'thin' },
+            left: { style: 'thin' }, right: { style: 'thin' }
+          }
+        };
+      });
+
 
       // Summary row 2 - merged across all columns
       worksheet.getCell(`B${summaryRowStart + 1}`).value = `(%) KẾT QUẢ CÔNG VIỆC HOÀN THÀNH:`;
-      worksheet.getCell(`J${summaryRowStart + 1}`).value = `${completionRate}%`;
-      worksheet.mergeCells(`B${summaryRowStart + 1}:I${summaryRowStart + 1}`);
-      worksheet.mergeCells(`J${summaryRowStart + 1}:K${summaryRowStart + 1}`);
+      worksheet.getCell(`I${summaryRowStart + 1}`).value = `${completionRate}%`;
+      worksheet.mergeCells(`B${summaryRowStart + 1}:H${summaryRowStart + 1}`);
+      worksheet.mergeCells(`I${summaryRowStart + 1}:J${summaryRowStart + 1}`);
+      // worksheet.getCell(`I${summaryRowStart + 1}`).style = {
+      //   border: {
+      //     top: { style: 'thin' }, bottom: { style: 'thin' },
+      //     left: { style: 'thin' }, right: { style: 'thin' }
+      //   }
+      // };
+      // worksheet.getCell(`J${summaryRowStart + 1}`).style = {
+      //   border: {
+      //     top: { style: 'thin' }, bottom: { style: 'thin' },
+      //     left: { style: 'thin' }, right: { style: 'thin' }
+      //   }
+      // };
+      [`A${summaryRowStart + 1}`, `B${summaryRowStart + 1}`, `C${summaryRowStart + 1}`, `D${summaryRowStart + 1}`, `E${summaryRowStart + 1}`, `F${summaryRowStart + 1}`, `G${summaryRowStart + 1}`, `H${summaryRowStart + 1}`,
+      `I${summaryRowStart + 1}`, `J${summaryRowStart + 1}`, `K${summaryRowStart + 1}`
+      ].forEach(cellAddr => {
+        worksheet.getCell(cellAddr).style = {
+          fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
+          border: {
+            top: { style: 'thin' }, bottom: { style: 'thin' },
+            left: { style: 'thin' }, right: { style: 'thin' }
+          }
+        };
+      });
 
       worksheet.mergeCells(`A${summaryRowStart}:A${summaryRowStart + 1}`);
+      worksheet.mergeCells(`K${summaryRowStart}:K${summaryRowStart + 1}`);
 
       // Style summary cells - bright yellow like image 2
       [summaryRowStart, summaryRowStart + 1].forEach(rowNum => {
@@ -291,30 +337,53 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         worksheet.getRow(rowNum).height = 25;
       });
 
+
+
       // Footer section exactly like image 2
       const footerRowStart = summaryRowStart + 3;
 
       // Date line positioned like image 2
-      worksheet.getCell(`G${footerRowStart}`).value = `Phú Hòa, ngày ${format(currentDate, 'dd', { locale: vi })} tháng ${format(currentDate, 'MM', { locale: vi })} năm ${format(currentDate, 'yyyy', { locale: vi })}`;
-      worksheet.mergeCells(`G${footerRowStart}:L${footerRowStart}`);
+      worksheet.getCell(`K${footerRowStart}`).value = `Phú Hòa, ngày ${format(currentDate, 'dd', { locale: vi })} tháng ${format(currentDate, 'MM', { locale: vi })} năm ${format(currentDate, 'yyyy', { locale: vi })}`;
+      // worksheet.mergeCells(`G${footerRowStart}:L${footerRowStart}`);
 
       // Signature headers positioned like image 2
-      worksheet.getCell(`A${footerRowStart + 2}`).value = 'Trưởng đơn vị';
-      worksheet.mergeCells(`A${footerRowStart + 2}:C${footerRowStart + 2}`);
+      worksheet.getCell(`B${footerRowStart + 1}`).value = 'Trưởng đơn vị';
+      // worksheet.mergeCells(`A${footerRowStart + 2}:C${footerRowStart + 2}`);
 
-      worksheet.getCell(`E${footerRowStart + 2}`).value = 'CBQL Trực Tiếp';
-      worksheet.mergeCells(`E${footerRowStart + 2}:H${footerRowStart + 2}`);
+      worksheet.getCell(`C${footerRowStart + 1}`).value = 'CBQL Trực Tiếp';
+      worksheet.mergeCells(`C${footerRowStart + 1}:J${footerRowStart + 1}`);
 
-      worksheet.getCell(`J${footerRowStart + 2}`).value = 'Người lập';
-      worksheet.mergeCells(`J${footerRowStart + 2}:L${footerRowStart + 2}`);
+      worksheet.getCell(`K${footerRowStart + 1}`).value = 'Người lập';
+      // worksheet.mergeCells(`J${footerRowStart + 2}:L${footerRowStart + 2}`);
 
       // Name signature with proper spacing
-      worksheet.getCell(`J${footerRowStart + 6}`).value = `${user?.firstName} ${user?.lastName}`;
-      worksheet.mergeCells(`J${footerRowStart + 6}:L${footerRowStart + 6}`);
+      worksheet.getCell(`K${footerRowStart + 5}`).value = `${user?.firstName} ${user?.lastName}`;
+      // worksheet.mergeCells(`J${footerRowStart + 6}:L${footerRowStart + 6}`);
 
       // Style footer elements
-      worksheet.getCell(`G${footerRowStart}`).style = {
-        font: { size: 10, name: 'Time New Roman', italic: true },
+
+      worksheet.getCell(`K${footerRowStart}`).style = {
+        font: { size: 11, name: 'Time New Roman', italic: true },
+        alignment: { horizontal: 'center', vertical: 'middle' }
+      };
+
+      worksheet.getCell(`K${footerRowStart + 1}`).style = {
+        font: { size: 11, name: 'Time New Roman', italic: true },
+        alignment: { horizontal: 'center', vertical: 'middle' }
+      };
+
+      worksheet.getCell(`K${footerRowStart + 5}`).style = {
+        font: { size: 11, name: 'Time New Roman', bold: true },
+        alignment: { horizontal: 'center', vertical: 'middle' }
+      };
+
+      worksheet.getCell(`C${footerRowStart + 1}`).style = {
+        font: { size: 11, name: 'Time New Roman', italic: true },
+        alignment: { horizontal: 'center', vertical: 'middle' }
+      };
+
+      worksheet.getCell(`B${footerRowStart + 1}`).style = {
+        font: { size: 11, name: 'Time New Roman', italic: true },
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
 
@@ -368,13 +437,16 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
           <span className="text-white font-bold text-sm sm:text-lg hidden">TBS</span>
           <div>
             <h1 className="text-lg sm:text-xl font-bold text-gray-900 dark:text-gray-100">
-              KQ CÔNG VIỆC CHI TIẾT NGÀY
+              KQ CÔNG VIỆC CHI TIẾT NGÀY - {displayInfo.weekTitle}
             </h1>
-            <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
+            {/* <p className="text-sm sm:text-base text-gray-600 dark:text-gray-400">
               {displayInfo.weekTitle}
+            </p> */}
+            <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-500">
+              {displayInfo.dateRange}
             </p>
             <p className="text-xs sm:text-sm text-gray-500 dark:text-gray-500">
-              {displayInfo.dateRange} • {displayInfo.resultDaysText}
+              {displayInfo.workDaysText}
             </p>
           </div>
         </div>
@@ -553,7 +625,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       </div>
 
       {/* Footer */}
-      <div className="p-4 sm:p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
+      {/* <div className="p-4 sm:p-6 bg-gray-50 dark:bg-gray-800/50 border-t border-gray-200 dark:border-gray-700">
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
           <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400">
             <div className="space-y-1">
@@ -563,7 +635,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
           </div>
 
           <div className="text-right">
-            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-12 sm:mb-16">
+            <div className="text-xs sm:text-sm text-gray-600 dark:text-gray-400 mb-6 sm:mb-3">
               Phú Hòa, ngày {format(currentDate, 'dd', { locale: vi })} tháng {format(currentDate, 'MM', { locale: vi })} năm {format(currentDate, 'yyyy', { locale: vi })}
             </div>
             <div className="text-center border-t border-gray-300 dark:border-gray-600 pt-2">
@@ -574,7 +646,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
             </div>
           </div>
         </div>
-      </div>
+      </div> */}
     </div>
   );
 }

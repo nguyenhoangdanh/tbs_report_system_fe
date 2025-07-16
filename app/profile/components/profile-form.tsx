@@ -243,7 +243,7 @@ export const ProfileForm = memo(({
         </div>
       )}
 
-      <UserInfoSection user={user} />
+      {/* <UserInfoSection user={user} /> */}
 
       <div className="flex justify-end gap-3">
         <Button

@@ -3,9 +3,10 @@
 import { AuthService } from '@/services/auth.service'
 import { useAuth } from '@/components/providers/auth-provider'
 import type { RegisterDto, ChangePasswordDto, User, AuthResponse, LoginDto, ForgotPasswordDto, ResetPasswordDto, ForgotPasswordResponse, UserRole } from '@/types'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient, useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toast-kit'
+import { useApiMutation } from './use-api-query'
 
 // Query keys for auth
 const AUTH_QUERY_KEYS = {
@@ -28,15 +29,39 @@ export function useAuthProfile() {
 }
 
 /**
- * Login mutation - delegate to AuthProvider
+ * Login mutation - call AuthService directly and update AuthProvider manually
  */
 export function useLogin() {
-  const { login } = useAuth()
+  const { checkAuth } = useAuth()
+  const router = useRouter()
   
-  return useMutation<void, Error, LoginDto>({
-    mutationFn: (data: LoginDto) => login(data),
-    retry: false, // Don't retry login attempts
-    // Prevent duplicate mutations
+  return useApiMutation<AuthResponse, LoginDto, Error>({
+    mutationFn: (data: LoginDto) => AuthService.login(data),
+    onSuccess: async (response) => {
+      // After successful login, check auth to update context
+      await checkAuth()
+      // Check if user is inactive and force password reset
+      if (response.user && response.user.isActive === false) {
+        toast.info('Bạn cần đổi mật khẩu mới trước khi tiếp tục.')
+        router.push(`/reset-password?employeeCode=${encodeURIComponent(response.user.employeeCode)}&phone=${encodeURIComponent(response.user.phone)}`)
+        return
+      }
+      toast.success('Đăng nhập thành công!')
+      
+      // Navigate to dashboard or return URL
+      const urlParams = new URLSearchParams(window.location.search)
+      const returnUrl = urlParams.get('returnUrl')
+      if (returnUrl) {
+        router.push(decodeURIComponent(returnUrl))
+      } else {
+        router.push('/dashboard')
+      }
+    },
+    onError: (error) => {
+      console.error('Login error:', error)
+      toast.error(error.message || 'Đăng nhập thất bại')
+    },
+    retry: false,
     mutationKey: ['auth', 'login'],
   })
 }
@@ -48,7 +73,7 @@ export function useRegister() {
   const queryClient = useQueryClient()
   const router = useRouter()
   
-  return useMutation<AuthResponse, Error, RegisterDto>({
+  return useApiMutation<AuthResponse, RegisterDto, Error>({
     mutationFn: (data: RegisterDto) => AuthService.register(data),
     onSuccess: (response) => {
       // Backend handles HTTP-only cookie authentication
@@ -72,9 +97,10 @@ export function useLogout() {
   const { logout } = useAuth()
   
   return useMutation<void, Error, void>({
-    mutationFn: () => logout(),
-    retry: false, // Don't retry logout attempts
-    // Prevent duplicate mutations
+    mutationFn: async (): Promise<void> => {
+      await logout()
+    },
+    retry: false,
     mutationKey: ['auth', 'logout'],
   })
 }
@@ -83,7 +109,7 @@ export function useLogout() {
  * Change password mutation
  */
 export function useChangePassword() {
-  return useMutation<void, Error, ChangePasswordDto>({
+  return useApiMutation<void, ChangePasswordDto, Error>({
     mutationFn: (data: ChangePasswordDto) => AuthService.changePassword(data),
     onSuccess: () => {
       toast.success('Đổi mật khẩu thành công!')
@@ -100,7 +126,7 @@ export function useChangePassword() {
  * Forgot password mutation - Phù hợp với backend (employeeCode + phone)
  */
 export function useForgotPassword() {
-  return useMutation<ForgotPasswordResponse, Error, { employeeCode: string; phone: string }>({
+  return useApiMutation<ForgotPasswordResponse, { employeeCode: string; phone: string }, Error>({
     mutationFn: (data) => AuthService.forgotPassword({
       employeeCode: data.employeeCode,
       phone: data.phone
@@ -122,7 +148,7 @@ export function useForgotPassword() {
 export function useResetPassword() {
   const router = useRouter()
   
-  return useMutation<void, Error, { employeeCode: string; phone: string; newPassword: string; confirmPassword: string }>({
+  return useApiMutation<void, { employeeCode: string; phone: string; newPassword: string; confirmPassword: string }, Error>({
     mutationFn: (data) => AuthService.resetPassword({
       employeeCode: data.employeeCode,
       phone: data.phone,
@@ -130,7 +156,7 @@ export function useResetPassword() {
     }),
     onSuccess: () => {
       toast.success('Đặt lại mật khẩu thành công!')
-      router.push('/auth/login')
+      router.push('/login')
     },
     onError: (error) => {
       console.error('Reset password error:', error)
@@ -144,8 +170,8 @@ export function useResetPassword() {
  * Refresh token mutation
  */
 export function useRefreshToken() {
-  return useMutation({
-    mutationFn: AuthService.refreshToken,
+  return useApiMutation<AuthResponse, void, Error>({
+    mutationFn: () => AuthService.refreshToken(),
     onSuccess: (response) => {
       console.log('Token refreshed successfully')
       return response

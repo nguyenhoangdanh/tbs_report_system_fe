@@ -4,7 +4,6 @@ import { useState, memo, useMemo, useCallback } from 'react'
 import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Eye, Trash2, Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
@@ -204,15 +203,15 @@ export const ReportsList = memo(function ReportsList({
     setReportToDelete(null)
   }, [])
 
-  // Memoize filtered and valid reports
+  // Enhanced memoization with proper cache busting
   const validReports = useMemo(() => {
-    if (!Array.isArray(reports)) {
-      console.error('Reports is not an array:', reports)
-      return []
-    }
-
-    return reports.filter(report => report?.id)
-  }, [reports])
+    
+    const filtered = Array.isArray(reports)
+      ? reports.filter(report => report?.id && typeof report.id === 'string')
+      : []
+    
+    return filtered
+  }, [reports]) // Remove extra dependency, just use reports
 
   if (isLoading) {
     return (
@@ -254,7 +253,7 @@ export const ReportsList = memo(function ReportsList({
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {validReports.map((report) => (
           <ReportCard
-            key={report.id}
+            key={`report-${report.id}-${report.updatedAt || report.createdAt}`} // Enhanced key for proper re-rendering
             report={report}
             onView={onViewReport}
             onDelete={handleDeleteClick}

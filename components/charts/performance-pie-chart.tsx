@@ -54,15 +54,15 @@ export const PerformancePieChart = memo(({
         {
             name: 'Yếu',
             fullName: 'Yếu',
-            value: distribution.belowAverage?.count || 0,
-            percentage: distribution.belowAverage?.percentage || 0,
+            value: distribution.poor?.count || 0,
+            percentage: distribution.poor?.percentage || 0,
             color: PERFORMANCE_LEVELS[3].color,
         },
         {
             name: 'Kém',
             fullName: 'Kém',
-            value: distribution.poor?.count || 0,
-            percentage: distribution.poor?.percentage || 0,
+            value: distribution.fail?.count || 0,
+            percentage: distribution.fail?.percentage || 0,
             color: PERFORMANCE_LEVELS[4].color,
         }
     ]

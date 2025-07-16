@@ -23,6 +23,7 @@ import { safeString, safeNumber } from '@/utils/type-guards'
 import { UserDetailsResponse } from '@/types/hierarchy'
 import { Role } from '@/types'
 import { ExpandedReportDetails } from './components/expanded-report-details'
+import { Position } from '../../../../../types/index';
 
 function UserDetailsContent() {
   const { user } = useAuth()
@@ -111,7 +112,10 @@ function UserDetailsContent() {
         year: selectedYear
       })
 
-      setUserData(response)
+      // setUserData(response?.data)
+      if (response.success && response.data) {
+        setUserData(response.data)
+      } 
     } catch (err: any) {
       console.error('[USER DETAILS] Error:', err)
       setError(err.message || 'Có lỗi xảy ra khi tải chi tiết nhân viên')
@@ -224,6 +228,8 @@ function UserDetailsContent() {
 
   const filteredReports = userData.reports || [];
 
+  console.log('userData:', userData)
+
   return (
     <MainLayout
       title={`${userData.user.firstName} ${userData.user.lastName}`}
@@ -255,18 +261,11 @@ function UserDetailsContent() {
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
               Làm mới
             </Button>
-
-            <Link href={`/admin/hierarchy/user/${userId}/reports`}>
-              <Button size="sm" className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                Tất cả báo cáo
-              </Button>
-            </Link>
           </div>
         </div>
 
         {/* User Profile Card */}
-        {/* <Card className="overflow-hidden">
+        <Card className="overflow-hidden">
           <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
             <div className="flex flex-col md:flex-row items-start md:items-center gap-6">
               <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center">
@@ -281,9 +280,9 @@ function UserDetailsContent() {
                 </h1>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm opacity-90">
                   <div>Mã NV: {userData.user.employeeCode}</div>
-                  <div>Email: {userData.user.email}</div>
-                  <div>Vai trò: {userData.user.role}</div>
-                  <div>Chức vụ: {userData.user.jobPosition.jobName}</div>
+                  {/* <div>Email: {userData.user.email}</div> */}
+                  {/* <div>Vai trò: {userData.user.role}</div> */}
+                  <div>Chức vụ: {userData.user.jobPosition.position.description}</div>
                   <div>Phòng ban: {userData.user.jobPosition.department.name}</div>
                   <div>Văn phòng: {userData.user.office.name}</div>
                 </div>
@@ -300,7 +299,7 @@ function UserDetailsContent() {
               </div>
             </div>
           </div>
-        </Card> */}
+        </Card>
 
 
         {/* Chi tiết báo cáo với bộ lọc */}

@@ -13,6 +13,7 @@ import { AppLoading } from '@/components/ui/app-loading'
 import { KeyRound, Shield, Sparkles, Eye, EyeOff } from "lucide-react";
 import { toast } from "react-toast-kit";
 import { AnimatedBackground } from "@/components/ui/animated-background";
+import { FormField } from "@/components/ui/form-field";
 
 // Fixed animation variants with proper TypeScript types
 const containerVariants: Variants = {
@@ -71,10 +72,15 @@ function ForgotPasswordContent() {
         employeeCode: data.employeeCode,
         phone: data.phone
       });
-      setUserInfo(response.user);
+      console.log('🔍 Forgot password response:', response);
+      // setUserInfo(response?.data.user);
+      if (response.success && response.data) {
+        setUserInfo(response.data.user);
+        toast.success(response.data.message || 'Xác thực thông tin thành công!');
+      }
       setVerifyData(data);
       setStep('reset');
-      toast.success(response.message);
+      // toast.success(response?.data?.message);
     } catch (error: any) {
       toast.error(error.message);
     } finally {
@@ -354,86 +360,28 @@ function ForgotPasswordContent() {
                   <form onSubmit={resetForm.handleSubmit(handleReset)} className="space-y-6">
                     {/* New Password Field */}
                     <motion.div variants={itemVariants}>
-                      <label htmlFor="newPassword" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        Mật khẩu mới
-                      </label>
-                      <div className="relative group">
-                        <input
+                        <FormField
                           id="newPassword"
+                          label="Mật khẩu mới"
                           type={showPassword ? "text" : "password"}
                           placeholder="Nhập mật khẩu mới (tối thiểu 6 ký tự)"
+                          required
                           {...resetForm.register("newPassword")}
-                          className={`w-full px-4 py-3 pr-12 bg-gray-50/50 dark:bg-gray-700/50 border-2 rounded-xl transition-all duration-300 focus:outline-none focus:ring-0 group-hover:bg-gray-50 dark:group-hover:bg-gray-700 ${resetForm.formState.errors.newPassword
-                              ? "border-red-300 focus:border-red-500"
-                              : "border-gray-200 dark:border-gray-600 focus:border-yellow-500 focus:bg-white dark:focus:bg-gray-800"
-                            }`}
+                          error={resetForm.formState.errors.newPassword?.message}
                         />
-                        <motion.button
-                          type="button"
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => setShowPassword(!showPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                          {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </motion.button>
-                        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-yellow-500/0 to-orange-500/0 group-focus-within:from-yellow-500/5 group-focus-within:to-orange-500/5 transition-all duration-300 pointer-events-none" />
-                      </div>
-                      <AnimatePresence mode="wait">
-                        {resetForm.formState.errors.newPassword && (
-                          <motion.p
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="text-red-500 text-sm mt-1 font-medium"
-                          >
-                            {resetForm.formState.errors.newPassword.message}
-                          </motion.p>
-                        )}
-                      </AnimatePresence>
                     </motion.div>
 
                     {/* Confirm Password Field */}
                     <motion.div variants={itemVariants}>
-                      <label htmlFor="confirmPassword" className="block text-sm font-semibold text-gray-700 dark:text-gray-300 mb-2">
-                        Xác nhận mật khẩu mới
-                      </label>
-                      <div className="relative group">
-                        <input
-                          id="confirmPassword"
-                          type={showConfirmPassword ? "text" : "password"}
-                          placeholder="Nhập lại mật khẩu mới"
-                          {...resetForm.register("confirmPassword")}
-                          className={`w-full px-4 py-3 pr-12 bg-gray-50/50 dark:bg-gray-700/50 border-2 rounded-xl transition-all duration-300 focus:outline-none focus:ring-0 group-hover:bg-gray-50 dark:group-hover:bg-gray-700 ${resetForm.formState.errors.confirmPassword
-                              ? "border-red-300 focus:border-red-500"
-                              : "border-gray-200 dark:border-gray-600 focus:border-yellow-500 focus:bg-white dark:focus:bg-gray-800"
-                            }`}
-                        />
-                        <motion.button
-                          type="button"
-                          whileHover={{ scale: 1.1 }}
-                          whileTap={{ scale: 0.9 }}
-                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 transition-colors"
-                        >
-                          {showConfirmPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
-                        </motion.button>
-                        <div className="absolute inset-0 rounded-xl bg-gradient-to-r from-yellow-500/0 to-orange-500/0 group-focus-within:from-yellow-500/5 group-focus-within:to-orange-500/5 transition-all duration-300 pointer-events-none" />
-                      </div>
-                      <AnimatePresence mode="wait">
-                        {resetForm.formState.errors.confirmPassword && (
-                          <motion.p
-                            initial={{ opacity: 0, y: -10 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -10 }}
-                            transition={{ duration: 0.2 }}
-                            className="text-red-500 text-sm mt-1 font-medium"
-                          >
-                            {resetForm.formState.errors.confirmPassword.message}
-                          </motion.p>
-                        )}
-                      </AnimatePresence>
+                      <FormField
+                        id="confirmPassword"
+                        label="Xác nhận mật khẩu mới"
+                        type={showConfirmPassword ? "text" : "password"}
+                        placeholder="Nhập lại mật khẩu mới"
+                        required
+                        {...resetForm.register("confirmPassword")}
+                        error={resetForm.formState.errors.confirmPassword?.message}
+                      />
                     </motion.div>
 
                     {/* Submit and Reset Buttons */}
@@ -502,7 +450,7 @@ function ForgotPasswordContent() {
                 Đăng nhập ngay
               </Link>
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400">© 2024 Weekly Report System. All rights reserved.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">© {new Date().getFullYear()} Weekly Report System. All rights reserved.</p>
           </motion.div>
         </motion.div>
       </div>

@@ -48,17 +48,17 @@ export const PerformanceBarChart = memo(({
         },
         {
             name: 'Yếu',
-            value: distribution.belowAverage?.count || 0,
+            value: distribution.poor?.count || 0,
             color: PERFORMANCE_LEVELS[3].color,
-            shortName: distribution.belowAverage?.count || 0,
-            hasValue: (distribution.belowAverage?.count || 0) > 0
+            shortName: distribution.poor?.count || 0,
+            hasValue: (distribution.poor?.count || 0) > 0
         },
         {
             name: 'Kém',
-            value: distribution.poor?.count || 0,
+            value: distribution.fail?.count || 0,
             color: PERFORMANCE_LEVELS[4].color,
-            shortName: distribution.poor?.count || 0,
-            hasValue: (distribution.poor?.count || 0) > 0
+            shortName: distribution.fail?.count || 0,
+            hasValue: (distribution.fail?.count || 0) > 0
         }
     ]
 

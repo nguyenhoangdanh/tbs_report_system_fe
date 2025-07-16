@@ -55,14 +55,26 @@ const OverviewCard = memo(({ title, count, icon: Icon, onClick, description, var
       positions.forEach(pos => {
         const users = pos.users || []
         const userCount = users.length
-       
+        // const completedTasks = users.filter(user =>
+        //   user.stats?.isCompleted === true ||
+        //   user.stats?.taskCompletionRate === 100
+        // ).length
+        // const totalReports = users.filter(user => user.stats?.hasReport).length;
+
         totalEmployees += userCount
         totalFilled += pos.stats?.usersWithReports || 0
         submissionRate = pos.stats?.submissionRate || 0
         totalPending += (userCount - (pos.stats?.usersWithReports || 0))
-       
+        // totalFilled = pos.stats.usersWithReports;
+        // totalFilled += completedTasks
+        // totalPending += (userCount - completedTasks)
+
+        // if (pos.position?.department?.name) {
+        //   departments.add(pos.position.department.name)
+        // }
       })
 
+      // const completionRate = totalEmployees > 0 ? Math.round((totalFilled / totalEmployees) * 100) : 0
 
       return {
         totalEmployees,
@@ -267,21 +279,16 @@ const HierarchyDashboard = memo(() => {
         })
     }
 
-    // Tạo tab riêng cho từng vị trí công việc
     if (employeeJobPositions.length > 0 && userPermissions.canViewJobPositions) {
-      employeeJobPositions.forEach((pos, idx) => {
-        const jobName = pos.jobPosition?.jobName || pos.position?.name || `Vị trí công việc ${idx + 1}`
-        tabs.push({
-          id: `job-position-${pos.position?.id || idx}`,
-          label: jobName,
-          icon: Users,
-          show: true,
-          positions: [pos],
-          isManagement: false
-        })
+      tabs.push({
+        id: 'jobPositions',
+        label: `Vị trí công việc`,
+        icon: Users,
+        show: true,
+        positions: employeeJobPositions,
+        isManagement: false
       })
     }
-
 
     return tabs.filter(tab => tab.show)
   }, [managementPositions, employeeJobPositions, userPermissions])
@@ -348,6 +355,8 @@ const HierarchyDashboard = memo(() => {
       </Card>
     )
   }
+
+    console.log('employeeJobPositions:', employeeJobPositions)
 
   return (
     <motion.div
@@ -448,14 +457,23 @@ const HierarchyDashboard = memo(() => {
                     <Badge variant="outline">{employeeJobPositions.length} vị trí</Badge>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {/* <OverviewCard
+                      title="Vị trí công việc"
+                      count={employeeJobPositions.length}
+                      icon={Users}
+                      onClick={() => setActiveTab('jobPositions')}
+                      description="Nhân viên - VTCV"
+                      variant="employee"
+                      positions={employeeJobPositions}
+                      isJobPosition={true}
+                    /> */}
                     {employeeJobPositions.map((pos, index) => (
                       <OverviewCard
                         key={pos.position?.id || `job-${index}`}
                         title={pos.jobPosition?.jobName || pos.position?.name || 'Vị trí công việc'}
-                        count={1}
+                        count={employeeJobPositions.length}
                         icon={Users}
-                        // Đặt id giống như ở availableTabs
-                        onClick={() => setActiveTab(`job-position-${pos.position?.id || index}`)}
+                        onClick={() => setActiveTab('jobPositions')}
                         description=''
                         variant="employee"
                         positions={[pos]}
@@ -494,20 +512,13 @@ const HierarchyDashboard = memo(() => {
               )}
 
               {/* Detail view for job positions */}
-              {/* {currentTab?.id === 'jobPositions' && (
+              {currentTab?.id === 'jobPositions' && (
                 <PositionGroupsList
                   positions={currentTab.positions || []}
                   filterDisplayText={filterDisplayText}
                   isJobPosition={true}
                 />
-              )} */}
-                {!currentTab?.isManagement && currentTab?.id?.startsWith('job-position-') && (
-                  <PositionGroupsList
-                    positions={currentTab.positions || []}
-                    filterDisplayText={filterDisplayText}
-                    isJobPosition={true}
-                  />
-                )}
+              )}
             </motion.div>
           )}
         </CardContent>
