@@ -418,7 +418,7 @@ const HierarchyDashboard = memo(() => {
                   variant="ghost"
                   size="sm"
                   onClick={handleBackToOverview}
-                  className="flex items-center gap-2 hover:bg-green-500/10"
+                  className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   Quay lại tổng quan

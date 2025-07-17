@@ -52,12 +52,11 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         
       worksheet.eachRow((row) => {
         row.eachCell((cell) => {
-          cell.font = {
-            name: 'Times New Roman',
-            size: 12,
-          };
+          cell.style = {
+            font: { name: 'Time New Roman', size: 12 },
+          }
         });
-      });;
+      });
 
       // Set column widths to EXACTLY match template in image 2
       worksheet.columns = [
@@ -148,7 +147,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       worksheet.getCell('C2').value = `MSNV: ${user?.employeeCode}`;
 
       // Merge employee info cells like image 2
-      worksheet.mergeCells('C2:L2'); // Name spans B2:G2
+      worksheet.mergeCells('C2:K2'); // Name spans B2:G2
       // worksheet.mergeCells('I2:L2'); // Employee code spans I2:L2
 
       // Row 3: Employee info second line - CĐ-VTCV and BP/PB/LINE
@@ -162,14 +161,14 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       // Merge job info cells like image 2
       // worksheet.mergeCells('B3:G3'); // Job position spans B3:G3
       // worksheet.mergeCells('I3:L3'); // Office spans I3:L3
-      worksheet.mergeCells('C3:L3'); // Job position spans C3:L3
+      worksheet.mergeCells('C3:K3'); // Job position spans C3:L3
       // worksheet.mergeCells('I3:L3'); // Office spans I3:L3
 
       // Style employee info labels (bold)
-      ['B2', 'I2', 'B3', 'I3'].forEach(cellAddr => {
+      ['B2', 'C2', 'B3', 'C3'].forEach(cellAddr => {
         worksheet.getCell(cellAddr).style = {
           font: { bold: true,  },
-          alignment: { horizontal: 'left', vertical: 'middle' },
+          alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
           // border: {
           //   top: { style: 'thin' }, bottom: { style: 'thin' },
           //   left: { style: 'thin' }, right: { style: 'thin' }
@@ -178,16 +177,16 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       });
 
       // Style employee info values with text wrapping
-      ['B2', 'I2', 'B3', 'I3'].forEach(cellAddr => {
-        worksheet.getCell(cellAddr).style = {
-          // font: { size: 11, name: 'Time New Roman' },
-          alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
-          // border: {
-          //   top: { style: 'thin' }, bottom: { style: 'thin' },
-          //   left: { style: 'thin' }, right: { style: 'thin' }
-          // }
-        };
-      });
+      // ['B2', 'C2', 'B3', 'C3'].forEach(cellAddr => {
+      //   worksheet.getCell(cellAddr).style = {
+      //     // font: { size: 11, name: 'Time New Roman' },
+      //     alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
+      //     // border: {
+      //     //   top: { style: 'thin' }, bottom: { style: 'thin' },
+      //     //   left: { style: 'thin' }, right: { style: 'thin' }
+      //     // }
+      //   };
+      // });
 
       // Set appropriate row heights for employee info
       worksheet.getRow(2).height = 25;
@@ -208,6 +207,19 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
             left: { style: 'thin' }, right: { style: 'thin' }
           }
         };
+        if (index ===8) { // YES column
+          cell.style = {
+            ...cell.style,
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCE5FF' } },
+            font: { ...cell.style.font, color: { argb: 'FF006400' } }
+          }
+        } else if (index === 9) { // NO column
+          cell.style = {
+            ...cell.style,
+            fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCE5FF' } },
+            font: { ...cell.style.font, color: { argb: 'FF8B0000' } }
+          }
+        }
       });
 
       // Set header row height
@@ -258,10 +270,10 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
           };
 
           // Special styling for YES/NO columns like image 2
-          if (colNumber === 10 && cell.value === 'x') { // YES column - green
+          if (colNumber === 9 && cell.value === 'x') { // YES column - green
             cellStyle.fill = { type: 'pattern', pattern: 'solid', };
             cellStyle.font = { ...cellStyle.font, bold: true, color: { argb: 'FF006400' } };
-          } else if (colNumber === 11 && cell.value === 'x') { // NO column - red
+          } else if (colNumber === 10 && cell.value === 'x') { // NO column - red
             cellStyle.fill = { type: 'pattern', pattern: 'solid', };
             cellStyle.font = { ...cellStyle.font, bold: true, color: { argb: 'FF8B0000' } };
           }
@@ -294,6 +306,8 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       [`A${summaryRowStart}`, `B${summaryRowStart}`, `C${summaryRowStart}`, `D${summaryRowStart}`, `E${summaryRowStart}`, `F${summaryRowStart}`, `G${summaryRowStart}`, `H${summaryRowStart}`, `I${summaryRowStart}`, `J${summaryRowStart}`, `K${summaryRowStart}`].forEach(cellAddr => {
         worksheet.getCell(cellAddr).style = {
           fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          font: { bold: true },
           border: {
             top: { style: 'thin' }, bottom: { style: 'thin' },
             left: { style: 'thin' }, right: { style: 'thin' }
@@ -324,6 +338,8 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       ].forEach(cellAddr => {
         worksheet.getCell(cellAddr).style = {
           fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
+          alignment: { horizontal: 'center', vertical: 'middle' },
+          font: { bold: true },
           border: {
             top: { style: 'thin' }, bottom: { style: 'thin' },
             left: { style: 'thin' }, right: { style: 'thin' }
