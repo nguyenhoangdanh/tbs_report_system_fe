@@ -1,49 +1,23 @@
 "use client"
 
-import { memo, useState } from "react"
+import { memo, useState, useEffect } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { ChevronDown, BarChart3 } from "lucide-react"
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
+import { ChevronDown, BarChart3, X } from "lucide-react"
 import { getPerformanceBadge, classifyPerformance } from "@/utils/performance-classification"
-import Link from "next/link"
+import { ReportTemplate } from "@/components/reports/report-template"
 import { cn } from "@/lib/utils"
+import { HierarchyService } from "@/services/hierarchy.service"
+import { ScreenLoading } from "@/components/loading/screen-loading"
+import { PositionUser } from "@/types/hierarchy"
 
-interface PositionUser {
-  id: string
-  employeeCode: string
-  firstName: string
-  lastName: string
-  fullName?: string
-  email: string
-  office: {
-    id: string
-    name: string
-    type?: string
-  }
-  jobPosition: {
-    id: string
-    jobName: string
-    department: {
-      id: string
-      name: string
-      office?: {
-        id: string
-        name: string
-      }
-    }
-  }
-  stats: {
-    hasReport: boolean
-    isCompleted: boolean
-    totalTasks: number
-    completedTasks: number
-    taskCompletionRate: number
-  }
-}
 
 interface PositionUsersTableProps {
   users: PositionUser[]
   positionName: string
+  weekNumber: number
+  year: number
 }
 
 interface UserDetailProps {
@@ -101,8 +75,47 @@ const UserDetail = memo(({ user }: UserDetailProps) => {
 
 UserDetail.displayName = "UserDetail"
 
-export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTableProps) => {
+export const PositionUsersTable = memo(({ users, positionName, weekNumber, year }: PositionUsersTableProps) => {
   const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set())
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [selectedUser, setSelectedUser] = useState<PositionUser | null>(null)
+  const [reportData, setReportData] = useState<any | null>(null)
+  const [loadingReport, setLoadingReport] = useState(false)
+  const [reportError, setReportError] = useState<string | null>(null)
+
+  // Fetch report data when selectedUser changes and dialog is open
+  useEffect(() => {
+    const fetchReport = async () => {
+      if (!selectedUser || !selectedUser.id) return
+      setLoadingReport(true)
+      setReportError(null)
+      try {
+        // You may want to pass weekNumber/year as props or get current week/year
+        const response = await HierarchyService.getUserDetails(selectedUser.id, {
+          weekNumber: weekNumber,
+          year: year,
+        })
+
+        if (response.success && response.data && response.data.reports && response.data.reports.length > 0) {
+          // Use the first report for demo, or find the correct one
+          setReportData({
+            ...response.data.reports[0],
+            user: response.data.user,
+          })
+        } else {
+          setReportData(null)
+        }
+      } catch (err: any) {
+        setReportError(err?.message || "Không thể tải báo cáo")
+        setReportData(null)
+      } finally {
+        setLoadingReport(false)
+      }
+    }
+    if (dialogOpen && selectedUser) {
+      fetchReport()
+    }
+  }, [dialogOpen, selectedUser])
 
   const toggleUserDetail = (userId: string) => {
     const newExpanded = new Set(expandedUsers)
@@ -112,6 +125,12 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
       newExpanded.add(userId)
     }
     setExpandedUsers(newExpanded)
+  }
+
+  const handleViewReport = (user: PositionUser, e: React.MouseEvent) => {
+    e.stopPropagation()
+    setSelectedUser(user)
+    setDialogOpen(true)
   }
 
   if (!users || users.length === 0) {
@@ -129,7 +148,7 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
     const aRate = a.stats?.taskCompletionRate || 0
     const bRate = b.stats?.taskCompletionRate || 0
     return bRate - aRate
-  })
+  });
 
   return (
     <div className="space-y-4">
@@ -205,11 +224,14 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
                       </Badge>
                     )}
 
-                    <Link href={`/admin/hierarchy/user/${userItem.id}`} onClick={(e) => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" className="text-xs h-6 px-2 hover:bg-muted">
-                        <BarChart3 className="w-3 h-3" />
-                      </Button>
-                    </Link>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="text-xs h-6 px-2 hover:bg-muted"
+                      onClick={(e) => handleViewReport(userItem, e)}
+                    >
+                      <BarChart3 className="w-3 h-3" />
+                    </Button>
                   </div>
                 </div>
               </div>
@@ -224,6 +246,61 @@ export const PositionUsersTable = memo(({ users, positionName }: PositionUsersTa
           )
         })}
       </div>
+
+      {/* Report Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        <div style={{ marginTop: "72px" }}>
+          <DialogContent
+            className="max-w-7xl w-full bg-white dark:bg-gray-900 rounded-xl p-0"
+            style={{
+              padding: 0,
+              background: "white",
+              boxShadow: "0 8px 32px rgba(0,0,0,0.12)",
+              minHeight: "20vh",
+              maxHeight: "80vh",
+              // height: "80vh",
+              display: "flex",
+              flexDirection: "column",
+              overflow: "hidden",
+            }}
+          >
+            <div className="sticky top-0 z-10 bg-white dark:bg-gray-900 rounded-t-xl border-b px-6 py-4 flex items-center justify-between">
+              <DialogHeader>
+                <DialogTitle className="text-lg font-semibold">
+                  Báo cáo của {selectedUser?.firstName} {selectedUser?.lastName}
+                </DialogTitle>
+                <DialogDescription className="text-sm text-muted-foreground">
+                 {selectedUser?.position?.description} - {selectedUser?.jobPosition?.jobName} - {selectedUser?.office?.name}
+                </DialogDescription>
+              </DialogHeader>
+              <button
+                type="button"
+                className="ml-2 rounded-full p-2 hover:bg-muted transition"
+                aria-label="Đóng"
+                onClick={() => setDialogOpen(false)}
+              >
+                <X className="w-5 h-5 text-muted-foreground" />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-2 sm:px-6 py-4">
+              {loadingReport && (
+                <ScreenLoading size="md" variant="dual-ring" />
+              )}
+              {reportError && (
+                <div className="text-center py-8 text-destructive">{reportError}</div>
+              )}
+              {reportData && (
+                <ReportTemplate report={reportData} />
+              )}
+              {!loadingReport && !reportData && !reportError && (
+                <div className="text-center py-8">
+                  <p className="text-muted-foreground">Nhân viên này chưa có báo cáo tuần</p>
+                </div>
+              )}
+            </div>
+          </DialogContent>
+        </div>
+      </Dialog>
     </div>
   )
 })

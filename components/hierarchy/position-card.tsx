@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge"
 import { PositionUsersTable } from "./position-users-table"
 import { PerformancePieChart } from "@/components/charts"
 import { getPerformanceBadge, classifyPerformance } from "@/utils/performance-classification"
+import { JobPosition } from '../../types/hierarchy';
 
 interface PositionCardProps {
   position: {
@@ -48,9 +49,11 @@ interface PositionCardProps {
     departmentBreakdown?: any[]
     users?: any[]
   }
+  weekNumber: number
+  year: number
 }
 
-export const PositionCard = memo(({ position }: PositionCardProps) => {
+export const PositionCard = memo(({ position, weekNumber, year }: PositionCardProps) => {
   const positionInfo = {
     id: position.position?.id || position.jobPosition?.id || "",
     name: position.position?.name || position.jobPosition?.jobName || "Vị trí không xác định",
@@ -104,6 +107,11 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
           name: user.jobPosition?.department?.name || "",
           office: user.jobPosition?.department?.office || undefined,
         },
+      },
+      position: {
+        id: user.JobPosition?.position?.id || user.position?.id || "",
+        name: user.jobPosition?.position?.name || user.position?.name || "",
+        description: user.position?.description || user.jobPosition?.position?.description || "",
       },
       stats: {
         hasReport: user.stats?.hasReport || false,
@@ -333,7 +341,12 @@ export const PositionCard = memo(({ position }: PositionCardProps) => {
               {/* Employee Details Table */}
               {transformedUsers.length > 0 && (
                 <div className="glass-green rounded-lg border border-green-500/20 p-4">
-                  <PositionUsersTable users={transformedUsers} positionName={positionInfo.name} />
+                  <PositionUsersTable
+                    weekNumber={weekNumber}
+                    year={year}
+                    users={transformedUsers}
+                    positionName={positionInfo.name}
+                  />
                 </div>
               )}
 

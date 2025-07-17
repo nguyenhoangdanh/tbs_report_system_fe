@@ -45,7 +45,19 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       const workbook = new ExcelJS.Workbook();
       const worksheet = workbook.addWorksheet(`TUẦN ${report.weekNumber}`, {
         views: [{ showGridLines: false }],
-      });
+        properties: {
+
+        }
+      })
+        
+      worksheet.eachRow((row) => {
+        row.eachCell((cell) => {
+          cell.font = {
+            name: 'Times New Roman',
+            size: 12,
+          };
+        });
+      });;
 
       // Set column widths to EXACTLY match template in image 2
       worksheet.columns = [
@@ -98,7 +110,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         // Fallback to text if logo can't be loaded
         worksheet.getCell('B1').value = 'TBS';
         worksheet.getCell('B1').style = {
-          font: { bold: true, size: 12, name: 'Time New Roman', color: { argb: 'FFFFFFFF' } },
+          font: { bold: true, color: { argb: 'FFFFFFFF' } },
           alignment: { horizontal: 'center', vertical: 'middle' },
           fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF90EE90' } },
           // border: {
@@ -114,7 +126,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
 
       // Style title row (B1:L1) - light blue background like image 2
       worksheet.getCell('B1').style = {
-        font: { bold: true, size: 14, name: 'Time New Roman' },
+        font: { bold: true, size: 14, },
         alignment: { horizontal: 'center', vertical: 'middle' },
         fill: { type: 'pattern', pattern: 'solid' },
         // fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCE5FF' } },
@@ -156,7 +168,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       // Style employee info labels (bold)
       ['B2', 'I2', 'B3', 'I3'].forEach(cellAddr => {
         worksheet.getCell(cellAddr).style = {
-          font: { bold: true, size: 11, name: 'Time New Roman' },
+          font: { bold: true,  },
           alignment: { horizontal: 'left', vertical: 'middle' },
           // border: {
           //   top: { style: 'thin' }, bottom: { style: 'thin' },
@@ -168,7 +180,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       // Style employee info values with text wrapping
       ['B2', 'I2', 'B3', 'I3'].forEach(cellAddr => {
         worksheet.getCell(cellAddr).style = {
-          font: { size: 11, name: 'Time New Roman' },
+          // font: { size: 11, name: 'Time New Roman' },
           alignment: { horizontal: 'left', vertical: 'middle', wrapText: true },
           // border: {
           //   top: { style: 'thin' }, bottom: { style: 'thin' },
@@ -188,7 +200,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         const cell = worksheet.getCell(4, index + 1);
         cell.value = header;
         cell.style = {
-          font: { bold: true, size: 11, name: 'Time New Roman' },
+          font: { bold: true, },
           alignment: { horizontal: 'center', vertical: 'middle', wrapText: true },
           fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFCCE5FF' } },
           border: {
@@ -233,7 +245,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
         // Style each cell in the row
         row.eachCell((cell, colNumber) => {
           let cellStyle: any = {
-            font: { size: 10, name: 'Time New Roman' },
+            // font: { size: 10, name: 'Time New Roman' },
             alignment: {
               horizontal: colNumber === 2 || colNumber === 12 ? 'left' : 'center',
               vertical: 'middle', // Center alignment for better text display
@@ -326,7 +338,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       [summaryRowStart, summaryRowStart + 1].forEach(rowNum => {
         const cell = worksheet.getCell(`B${rowNum}`);
         cell.style = {
-          font: { bold: true, size: 12, name: 'Time New Roman' },
+          font: { bold: true,},
           alignment: { horizontal: 'center', vertical: 'middle' },
           fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF00' } },
           border: {
@@ -363,41 +375,41 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
       // Style footer elements
 
       worksheet.getCell(`K${footerRowStart}`).style = {
-        font: { size: 11, name: 'Time New Roman', italic: true },
+        // font: { size: 11, name: 'Time New Roman', italic: true },
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
 
       worksheet.getCell(`K${footerRowStart + 1}`).style = {
-        font: { size: 11, name: 'Time New Roman', italic: true },
+        // font: { size: 11, name: 'Time New Roman', italic: true },
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
 
       worksheet.getCell(`K${footerRowStart + 5}`).style = {
-        font: { size: 11, name: 'Time New Roman', bold: true },
+        // font: { size: 11, name: 'Time New Roman', bold: true },
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
 
       worksheet.getCell(`C${footerRowStart + 1}`).style = {
-        font: { size: 11, name: 'Time New Roman', italic: true },
+        // font: { size: 11, name: 'Time New Roman', italic: true },
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
 
       worksheet.getCell(`B${footerRowStart + 1}`).style = {
-        font: { size: 11, name: 'Time New Roman', italic: true },
+        // font: { size: 11, name: 'Time New Roman', italic: true },
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
 
       // Style signature headers
       [`A${footerRowStart + 2}`, `E${footerRowStart + 2}`, `J${footerRowStart + 2}`].forEach(cellAddr => {
         worksheet.getCell(cellAddr).style = {
-          font: { size: 11, bold: true, name: 'Time New Roman' },
+          // font: { size: 11, bold: true, name: 'Time New Roman' },
           alignment: { horizontal: 'center', vertical: 'middle' }
         };
       });
 
       // Style signature name
       worksheet.getCell(`J${footerRowStart + 6}`).style = {
-        font: { size: 11, bold: true, name: 'Time New Roman' },
+        // font: { size: 11, bold: true, name: 'Time New Roman' },
         alignment: { horizontal: 'center', vertical: 'middle' }
       };
 
@@ -490,7 +502,7 @@ export function ReportTemplate({ report, className = "" }: ReportTemplateProps) 
               <span className="font-semibold w-full sm:w-32 text-gray-700 dark:text-gray-300 text-sm sm:text-base">
                 MSNV:
               </span>
-              <span className="text-gray-900 dark:text-gray-100 font-mono text-sm sm:text-base">
+              <span className="text-gray-900 dark:text-gray-100 font-semibold text-sm sm:text-base">
                 {user?.employeeCode}
               </span>
             </div>

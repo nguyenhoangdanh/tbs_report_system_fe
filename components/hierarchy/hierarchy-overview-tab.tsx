@@ -112,7 +112,7 @@ export const OverviewTab = memo(
         {jobPositions.length > 0 && userPermissions.canViewJobPositions && (
           <motion.div variants={itemVariants}>
             <div className="flex items-center gap-2 mb-4">
-              <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
+              <div className="p-2 rounded-lg bg-primary-gradient shadow-green-glow">
                 <Users className="w-5 h-5 text-white" />
               </div>
               <h3 className="text-lg font-semibold text-green-gradient">

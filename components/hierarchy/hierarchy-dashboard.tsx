@@ -15,6 +15,7 @@ import { HierarchySummaryCards } from "./hierarchy-summary-cards"
 import { PositionGroupsList } from "./position-groups-list"
 import { HierarchyHeader } from "./hierarchy-header"
 import { AlertTriangle, BarChart3, Crown, Users, ArrowLeft, ChevronRight } from "lucide-react"
+import { hy } from "date-fns/locale"
 
 interface TabConfig {
   id: string
@@ -104,10 +105,10 @@ const OverviewCard = memo(
       >
         <Card
           className={`border-border/50 dark:border-border/90 hover:shadow-green-glow transition-all duration-300 cursor-pointer group`}
-              // ${variant === "management"
-              //   ? "border-green-600 hover:border-green-300"
-              //   : "border-emerald-600 hover:border-emerald-300"
-              // }`}
+          // ${variant === "management"
+          //   ? "border-green-600 hover:border-green-300"
+          //   : "border-emerald-600 hover:border-emerald-300"
+          // }`}
           onClick={onClick}
         >
           <CardContent className="p-4 sm:p-6">
@@ -116,8 +117,11 @@ const OverviewCard = memo(
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-3">
                   <div
-                    className={`p-3 rounded-xl shadow-lg bg-green-gradient
-                      }`}
+                    className={`p-3 rounded-xl shadow-lg 
+                      ${variant === "management"
+                        ? "bg-warm-gradient shadow-green-glow"
+                        : "bg-green-gradient shadow-emerald-glow"}
+                      `}
                   >
                     <Icon className="w-5 h-5 text-white" />
                   </div>
@@ -146,10 +150,10 @@ const OverviewCard = memo(
                     <span className="text-muted-foreground">Tỷ lệ hoàn thành:</span>
                     <span
                       className={`font-medium ${stats.submissionRate > 80
-                          ? "text-green-600"
-                          : stats.submissionRate > 50
-                            ? "text-yellow-600"
-                            : "text-red-600"
+                        ? "text-green-600"
+                        : stats.submissionRate > 50
+                          ? "text-yellow-600"
+                          : "text-red-600"
                         }`}
                     >
                       {stats.submissionRate}%
@@ -167,14 +171,14 @@ const OverviewCard = memo(
                 <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
                   <motion.div
                     className={`h-2 rounded-full  ${stats.submissionRate > 80
-                        ? "bg-green-500"
-                        : stats.submissionRate > 50
-                          ? "bg-yellow-500"
-                          : "bg-red-500"
+                      ? "bg-green-500"
+                      : stats.submissionRate > 50
+                        ? "bg-yellow-500"
+                        : "bg-red-500"
                       }`}
                     initial={{ width: 0 }}
                     animate={{ width: `${stats.submissionRate}%` }}
-                    // transition={{ duration: 1, delay: 0.5 }}
+                  // transition={{ duration: 1, delay: 0.5 }}
                   />
                 </div>
               </div>
@@ -394,15 +398,15 @@ const HierarchyDashboard = memo(() => {
       <Card className="border-border/50 dark:border-border/90 shadow-green-glow/20">
         <CardHeader>
           {effectiveActiveTab !== "overview" && (
-          //   <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-          //     <CardTitle className="text-lg font-semibold flex items-center gap-2">
-          //       <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
-          //         <BarChart3 className="w-5 h-5 text-white" />
-          //       </div>
-          //       <span className="text-green-gradient">Tổng quan</span>
-          //     </CardTitle>
-          //   </motion.div>
-          // ) : (
+            //   <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
+            //     <CardTitle className="text-lg font-semibold flex items-center gap-2">
+            //       <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
+            //         <BarChart3 className="w-5 h-5 text-white" />
+            //       </div>
+            //       <span className="text-green-gradient">Tổng quan</span>
+            //     </CardTitle>
+            //   </motion.div>
+            // ) : (
             <motion.div
               className="flex flex-col sm:flex-row sm:items-center gap-3"
               initial={{ opacity: 0, x: -20 }}
@@ -434,7 +438,7 @@ const HierarchyDashboard = memo(() => {
                 )}
               </div> */}
             </motion.div>
-           )}
+          )}
         </CardHeader>
         <CardContent>
           {effectiveActiveTab === "overview" ? (
@@ -448,7 +452,7 @@ const HierarchyDashboard = memo(() => {
               {managementTabs.length > 0 && userPermissions.canViewPositions && (
                 <div className="space-y-4">
                   <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
+                    <div className="p-2 rounded-lg bg-warm-gradient shadow-green-glow">
                       <Crown className="w-5 h-5 text-white" />
                     </div>
                     <h3 className="text-lg font-semibold text-green-gradient">Cấp quản lý</h3>
@@ -526,20 +530,24 @@ const HierarchyDashboard = memo(() => {
               className="space-y-4"
             >
               {/* Detail view for management positions */}
-              {currentTab?.isManagement && (
+              {(currentTab?.isManagement && hierarchyData) && (
                 <PositionGroupsList
                   positions={currentTab.positions || []}
                   filterDisplayText={filterDisplayText}
                   isManagement={true}
+                  weekNumber={hierarchyData.weekNumber}
+                  year={hierarchyData.year || new Date().getFullYear()}
                 />
               )}
 
               {/* Detail view for job positions */}
-              {!currentTab?.isManagement && currentTab?.id?.startsWith("job-position-") && (
+              {(!currentTab?.isManagement && currentTab?.id?.startsWith("job-position-") && hierarchyData) && (
                 <PositionGroupsList
                   positions={currentTab.positions || []}
                   filterDisplayText={filterDisplayText}
                   isJobPosition={true}
+                  weekNumber={hierarchyData.weekNumber}
+                  year={hierarchyData.year || new Date().getFullYear()}
                 />
               )}
             </motion.div>

@@ -369,6 +369,12 @@ export interface PositionUser {
   fullName: string
   email: string
   office: Office
+  position?: {
+      id: string
+      name: string
+      description?: string
+      level?: number
+    }
   jobPosition: {
     id: string
     jobName: string
