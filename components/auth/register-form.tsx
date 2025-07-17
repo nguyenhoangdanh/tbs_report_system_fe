@@ -115,7 +115,6 @@ export function RegisterForm() {
 
   const onSubmit = async (data: RegisterFormData) => {
     try {
-      console.log('Submitting registration data:', data)
       await registerMutation.mutateAsync({
         employeeCode: data.employeeCode,
         email: data.email || undefined,

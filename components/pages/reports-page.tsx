@@ -110,7 +110,6 @@ function ReportsPage() {
       return reportsData.data
     }
    
-    console.log('⚠️ Unexpected reports data structure:', reportsData)
     return []
   }, [reportsData])
 
@@ -261,8 +260,6 @@ function ReportsPage() {
     try {
       let result: WeeklyReport;
 
-      console.log('🔄 Starting report mutation with data:', selectedReport)
-
       const currentSelectedReport = selectedReport
       const isUpdating = currentSelectedReport && currentSelectedReport.id
 
@@ -281,7 +278,6 @@ function ReportsPage() {
           }))
         };
         
-        console.log('🔄 Updating report:', { id: selectedReport.id, data: updateData })
         result = await updateReportMutation.mutateAsync({ id: selectedReport.id, data: updateData });
       } else {
         const createData = {
@@ -300,11 +296,9 @@ function ReportsPage() {
           }))
         };
 
-        console.log('➕ Creating report:', createData)
         result = await createReportMutation.mutateAsync(createData);
       }
 
-      console.log('✅ Mutation completed, result:', result)
 
       // Wait for mutations to complete and caches to update
       await new Promise(resolve => setTimeout(resolve, 300))

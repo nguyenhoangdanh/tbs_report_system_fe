@@ -76,16 +76,16 @@ const UserDetail = memo(({ user }: UserDetailProps) => {
               <div className="text-xs text-muted-foreground">Chưa hoàn thành</div>
             </div>
             <div
-              className="p-3 rounded-lg border"
+              className="p-3 rounded-lg border bg-card"
               style={{
-                backgroundColor: userClassification.bgColor,
-                borderColor: userClassification.borderColor,
+                // backgroundColor: userClassification.bgColor,
+                // borderColor: userClassification.borderColor,
               }}
             >
               <div className="font-medium" style={{ color: userClassification.color }}>
                 {Math.round(userCompletionRate)}%
               </div>
-              <div className="text-xs text-muted-foreground">Tỷ lệ HT</div>
+              <div className="text-xs">Tỷ lệ HT</div>
             </div>
           </div>
         </div>

@@ -5,7 +5,6 @@ import { useParams, useSearchParams } from "next/navigation"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useReportDetailsForAdmin } from "@/hooks/use-hierarchy"
 import { MainLayout } from "@/components/layout/main-layout"
-import { AppLoading } from "@/components/ui/loading-system"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -14,6 +13,7 @@ import Link from "next/link"
 import { getPerformanceBadge, classifyPerformance } from "@/utils/performance-classification"
 import { SimplePieChart } from "@/components/charts/simple-pie-chart"
 import { safeNumber, safeString, safeArray } from "@/utils/type-guards"
+import { ScreenLoading } from "@/components/loading/screen-loading"
 
 function ReportDetailsContent() {
   const { user: currentUser } = useAuth()
@@ -29,7 +29,7 @@ function ReportDetailsContent() {
   const { data: reportData, isLoading, error } = useReportDetailsForAdmin(userId, reportId)
 
   if (!currentUser) {
-    return <AppLoading text="Đang xác thực..." />
+    return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop text="Đang xác thực..." />
   }
 
   const allowedRoles = ["SUPERADMIN", "ADMIN", "OFFICE_MANAGER", "OFFICE_ADMIN"]
@@ -62,7 +62,7 @@ function ReportDetailsContent() {
     return (
       <MainLayout>
         <div className="max-w-7xl mx-auto p-responsive">
-          <AppLoading text="Đang tải chi tiết báo cáo..." />
+          <ScreenLoading text="Đang tải chi tiết báo cáo..." />
         </div>
       </MainLayout>
     )
@@ -392,7 +392,7 @@ export default function ReportDetailsPage() {
       fallback={
         <MainLayout>
           <div className="max-w-7xl mx-auto p-responsive">
-            <AppLoading text="Đang tải chi tiết báo cáo..." />
+            <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop text="Đang tải dữ liệu..." />
           </div>
         </MainLayout>
       }

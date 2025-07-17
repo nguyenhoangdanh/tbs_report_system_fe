@@ -9,12 +9,12 @@ import { AuthService } from "@/services/auth.service";
 import Link from "next/link";
 import { forgotPasswordSchema, resetPasswordSchema, type ForgotPasswordFormData, type ResetPasswordFormData } from "@/lib/validations/auth";
 import type { ForgotPasswordResponse } from "@/types";
-import { AppLoading } from '@/components/ui/app-loading'
 import { KeyRound, Shield, Sparkles } from "lucide-react";
 import { toast } from "react-toast-kit";
 import { FormField } from "@/components/ui/form-field";
 import { ModernAnimatedBackground } from "@/components/layout/modern-animated-background";
 import { useThemeBackground } from "@/hooks/use-theme-background";
+import { ScreenLoading } from "@/components/loading/screen-loading";
 
 // Fixed animation variants with proper TypeScript types
 const containerVariants: Variants = {
@@ -73,7 +73,6 @@ function ForgotPasswordContent() {
         employeeCode: data.employeeCode,
         phone: data.phone
       });
-      console.log('🔍 Forgot password response:', response);
       // setUserInfo(response?.data.user);
       if (response.success && response.data) {
         setUserInfo(response.data.user);
@@ -119,7 +118,7 @@ function ForgotPasswordContent() {
   const { enableAnimation, particleCount, canAnimate, performanceMode } = useThemeBackground();
 
   if (isLoading) {
-    return <AppLoading />
+    return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
   }
 
   return (

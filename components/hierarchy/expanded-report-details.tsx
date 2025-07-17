@@ -4,8 +4,8 @@ import { memo } from "react"
 import { FileText } from 'lucide-react'
 import { useReportDetailsForAdmin } from "@/hooks/use-hierarchy"
 import { IncompleteReasons } from "./incomplete-reasons"
-import { LoadingSpinner } from "@/components/ui/loading-system"
 import { ReportTaskItem } from "./report-task-item"
+import { ScreenLoading } from "../loading/screen-loading"
 
 interface ExpandedReportDetailsProps {
     userId: string
@@ -23,7 +23,7 @@ export const ExpandedReportDetails = memo(function ExpandedReportDetails({
             <div className="space-y-4">
                 {isLoading && (
                     <div className="flex items-center justify-center py-8">
-                        <LoadingSpinner size="sm" text="Đang tải chi tiết..." />
+                        <ScreenLoading size="sm" variant="dual-ring" fullScreen backdrop text="Đang tải chi tiết..." />
                     </div>
                 )}
 

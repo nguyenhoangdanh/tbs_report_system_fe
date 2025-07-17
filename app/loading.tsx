@@ -1,5 +1,5 @@
-import { AppLoading } from '@/components/ui/app-loading'
+import { ScreenLoading } from "@/components/loading/screen-loading";
 
 export default function Loading() {
-  return <AppLoading />
+  return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
 }

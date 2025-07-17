@@ -4,9 +4,11 @@ import Link from "next/link"
 import Image from "next/image"
 import { motion } from "framer-motion"
 import { Mail, Phone, MapPin, Heart } from "lucide-react"
+import { useAuth } from "../providers/auth-provider"
 
 export function AppFooter() {
-  const currentYear = new Date().getFullYear()
+  const currentYear = new Date().getFullYear();
+  const { user } = useAuth();
 
   const containerVariants = {
     hidden: { opacity: 0, y: 50 },
@@ -24,6 +26,12 @@ export function AppFooter() {
     hidden: { opacity: 0, y: 20 },
     visible: { opacity: 1, y: 0 },
   }
+
+  const linkItems = [
+    { href: user?.role === "USER" ? "/dashboard" : "/admin/hierarchy", label: "Trang chủ" },
+    { href: "/profile", label: "Thông tin cá nhân" },
+    { href: "/reports", label: "Báo cáo của tôi" },
+  ];
 
   return (
     <motion.footer
@@ -59,11 +67,7 @@ export function AppFooter() {
           <motion.div className="space-y-4" variants={itemVariants}>
             <h4 className="font-semibold text-foreground text-green-gradient">Liên kết nhanh</h4>
             <ul className="space-y-3 text-sm">
-              {[
-                { href: "/dashboard", label: "Trang chủ" },
-                { href: "/profile", label: "Thông tin cá nhân" },
-                { href: "/reports", label: "Báo cáo của tôi" },
-              ].map((link, index) => (
+              {(user?.role === "USER" ? linkItems : linkItems.slice(0, 2)).map((link) => (
                 <motion.li
                   key={link.href}
                   whileHover={{ x: 5 }}

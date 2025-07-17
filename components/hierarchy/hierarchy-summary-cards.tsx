@@ -3,6 +3,7 @@
 import { memo } from "react"
 import { Card, CardContent } from "@/components/ui/card"
 import { Users, Building2, FileCheck, TrendingUp } from "lucide-react"
+import { color } from "framer-motion"
 
 interface HierarchySummaryCardsProps {
   summary: {
@@ -63,12 +64,13 @@ export const HierarchySummaryCards = memo(({ summary }: HierarchySummaryCardsPro
       value: `${Math.round(averageCompletionRate)}%`,
       subtitle: "trung bình",
       icon: TrendingUp,
-      color:
-        averageCompletionRate >= 90
-          ? "text-primary"
-          : averageCompletionRate >= 70
-            ? "text-warning"
-            : "text-destructive",
+      color: "text-foreground",
+      // color:
+      //   averageCompletionRate >= 90
+      //     ? "text-primary"
+      //     : averageCompletionRate >= 70
+      //       ? "text-warning"
+      //       : "text-destructive",
     },
   ]
 

@@ -173,7 +173,6 @@ export function useRefreshToken() {
   return useApiMutation<AuthResponse, void, Error>({
     mutationFn: () => AuthService.refreshToken(),
     onSuccess: (response) => {
-      console.log('Token refreshed successfully')
       return response
     },
     onError: (error: any) => {

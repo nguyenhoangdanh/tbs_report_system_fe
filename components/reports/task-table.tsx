@@ -273,16 +273,6 @@ export const TaskTable = memo(function TaskTable({
   const [editingTask, setEditingTask] = useState<string | null>(null)
   const [editingReason, setEditingReason] = useState<string | null>(null)
 
-  // Debug logging for tasks changes
-  useEffect(() => {
-    console.log('🔄 TaskTable: currentTasks changed:', {
-      count: currentTasks.length,
-      weekNumber,
-      year,
-      reportId: selectedReport?.id
-    })
-  }, [currentTasks, weekNumber, year, selectedReport?.id])
-
   // Weekday headers
   const weekdays = useMemo(() => [
     { key: 'friday', label: 'Thứ 6', short: 'T6' },

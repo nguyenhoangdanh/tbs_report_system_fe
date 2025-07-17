@@ -5,7 +5,6 @@ import { useParams, useSearchParams, useRouter } from "next/navigation"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useCurrentWeekFilters } from "@/hooks/use-hierarchy"
 import { MainLayout } from "@/components/layout/main-layout"
-import { AppLoading } from "@/components/ui/loading-system"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
@@ -15,11 +14,11 @@ import { toast } from "react-toast-kit"
 import { getCurrentWeek } from "@/utils/week-utils"
 import { HierarchyService } from "@/services/hierarchy.service"
 import { getPerformanceBadge, classifyPerformance } from "@/utils/performance-classification"
-import { LoadingSpinner } from "@/components/ui/loading-system"
 import { safeString, safeNumber } from "@/utils/type-guards"
 import { UserDetailsResponse } from "@/types/hierarchy"
 import { Role } from "@/types"
 import { ExpandedReportDetails } from "@/components/hierarchy/expanded-report-details"
+import { ScreenLoading } from "@/components/loading/screen-loading"
 
 function UserDetailsContent() {
   const { user } = useAuth()
@@ -122,7 +121,7 @@ function UserDetailsContent() {
     return `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}`
   }
 
-  if (!user) return <AppLoading text="Đang xác thực..." />
+  if (!user || isLoading) return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
 
   const allowedRoles = [Role.ADMIN, Role.SUPERADMIN, Role.USER]
   if (!allowedRoles.includes(user.role)) {
@@ -145,16 +144,6 @@ function UserDetailsContent() {
               <p className="text-destructive/80">Chỉ quản lý mới có thể xem chi tiết nhân viên.</p>
             </CardContent>
           </Card>
-        </div>
-      </MainLayout>
-    )
-  }
-
-  if (isLoading) {
-    return (
-      <MainLayout title="Chi tiết nhân viên">
-        <div className="flex items-center justify-center min-h-[400px]">
-          <LoadingSpinner />
         </div>
       </MainLayout>
     )
@@ -360,11 +349,7 @@ export default function UserDetailsPage() {
   return (
     <Suspense
       fallback={
-        <MainLayout>
-          <div className="max-w-7xl mx-auto p-responsive">
-            <AppLoading text="Đang tải chi tiết nhân viên..." />
-          </div>
-        </MainLayout>
+        <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
       }
     >
       <UserDetailsContent />

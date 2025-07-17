@@ -11,12 +11,12 @@ import { useDashboardData } from '@/hooks/use-statistics'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { CalendarCheck2, CalendarDays, BarChart3, Clock3, CheckCircle2, AlertTriangle, FileText, Info, Zap, Plus, Calendar } from 'lucide-react'
-import { AppLoading } from '@/components/ui/app-loading'
 import { StatsCard } from '@/components/dashboard/stats-card'
 import { RecentActivity } from '@/services/statistics.service'
 import { getCurrentWeek, formatWorkWeek, getWorkWeekRange, isInReportingPeriod } from '@/utils/week-utils'
 import { useCurrentWeekReport } from '@/hooks/use-reports'
 import Link from 'next/link'
+import { ScreenLoading } from '../loading/screen-loading'
 
 // --- Main DashboardPage ---
 function DashboardPage() {
@@ -112,20 +112,16 @@ function DashboardPage() {
     }, [])
 
     // Handle authentication and loading states
-    if (!isAuthenticated) {
-        return <AppLoading text="Đang xác thực..." />
+    if (!isAuthenticated || !user) {
+        return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
     }
 
-    if (!user) {
-        return <AppLoading text="Đang tải thông tin người dùng..." />
-    }
-
-    if (isDashboardLoading) {
+    if (isDashboardLoading || !workWeekInfo) {
         return (
             <MainLayout>
                 <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
                     <div className="px-4 sm:px-6 py-6">
-                        <AppLoading text={`Đang tải dữ liệu cho ${user.firstName} ${user.lastName}...`} />
+                        <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
                     </div>
                 </div>
             </MainLayout>
@@ -158,17 +154,6 @@ function DashboardPage() {
         )
     }
 
-    if (!workWeekInfo) {
-        return (
-            <MainLayout>
-                <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
-                    <div className="px-4 sm:px-6 py-6">
-                        <AppLoading text="Đang tải thông tin tuần làm việc..." />
-                    </div>
-                </div>
-            </MainLayout>
-        )
-    }
 
     return (
         <MainLayout>

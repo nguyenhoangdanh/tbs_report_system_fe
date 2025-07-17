@@ -108,13 +108,6 @@ function AdminUsersContent() {
     }
   };
 
-  // const filteredUsers = users.filter(user =>
-  //   user.employeeCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //   `${user.firstName} ${user.lastName}`.toLowerCase().includes(searchTerm.toLowerCase()) ||
-  //   user.email?.toLowerCase().includes(searchTerm.toLowerCase())
-  // );
-
-  console.log('Users:', users);
   const filteredUsers = useMemo(() => {
     if (!users?.data) return [];
     // Lọc bỏ phần tử không phải mảng, sau đó flat
@@ -131,7 +124,6 @@ function AdminUsersContent() {
     });
   }, [users, searchTerm]);
 
-  console.log('Filtered users:', filteredUsers);
 
   // Remove or comment out this permission check since RouteGuard handles it
   // if (currentUser?.role !== 'SUPERADMIN') {

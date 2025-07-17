@@ -21,17 +21,15 @@ import { PasswordForm } from './components/password-form'
 
 function ProfileContent() {
   const {
-    user,
     isLoading,
     updateProfile,
     changePassword,
     isUpdating,
     isChangingPassword,
     refetch,
-    passwordStatus,
   } = useProfileManagement();
 
-  const { isAuthenticated, checkAuth } = useAuth()
+  const { isAuthenticated, checkAuth, user } = useAuth()
   const router = useRouter()
 
   const [activeTab, setActiveTab] = useState<'info' | 'password'>('info')
@@ -164,7 +162,7 @@ function ProfileContent() {
       subtitle="Quản lý thông tin tài khoản và cài đặt bảo mật"
       showBreadcrumb
       breadcrumbItems={[
-        { label: 'Trang chủ', href: '/dashboard' },
+        { label: 'Trang chủ', href: user?.role === 'USER' ? "/dashboard" : "/admin/hierarchy" },
         { label: 'Thông tin cá nhân' }
       ]}
     >

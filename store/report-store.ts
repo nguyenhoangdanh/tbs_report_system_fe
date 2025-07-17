@@ -82,7 +82,6 @@ const useReportStore = create<ReportState>()(
       
       // Task actions
       setCurrentTasks: (tasks) => {
-        console.log('🔄 Store: Setting current tasks:', tasks.length)
         set({ 
           currentTasks: [...tasks],
           isFormDirty: false 
@@ -139,7 +138,6 @@ const useReportStore = create<ReportState>()(
       addTask: () => {
         set((state) => {
           const newTask = createTask(state.selectedReport?.id)
-          console.log('➕ Store: Adding new task:', newTask.id)
           return {
             currentTasks: [...state.currentTasks, newTask],
             isFormDirty: true
@@ -149,7 +147,6 @@ const useReportStore = create<ReportState>()(
       
       removeTask: (taskId) => {
         set((state) => {
-          console.log('🗑️ Store: Removing task:', taskId)
           return {
             currentTasks: state.currentTasks.filter(task => task.id !== taskId),
             isFormDirty: true
@@ -158,7 +155,6 @@ const useReportStore = create<ReportState>()(
       },
       
       clearTasks: () => {
-        console.log('🧹 Store: Clearing all tasks')
         set({ 
           currentTasks: [],
           isFormDirty: false
@@ -167,7 +163,6 @@ const useReportStore = create<ReportState>()(
       
       // Week navigation with proper cleanup
       setCurrentWeek: (weekNumber, year) => {
-        console.log(`📅 Store: Setting current week to ${weekNumber}/${year}`)
         set({ 
           currentWeekNumber: weekNumber, 
           currentYear: year 
@@ -175,7 +170,6 @@ const useReportStore = create<ReportState>()(
       },
       
       navigateToWeek: (weekNumber, year, clearData = true) => {
-        console.log(`🧭 Store: Navigating to week ${weekNumber}/${year}, clearData: ${clearData}`)
         set((state) => {
           const newState: Partial<ReportState> = {
             currentWeekNumber: weekNumber,
@@ -194,7 +188,6 @@ const useReportStore = create<ReportState>()(
       
       // Report management with proper sync
       setSelectedReport: (report) => {
-        console.log('📋 Store: Setting selected report:', report?.id || 'null')
         set((state) => ({
           selectedReport: report,
           currentTasks: report?.tasks ? [...report.tasks] : [],
@@ -205,12 +198,10 @@ const useReportStore = create<ReportState>()(
       },
       
       syncReportToStore: (report) => {
-        console.log('🔄 Store: Syncing report to store:', report?.id || 'null')
         const state = get()
 
         // THÊM: Force clear selectedReport nếu report là null
   if (!report) {
-    console.log('🧹 Store: Clearing selectedReport because report is null')
     set({
       selectedReport: null,
       currentTasks: [],
@@ -224,7 +215,6 @@ const useReportStore = create<ReportState>()(
           report.weekNumber !== state.currentWeekNumber || 
           report.year !== state.currentYear
         )) {
-          console.log('⚠️ Store: Report week mismatch, skipping sync')
           return
         }
         
@@ -242,7 +232,6 @@ const useReportStore = create<ReportState>()(
       
       // Cache actions
       setCachedReport: (key, report) => {
-        console.log('💾 Store: Caching report:', key, report.id)
         set((state) => {
           const newCache = new Map(state.reportsCache)
           newCache.set(key, report)
@@ -252,12 +241,10 @@ const useReportStore = create<ReportState>()(
       
       getCachedReport: (key) => {
         const cached = get().reportsCache.get(key)
-        console.log('🔍 Store: Getting cached report:', key, cached?.id || 'not found')
         return cached || null
       },
       
       removeCachedReport: (key) => {
-        console.log('🗑️ Store: Removing cached report:', key)
         set((state) => {
           const newCache = new Map(state.reportsCache)
           
@@ -271,7 +258,6 @@ const useReportStore = create<ReportState>()(
               for (const [cacheKey, report] of newCache.entries()) {
                 if (report.id === key) {
                   newCache.delete(cacheKey)
-                  console.log('🗑️ Store: Removed by report ID:', key, 'cache key:', cacheKey)
                   break
                 }
               }
@@ -284,7 +270,6 @@ const useReportStore = create<ReportState>()(
       
       clearCacheForWeek: (weekNumber, year) => {
         const cacheKey = `${weekNumber}-${year}`
-        console.log('🧹 Store: Clearing cache for week:', cacheKey)
         set((state) => {
           const newCache = new Map(state.reportsCache)
           newCache.delete(cacheKey)
@@ -293,13 +278,11 @@ const useReportStore = create<ReportState>()(
       },
       
       clearCache: () => {
-        console.log('🧹 Store: Clearing entire cache')
         set({ reportsCache: new Map() }, false, 'clearCache')
       },
       
       // Reset functions
       resetFormState: () => {
-        console.log('🔄 Store: Resetting form state')
         set({
           currentTasks: [],
           selectedReport: null,
@@ -310,7 +293,6 @@ const useReportStore = create<ReportState>()(
       },
       
       resetToWeek: (weekNumber, year) => {
-        console.log(`🔄 Store: Resetting to week ${weekNumber}/${year}`)
         set({
           currentTasks: [],
           currentWeekNumber: weekNumber,
@@ -322,7 +304,6 @@ const useReportStore = create<ReportState>()(
       },
       
       forceRefresh: () => {
-        console.log('🔄 Store: Force refresh triggered')
         const state = get()
         set({
           currentTasks: [],

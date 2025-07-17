@@ -42,7 +42,6 @@ export function useUpdateProfile() {
     mutationFn: (data: UpdateProfileDto) => UserService.updateProfile(data),
     onSuccess: (updatedUser) => {
       const userId = updatedUser?.id;
-      console.log('✅ Profile updated successfully:', userId)
 
       // Update profile cache immediately
       queryClient.setQueryData(PROFILE_QUERY_KEYS.profile, updatedUser)
@@ -84,7 +83,6 @@ export function useChangePassword() {
   return useApiMutation({
     mutationFn: (data: ChangePasswordDto) => AuthService.changePassword(data),
     onSuccess: (data) => {
-      console.log('✅ Password changed successfully', data)
       toast.success('Đổi mật khẩu thành công!')
     },
     onError: (error: any) => {

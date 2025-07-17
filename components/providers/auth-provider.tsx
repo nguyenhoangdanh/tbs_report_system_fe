@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const isLoggingOut = useRef(false)
   const hasInitialized = useRef(false)
   const retryCount = useRef(0)
-  const maxRetries = 2
+  const maxRetries = 5
 
   const isAuthenticated = !!user
 
@@ -108,7 +108,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("💥 Auth check error:", error)
 
       if (error?.message?.includes("Network") || error?.message?.includes("fetch")) {
-        console.log("🌐 Network error during auth check, keeping user data")
         setError("Lỗi kết nối mạng")
       } else {
         setUser((prevUser) => {
@@ -128,7 +127,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(
     async (credentials: LoginDto): Promise<boolean> => {
       if (isLoggingIn.current) {
-        console.log("🔄 Login already in progress, skipping...")
         return false
       }
 
@@ -168,7 +166,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     if (isLoggingOut.current) {
-      console.log("🔄 Logout already in progress, skipping...")
       return
     }
 

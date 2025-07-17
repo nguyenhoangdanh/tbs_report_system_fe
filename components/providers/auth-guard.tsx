@@ -9,7 +9,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { AlertCircle, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
-import { LoadingSpinner } from "@/components/ui/loading-system"
+import { ScreenLoading } from "../loading/screen-loading"
 
 const PUBLIC_ROUTES = ["/", "/login", "/register", "/forgot-password", "/reset-password"]
 
@@ -25,6 +25,7 @@ const ROLE_ROUTES = {
     "/reports",
     "/profile",
     "/images",
+    "/loading",
   ],
   USER: ["/dashboard", "/reports", "/profile", "/images"],
 }
@@ -142,7 +143,6 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
       const hasRouteAccess = hasAccess(user, pathname)
 
       if (!hasRouteAccess) {
-        console.log(`🚫 Access denied for ${user.employeeCode} to ${pathname}`)
         return
       }
     }
@@ -182,17 +182,17 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
     )
   }
 
-  if (isLoading || !initialLoadComplete || isNavigating) {
-    return <LoadingScreen user={user} pathname={pathname} isNavigating={isNavigating} />
+  if (isLoading || !initialLoadComplete || isNavigating || (isAuthenticated && !user && !error)) {
+    return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
   }
 
   if (!isAuthenticated && isPublicRoute) {
     return <>{children}</>
   }
 
-  if (!isAuthenticated && !isPublicRoute && !error) {
-    return <LoadingScreen user={user} pathname={pathname} isNavigating={true} />
-  }
+  // if (!isAuthenticated && !isPublicRoute && !error) {
+  //   return <LoadingSpinner size="lg" variant="dots" />
+  // }
 
   if (isAuthenticated && user) {
     if (isPublicRoute) {
@@ -215,7 +215,7 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
     return <>{children}</>
   }
 
-  return <LoadingScreen user={user} pathname={pathname} isNavigating={false} />
+  return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {
@@ -262,25 +262,25 @@ function ErrorScreen({ error, onRetry, onGoToLogin }: { error: string; onRetry: 
   )
 }
 
-function LoadingScreen({ user, pathname, isNavigating }: { user: any; pathname: string; isNavigating: boolean }) {
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-background">
-      <Card className="w-full max-w-md mx-auto">
-        <CardContent className="p-6">
-          <div className="flex flex-col items-center space-y-4">
-            <LoadingSpinner size="lg" />
-            <div className="text-center space-y-2">
-              <h3 className="font-semibold">{isNavigating ? "Đang chuyển hướng..." : "Đang tải..."}</h3>
-              <p className="text-sm text-muted-foreground">
-                {isNavigating ? "Vui lòng đợi" : "Đang xác thực người dùng"}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+// function LoadingScreen({ user, pathname, isNavigating }: { user: any; pathname: string; isNavigating: boolean }) {
+//   return (
+//     <div className="min-h-screen flex items-center justify-center bg-background">
+//       <Card className="w-full max-w-md mx-auto">
+//         <CardContent className="p-6">
+//           <div className="flex flex-col items-center space-y-4">
+//             <LoadingSpinner size="lg" />
+//             <div className="text-center space-y-2">
+//               <h3 className="font-semibold">{isNavigating ? "Đang chuyển hướng..." : "Đang tải..."}</h3>
+//               <p className="text-sm text-muted-foreground">
+//                 {isNavigating ? "Vui lòng đợi" : "Đang xác thực người dùng"}
+//               </p>
+//             </div>
+//           </div>
+//         </CardContent>
+//       </Card>
+//     </div>
+//   )
+// }
 
 function AccessDeniedScreen({
   user,
@@ -297,20 +297,6 @@ function AccessDeniedScreen({
 
   const getUserSpecificRoutes = () => {
     const routes = [...allowedRoutes]
-
-    if (userRole === "OFFICE_MANAGER") {
-      const officeId = user.office?.id || user.officeId
-      if (officeId) {
-        routes.push(`/admin/hierarchy/office/${officeId}`)
-      }
-    }
-
-    if (userRole === "OFFICE_ADMIN") {
-      const departmentId = user.jobPosition?.department?.id || user.jobPosition?.departmentId
-      if (departmentId) {
-        routes.push(`/admin/hierarchy/department/${departmentId}`)
-      }
-    }
 
     return routes.filter((route) => route !== "*")
   }

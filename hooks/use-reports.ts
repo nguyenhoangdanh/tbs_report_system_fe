@@ -79,7 +79,6 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
       const cached = getCachedReport(cacheKey)
       
       if (cached) {
-        console.log('📦 Using cached report for week:', cacheKey)
         syncReportToStore(cached)
         return {
           success: true,
@@ -93,7 +92,6 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
         
         // Handle the API result
         if (apiResult.success && apiResult.data) {
-          console.log('✅ Fetched fresh report for week:', cacheKey, apiResult.data.id)
           setCachedReport(cacheKey, apiResult.data)
           syncReportToStore(apiResult.data)
           return {
@@ -102,11 +100,9 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
           }
         } else if (apiResult.success && !apiResult.data) {
           // No report found for this week (valid case)
-          console.log('❌ No report found for week:', cacheKey)
          // THÊM: Force clear selectedReport và cache
   const { selectedReport, clearCacheForWeek } = useReportStore.getState()
   if (selectedReport?.weekNumber === weekNumber && selectedReport?.year === year) {
-    console.log('🧹 Clearing selectedReport for deleted week')
   }
   clearCacheForWeek(weekNumber!, year!) // Clear cache
   
@@ -118,7 +114,6 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
           }
         } else {
           // API returned error
-          console.log('❌ API error for week:', cacheKey, apiResult.error)
           syncReportToStore(null)
           clearTasks()
           return {
@@ -131,7 +126,6 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
           }
         }
       } catch (error: any) {
-        console.log('❌ Exception fetching report for week:', cacheKey, error)
         syncReportToStore(null)
         clearTasks()
         
@@ -178,12 +172,9 @@ export function useCreateWeeklyReport() {
     onMutate: async (newReport) => {
       if (!user?.id) return
       setSaving(true)
-      console.log('🚀 Creating report mutation started:', newReport)
     },
     onSuccess: (newReport, variables) => {
       if (!user?.id) return
-      
-      console.log('✅ Report created successfully:', newReport)
       
       // Update store and cache immediately
       const cacheKey = `${newReport.weekNumber}-${newReport.year}`
@@ -239,12 +230,9 @@ export function useUpdateReport() {
     onMutate: async (variables) => {
       if (!user?.id) return
       setSaving(true)
-      console.log('🚀 Updating report mutation started:', variables)
     },
     onSuccess: (updatedReport, variables) => {
       if (!user?.id) return
-      
-      console.log('✅ Report updated successfully:', updatedReport)
       
       // Update store and cache immediately
       const cacheKey = `${updatedReport.weekNumber}-${updatedReport.year}`
@@ -295,16 +283,13 @@ export function useDeleteReport() {
     mutationFn: (id: string) => ReportService.deleteReport(id),
     onMutate: async (reportId) => {
       if (!user?.id) return
-      console.log('🚀 Deleting report mutation started:', reportId)
     },
     onSuccess: (result, deletedId) => {
       if (!user?.id) return
       
-      console.log('✅ Report deleted successfully:', deletedId)
 
       const { selectedReport } = useReportStore.getState()
   if (selectedReport?.id === deletedId) {
-    console.log('🧹 Clearing selectedReport after deletion')
     syncReportToStore(null) // Đảm bảo clear selectedReport
   }
       

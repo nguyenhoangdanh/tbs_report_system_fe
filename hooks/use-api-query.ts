@@ -81,12 +81,10 @@ export function useApiMutation<
         throw error
       }
       
-      console.log('✅ API Mutation Success:', result.data)
       return result.data!
     },
     // Enhanced mutation options with better error handling
     onSuccess: (data, variables, context) => {
-      console.log('🎉 Mutation completed successfully:', data)
       if (options.onSuccess) {
         options.onSuccess(data, variables, context)
       }
@@ -98,7 +96,6 @@ export function useApiMutation<
       }
     },
     onSettled: (data, error, variables, context) => {
-      console.log('🏁 Mutation settled:', { data, error })
       if (options.onSettled) {
         options.onSettled(data, error, variables, context)
       }

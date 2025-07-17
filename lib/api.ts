@@ -48,8 +48,8 @@ export interface ProjectApiError extends ApiError {
   isTimeoutError?: boolean;
   isClientError?: boolean;
   isServerError?: boolean;
-  message: string; // Custom message for better UX
-  status?: number; // HTTP status code
+  message: string;
+  status?: number;
 }
 
 interface ApiResult<T> {
@@ -67,7 +67,7 @@ interface RequestConfig extends BaseRequestConfig {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
 
-// Enhanced API client with caching and deduplication
+// Enhanced API client with CORS-friendly configuration
 class EnhancedApiClient {
   private client: ApiClient
   private cache = new Map<string, { data: any; timestamp: number }>()
@@ -77,18 +77,27 @@ class EnhancedApiClient {
   private cleanupInterval: ReturnType<typeof setInterval> | null = null
 
   constructor(config: ApiConfig = {}) {
-    // Create fetch-api-client instance
+    // Create fetch-api-client instance with CORS-friendly headers
     this.client = createClient({
       baseURL: API_BASE_URL,
       timeout: 8000,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        'Connection': 'keep-alive',
-        'Keep-Alive': 'timeout=5, max=100',
+        // ✅ Remove Pragma and Cache-Control headers that cause CORS issues
+        // 'Cache-Control': 'no-cache',
+        // 'Pragma': 'no-cache',
       },
-      withCredentials: true,
-      validateStatus: (status) => status < 500, // Don't throw on 4xx errors
+      credentials: 'include', // ✅ Correct for fetch API - always include cookies
+      validateStatus: (status) => status < 500,
+      getToken: () => {
+        // Optional: JWT token from localStorage (fallback)
+        if (typeof window !== 'undefined') {
+          const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
+          return token;
+        }
+        return null;
+      },
       ...config,
     })
 
@@ -97,19 +106,72 @@ class EnhancedApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor
+    // Request interceptor - Enhanced for credentials debugging
     this.client.interceptors.request.use((config) => {
+      // Ensure credentials are always included
+      config.credentials = 'include';
+      
+      // ✅ Remove problematic headers that cause CORS issues
+      if (config.headers) {
+        // Remove headers that might cause CORS preflight issues
+        delete config.headers['Pragma'];
+        delete config.headers['pragma'];
+        delete config.headers['Cache-Control'];
+        delete config.headers['cache-control'];
+      }
+      
       return config
     })
 
-    // Response interceptor
+    // Response interceptor - Enhanced for auto token refresh
     this.client.interceptors.response.use({
       onFulfilled: (response) => {
-        // Add debug logging for auth responses
+        
         return response
       },
-      onRejected: (error) => {
-        // Add debug logging for auth errors
+      onRejected: async (error: ApiError) => {
+        console.error('❌ API Error:', {
+          status: error.status,
+          message: error.message,
+          url: error.config?.url,
+          method: error.config?.method,
+          isAuth: error.status === 401,
+          isCORS: error.message?.includes('CORS') || error.message?.includes('cors'),
+          hasCookies: typeof document !== 'undefined' ? document.cookie.includes('access_token') : false,
+          timestamp: new Date().toISOString()
+        });
+
+        // Handle CORS errors
+        if (error.message?.includes('CORS') || error.message?.includes('cors')) {
+          console.error('🚨 CORS Error detected:', {
+            message: error.message,
+            url: error.config?.url,
+            method: error.config?.method,
+            headers: error.config?.headers
+          });
+        }
+
+        // Handle 401 Unauthorized errors with auto-refresh attempt
+        if (error.status === 401) {
+          console.warn('🔐 Authentication failed - attempting token refresh');
+          
+          // Try to refresh token first
+          try {
+            const refreshResult = await this.attemptTokenRefresh();
+            if (refreshResult.success) {
+              // For now, just reject the promise to prevent infinite loops
+              // You can implement retry logic here if needed
+              return Promise.reject(error);
+            }
+          } catch (refreshError) {
+            console.error('❌ Token refresh failed:', refreshError);
+          }
+          
+          // If refresh fails, clear tokens and redirect
+          this.clearAuthTokens();
+          this.redirectToLogin();
+        }
+
         // Enhanced error handling
         const enhancedError: ProjectApiError = {
           ...error,
@@ -118,9 +180,56 @@ class EnhancedApiClient {
           isClientError: error.status ? error.status >= 400 && error.status < 500 : false,
           isServerError: error.status ? error.status >= 500 : false,
         }
-        return enhancedError
+        return enhancedError;
       }
     })
+  }
+
+  private async attemptTokenRefresh(): Promise<{ success: boolean }> {
+    try {
+      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include', // Include cookies for refresh
+        headers: {
+          'Content-Type': 'application/json',
+          // ✅ Only essential headers to avoid CORS issues
+        },
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        
+        // Optionally store new token in localStorage as backup
+        if (data.access_token) {
+          localStorage.setItem('access_token', data.access_token);
+        }
+        
+        return { success: true };
+      }
+      
+      return { success: false };
+    } catch (error) {
+      console.error('🔄 Token refresh error:', error);
+      return { success: false };
+    }
+  }
+
+  private clearAuthTokens() {
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('access_token');
+      sessionStorage.removeItem('access_token');
+      
+      // Clear cookies (best effort - httpOnly cookies can't be cleared from JS)
+      document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=None; Secure';
+    }
+  }
+
+  private redirectToLogin() {
+    if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+      window.dispatchEvent(new CustomEvent('auth:logout'));
+      // Optionally redirect immediately
+      // window.location.href = '/login';
+    }
   }
 
   private startCleanupTimer() {
@@ -157,8 +266,12 @@ class EnhancedApiClient {
     if (method !== 'GET') return false
     
     const skipCachePatterns = [
+      '/auth/',
+      '/login',
+      '/logout',
+      '/refresh',
       '/statistics/',
-    'admin/hierarchy',
+      'admin/hierarchy',
       '/dashboard/',
       '/reports/',
       '/profile',
@@ -188,6 +301,17 @@ class EnhancedApiClient {
   ): Promise<ApiResult<T>> {
     const { retries = 2, retryDelay = 1000, ...requestConfig } = config
 
+    // Always ensure credentials are included
+    requestConfig.credentials = 'include';
+
+    // ✅ Ensure headers don't contain CORS-problematic entries
+    if (requestConfig.headers) {
+      delete requestConfig.headers['Pragma'];
+      delete requestConfig.headers['pragma'];
+      delete requestConfig.headers['Cache-Control'];
+      delete requestConfig.headers['cache-control'];
+    }
+
     try {
       let response: ApiResponse<T>
 
@@ -211,11 +335,9 @@ class EnhancedApiClient {
           throw new Error(`Unsupported HTTP method: ${method}`)
       }
 
-      // Check if response indicates success (2xx status codes)
       if (response.status >= 200 && response.status < 300) {
         return { success: true, data: response.data }
       } else {
-        // Handle error response (4xx, 5xx status codes)
         const errorMessage =
           (typeof response.data === 'object' && response.data !== null && 'message' in response.data
             ? (response.data as { message?: string }).message
@@ -224,6 +346,7 @@ class EnhancedApiClient {
             ? (response.data as { error?: string }).error
             : undefined) ||
           `HTTP ${response.status}`
+        
         const apiError: ProjectApiError = {
           message: errorMessage,
           status: response.status,
@@ -261,7 +384,6 @@ class EnhancedApiClient {
         return this.requestWithRetry<T>(method, endpoint, data, config, attempt + 1)
       }
 
-      // Enhanced error object for thrown errors
       const enhancedError: ProjectApiError = {
         message: apiError.message || 'Request failed',
         status: apiError.status,
@@ -286,6 +408,9 @@ class EnhancedApiClient {
     config: RequestConfig = {}
   ): Promise<ApiResult<T>> {
     const { enableCache = true, dedupe = true, ...requestConfig } = config
+    
+    // Always ensure credentials are included
+    requestConfig.credentials = 'include';
     
     const shouldCache = enableCache && this.shouldCache(endpoint, method)
     const cacheKey = shouldCache ? this.getCacheKey(endpoint, config) : null
@@ -403,6 +528,42 @@ class EnhancedApiClient {
       return result.success
     } catch (error) {
       console.error('[API] Health check failed:', error)
+      return false
+    }
+  }
+
+  // Enhanced auth check with cookie debugging
+  async checkAuth(): Promise<{ isAuthenticated: boolean; user?: any }> {
+    try {
+      
+
+      const result = await this.get<{ user: any }>('/auth/me', { 
+        timeout: 5000,
+        enableCache: false 
+      })
+      
+      if (result.success && result.data) {
+        return { isAuthenticated: true, user: result.data.user || result.data }
+      }
+      
+      return { isAuthenticated: false }
+    } catch (error) {
+      console.error('[API] Auth check failed:', error)
+      return { isAuthenticated: false }
+    }
+  }
+
+  // Enhanced refresh auth
+  async refreshAuth(): Promise<boolean> {
+    try {
+      const result = await this.post('/auth/refresh', {}, { 
+        timeout: 5000,
+        enableCache: false 
+      })
+      
+      return result.success
+    } catch (error) {
+      console.error('[API] Auth refresh failed:', error)
       return false
     }
   }
