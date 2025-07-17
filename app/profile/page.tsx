@@ -18,6 +18,7 @@ import { UserAvatar } from './components/user-avatar'
 import { SidebarNav } from './components/sidebar-nav'
 import { ProfileForm } from './components/profile-form'
 import { PasswordForm } from './components/password-form'
+import { ScreenLoading } from '@/components/loading/screen-loading'
 
 function ProfileContent() {
   const {
@@ -129,14 +130,7 @@ function ProfileContent() {
   }, [changePassword])
 
   if (isLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Đang tải thông tin cá nhân...</p>
-        </div>
-      </div>
-    )
+    return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
   }
 
   if (!user) {
@@ -239,12 +233,7 @@ function ProfileContent() {
 export default function ProfilePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Đang tải...</p>
-        </div>
-      </div>
+      <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
     }>
       <ProfileContent />
     </Suspense>

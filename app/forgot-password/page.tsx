@@ -468,16 +468,7 @@ function ForgotPasswordContent() {
 export default function ForgotPasswordPage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <motion.div 
-            className="w-12 h-12 border-4 border-yellow-600/30 border-t-yellow-600 rounded-full mx-auto mb-4"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          />
-          <p className="text-muted-foreground">Đang tải...</p>
-        </div>
-      </div>
+      <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
     }>
       <ForgotPasswordContent />
     </Suspense>

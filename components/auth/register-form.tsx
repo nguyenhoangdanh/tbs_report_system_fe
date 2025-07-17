@@ -13,6 +13,7 @@ import { toast } from 'react-toast-kit'
 import { type Office, type JobPosition, type Department, type UserRole } from '@/types'
 import { PasswordField } from '../ui/password-field'
 import { useRegister } from '@/hooks/use-auth'
+import { ScreenLoading } from '../loading/screen-loading'
 
 export function RegisterForm() {
   const [offices, setOffices] = useState<Office[]>([])
@@ -134,19 +135,7 @@ export function RegisterForm() {
   }
 
   if (loading) {
-    return (
-      <div className="flex items-center justify-center py-16 min-h-[300px]">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.8 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.4, ease: 'easeOut' }}
-          className="flex flex-col items-center"
-        >
-          <div className="w-8 h-8 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mb-4" />
-          <p className="text-muted-foreground">Đang tải dữ liệu...</p>
-        </motion.div>
-      </div>
-    )
+    return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
   }
 
   return (

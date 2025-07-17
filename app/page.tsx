@@ -4,11 +4,12 @@ import { Suspense, memo } from 'react'
 import { motion, useScroll, useTransform, useSpring, useReducedMotion, Variants } from 'framer-motion'
 import Link from 'next/link'
 import { MainLayout } from '@/components/layout/main-layout'
+import { ScreenLoading } from '@/components/loading/screen-loading'
 
 // Optimized StatCard component
 const StatCard = memo(({ number, label, delay }: { number: string; label: string; delay: number }) => {
   const shouldReduceMotion = useReducedMotion()
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 20 }}
@@ -36,7 +37,7 @@ const FeatureCard = memo(({ icon, title, description, delay }: {
   delay: number
 }) => {
   const shouldReduceMotion = useReducedMotion()
-  
+
   return (
     <motion.div
       initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 30 }}
@@ -48,9 +49,9 @@ const FeatureCard = memo(({ icon, title, description, delay }: {
     >
       <div className="relative p-8 bg-card/80 backdrop-blur-sm rounded-2xl shadow-lg border border-border/50 hover:shadow-xl hover:border-green-500/20 transition-all duration-300 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-transparent via-green-500/5 to-emerald-500/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-        
+
         <div className="relative z-10">
-          <motion.div 
+          <motion.div
             className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 dark:from-green-400 dark:to-emerald-500 rounded-xl flex items-center justify-center mb-6 shadow-lg"
             whileHover={{ rotate: shouldReduceMotion ? 0 : 10, scale: shouldReduceMotion ? 1 : 1.1 }}
             transition={{ type: "spring", stiffness: 300, damping: 20 }}
@@ -70,13 +71,13 @@ const FeatureCard = memo(({ icon, title, description, delay }: {
 FeatureCard.displayName = 'FeatureCard'
 
 // Simplified floating element component
-const FloatingElement = memo(({ children, delay = 0, className = "" }: { 
+const FloatingElement = memo(({ children, delay = 0, className = "" }: {
   children: React.ReactNode
   delay?: number
   className?: string
 }) => {
   const shouldReduceMotion = useReducedMotion()
-  
+
   return (
     <motion.div
       animate={shouldReduceMotion ? {} : {
@@ -99,9 +100,9 @@ const FloatingElement = memo(({ children, delay = 0, className = "" }: {
 FloatingElement.displayName = 'FloatingElement'
 
 // Optimized animated particle component
-const AnimatedParticle = memo(({ 
-  size = 'w-2 h-2', 
-  color = 'bg-green-400', 
+const AnimatedParticle = memo(({
+  size = 'w-2 h-2',
+  color = 'bg-green-400',
   delay = 0,
   className = ''
 }: {
@@ -111,7 +112,7 @@ const AnimatedParticle = memo(({
   className?: string
 }) => {
   const shouldReduceMotion = useReducedMotion()
-  
+
   return (
     <motion.div
       className={`absolute ${size} ${color} rounded-full opacity-40 dark:opacity-20 ${className}`}
@@ -136,7 +137,7 @@ AnimatedParticle.displayName = 'AnimatedParticle'
 // Background decoration component
 const BackgroundDecorations = memo(() => {
   const shouldReduceMotion = useReducedMotion()
-  
+
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
       {/* Floating background blobs */}
@@ -230,9 +231,9 @@ export default function HomePage() {
   }
 
   const itemVariants: Variants = {
-    hidden: { 
-      opacity: 0, 
-      y: shouldReduceMotion ? 0 : 20 
+    hidden: {
+      opacity: 0,
+      y: shouldReduceMotion ? 0 : 20
     },
     visible: {
       opacity: 1,
@@ -246,26 +247,17 @@ export default function HomePage() {
 
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <motion.div 
-            className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full mx-auto mb-4"
-            animate={{ rotate: 360 }}
-            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-          />
-          <p className="text-muted-foreground">Đang tải...</p>
-        </div>
-      </div>
+      <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
     }>
       <MainLayout title={undefined} subtitle={undefined} showBreadcrumb={false}>
         {/* Hero Section */}
         <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden">
           {/* Background */}
           <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 via-background to-emerald-50/30 dark:from-green-950/20 dark:via-background dark:to-emerald-950/10" />
-          
+
           <BackgroundDecorations />
-          
-          <motion.div 
+
+          <motion.div
             className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
             style={{ y: springY, opacity }}
             variants={containerVariants}
@@ -273,39 +265,39 @@ export default function HomePage() {
             animate="visible"
           >
             <div className="text-center max-w-4xl mx-auto">
-              <motion.h1 
+              <motion.h1
                 className="text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight"
                 variants={itemVariants}
               >
                 Hệ thống báo cáo <br />
-                <motion.span 
+                <motion.span
                   className="bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 dark:from-green-400 dark:via-emerald-400 dark:to-green-400 bg-clip-text text-transparent bg-300%"
-                  animate={shouldReduceMotion ? {} : { 
-                    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"] 
+                  animate={shouldReduceMotion ? {} : {
+                    backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"]
                   }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "linear" 
+                  transition={{
+                    duration: 3,
+                    repeat: Infinity,
+                    ease: "linear"
                   }}
                 >
                   công việc hàng tuần
                 </motion.span>
               </motion.h1>
-              
-              <motion.p 
+
+              <motion.p
                 className="text-xl md:text-2xl text-muted-foreground mb-10 leading-relaxed"
                 variants={itemVariants}
               >
                 Quản lý tiến độ công việc thông minh, tăng năng suất và minh bạch cho doanh nghiệp
               </motion.p>
-              
-              <motion.div 
+
+              <motion.div
                 className="flex flex-col sm:flex-row gap-4 justify-center"
                 variants={itemVariants}
               >
                 <Link href="/login">
-                  <motion.button 
+                  <motion.button
                     className="px-8 py-4 text-lg font-semibold text-foreground bg-card/80 backdrop-blur-sm border-2 border-border/50 rounded-lg hover:bg-accent hover:border-green-500/50 transition-all duration-300 w-full sm:w-auto shadow-lg"
                     whileHover={{ scale: shouldReduceMotion ? 1 : 1.05 }}
                     whileTap={{ scale: shouldReduceMotion ? 1 : 0.95 }}
@@ -317,7 +309,7 @@ export default function HomePage() {
             </div>
 
             {/* Stats Section */}
-            <motion.div 
+            <motion.div
               className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto"
               variants={itemVariants}
             >
@@ -334,10 +326,10 @@ export default function HomePage() {
           <div className="absolute inset-0 opacity-20 dark:opacity-10">
             <div className="absolute top-0 left-0 w-full h-full bg-grid-pattern" />
           </div>
-          
+
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
-              <motion.h2 
+              <motion.h2
                 className="text-3xl md:text-5xl font-bold text-foreground mb-6"
                 initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 30 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -349,7 +341,7 @@ export default function HomePage() {
                   vượt trội
                 </span>
               </motion.h2>
-              <motion.p 
+              <motion.p
                 className="text-xl text-muted-foreground max-w-3xl mx-auto"
                 initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 20 }}
                 whileInView={{ opacity: 1, y: 0 }}
@@ -360,7 +352,7 @@ export default function HomePage() {
               </motion.p>
             </div>
 
-            <motion.div 
+            <motion.div
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8"
               initial={{ opacity: 0 }}
               whileInView={{ opacity: 1 }}
@@ -423,7 +415,7 @@ export default function HomePage() {
                     WeeklyReport?
                   </span>
                 </h2>
-                
+
                 <div className="space-y-6">
                   {[
                     {
@@ -451,7 +443,7 @@ export default function HomePage() {
                       transition={{ duration: shouldReduceMotion ? 0 : 0.6, delay: shouldReduceMotion ? 0 : index * 0.1 }}
                       whileHover={{ x: shouldReduceMotion ? 0 : 10 }}
                     >
-                      <motion.div 
+                      <motion.div
                         className="w-8 h-8 bg-green-100 dark:bg-green-900/30 rounded-lg flex items-center justify-center flex-shrink-0 mt-1 group-hover:scale-110 transition-transform"
                         whileHover={{ rotate: shouldReduceMotion ? 0 : 360 }}
                         transition={{ duration: 0.3 }}
@@ -489,11 +481,11 @@ export default function HomePage() {
                       <div className="absolute bottom-4 left-4 w-16 h-16 bg-white/5 rounded-full animate-pulse" style={{ animationDelay: "1s" }} />
                     </>
                   )}
-                  
+
                   <div className="relative z-10">
                     <h3 className="text-2xl font-bold mb-6">Dashboard Demo</h3>
                     <div className="space-y-4">
-                      <motion.div 
+                      <motion.div
                         className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20"
                         whileHover={{ backgroundColor: "rgba(255,255,255,0.15)" }}
                       >
@@ -502,7 +494,7 @@ export default function HomePage() {
                           <span className="font-bold">95%</span>
                         </div>
                         <div className="w-full bg-white/20 rounded-full h-2">
-                          <motion.div 
+                          <motion.div
                             className="bg-white rounded-full h-2"
                             initial={{ width: 0 }}
                             whileInView={{ width: "95%" }}
@@ -511,13 +503,13 @@ export default function HomePage() {
                           />
                         </div>
                       </motion.div>
-                      
-                      <motion.div 
+
+                      <motion.div
                         className="bg-white/10 backdrop-blur-sm rounded-lg p-4 border border-white/20"
                         whileHover={{ backgroundColor: "rgba(255,255,255,0.15)" }}
                       >
                         <div className="text-sm opacity-80 mb-2">Báo cáo tuần này</div>
-                        <motion.div 
+                        <motion.div
                           className="text-2xl font-bold"
                           initial={{ scale: 0 }}
                           whileInView={{ scale: 1 }}
@@ -545,9 +537,9 @@ export default function HomePage() {
               <div className="w-48 h-48 bg-emerald-400/10 rounded-full blur-2xl bottom-0 right-0" />
             </FloatingElement>
           </div>
-          
+
           <div className="relative max-w-4xl mx-auto text-center px-4 sm:px-6 lg:px-8">
-            <motion.h2 
+            <motion.h2
               className="text-3xl md:text-5xl font-bold text-white mb-6"
               initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 30 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -556,7 +548,7 @@ export default function HomePage() {
             >
               Sẵn sàng tăng hiệu quả làm việc?
             </motion.h2>
-            <motion.p 
+            <motion.p
               className="text-xl text-green-100 mb-10"
               initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 20 }}
               whileInView={{ opacity: 1, y: 0 }}
@@ -572,7 +564,7 @@ export default function HomePage() {
               transition={{ duration: shouldReduceMotion ? 0 : 0.6, delay: shouldReduceMotion ? 0 : 0.4 }}
             >
               <Link href="/register">
-                <motion.button 
+                <motion.button
                   className="bg-white text-green-600 px-8 py-4 rounded-lg text-lg font-semibold hover:bg-green-50 transition-colors shadow-lg"
                   whileHover={{ scale: shouldReduceMotion ? 1 : 1.05 }}
                   whileTap={{ scale: shouldReduceMotion ? 1 : 0.95 }}

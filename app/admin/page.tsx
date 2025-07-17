@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Users, BarChart3, FileText, Building2, Shield, Eye } from 'lucide-react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
+import { ScreenLoading } from '@/components/loading/screen-loading';
 
 export default function AdminPage() {
   const { user } = useAuth();
@@ -15,12 +16,7 @@ export default function AdminPage() {
   if (!user) {
     return (
       <MainLayout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Đang tải...</p>
-          </div>
-        </div>
+        <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
       </MainLayout>
     );
   }

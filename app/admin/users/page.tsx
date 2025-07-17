@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { toast } from 'react-toast-kit'
 import type { User, Office, JobPosition, UserRole, UpdateProfileDto } from '@/types';
 import { PaginatedResponse } from '@/lib/api';
+import { ScreenLoading } from '@/components/loading/screen-loading';
 
 interface EditUser{
   employeeCode: string;
@@ -151,12 +152,7 @@ function AdminUsersContent() {
   if (!currentUser) {
     return (
       <MainLayout>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Đang tải...</p>
-          </div>
-        </div>
+        <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
       </MainLayout>
     );
   }
@@ -442,12 +438,7 @@ export default function AdminUsersPage() {
       ]}
     >
       <Suspense fallback={
-        <div className="min-h-screen flex items-center justify-center bg-background">
-          <div className="text-center">
-            <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-            <p className="text-muted-foreground">Đang tải...</p>
-          </div>
-        </div>
+        <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
       }>
         <AdminUsersContent />
       </Suspense>

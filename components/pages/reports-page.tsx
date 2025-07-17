@@ -13,6 +13,7 @@ import { toast } from 'react-toast-kit'
 import { getCurrentWeek, isValidWeekForCreation } from '@/utils/week-utils'
 import { useMyReports, useCurrentWeekReport, useCreateWeeklyReport, useUpdateReport, useDeleteReport, useReportByWeek } from '@/hooks/use-reports'
 import { WeeklyReport } from '@/types'
+import { ScreenLoading } from '../loading/screen-loading'
 
 type FilterTab = 'week' | 'month' | 'year'
 type ViewMode = 'list' | 'form' | 'template'
@@ -449,14 +450,7 @@ function ReportsPage() {
 
   // Loading states
   if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Đang tải...</p>
-        </div>
-      </div>
-    )
+    return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
   }
 
   if (!isAuthenticated || !user) {
