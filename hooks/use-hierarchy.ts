@@ -9,14 +9,18 @@ import type {
   MixedHierarchyResponse 
 } from '@/types/hierarchy'
 import { useApiQuery } from './use-api-query'
+import { QUERY_KEYS } from './query-key'
+import { useAuth } from "@/components/providers/auth-provider"
 
 export function useMyHierarchyView(filters?: {
   weekNumber?: number
   year?: number
   month?: number
 }) {
+  const { user } = useAuth()
+  
   return useApiQuery({
-    queryKey: ['hierarchy', 'my-view', JSON.stringify(filters || {})],
+    queryKey: QUERY_KEYS.hierarchy.myView(user?.id || 'anonymous', filters),
     queryFn: async () => {
       try {
         const result = await HierarchyService.getMyHierarchyView(filters)
@@ -26,10 +30,11 @@ export function useMyHierarchyView(filters?: {
         throw error
       }
     },
-    staleTime: 0, // Always refetch - không cache
-    gcTime: 0, // Don't keep in memory
-    refetchOnMount: true, // Always refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when window gains focus
+    enabled: !!user?.id,
+    staleTime: 0,
+    gcTime: 30 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     retry: (failureCount, error) => {
       return failureCount < 3
     },
@@ -41,12 +46,41 @@ export function useUserDetails(userId: string, filters?: {
   weekNumber?: number
   year?: number
   limit?: number
+  userId?: string
 }) {
+  const { user } = useAuth()
+  
   return useApiQuery<UserDetailsResponse>({
-    queryKey: ['hierarchy', 'user-details', userId, filters],
+    queryKey: QUERY_KEYS.hierarchy.userDetails(user?.id || 'anonymous', userId, filters),
     queryFn: () => HierarchyService.getUserDetails(userId, filters),
-    enabled: !!userId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: !!userId && !!user?.id,
+    staleTime: 0,
+    gcTime: 1 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+  })
+}
+
+/**
+ * Hook for manager reports (subordinate reports view)
+ */
+export function useManagerReports(filters?: {
+  weekNumber?: number
+  year?: number
+  userId?: string
+}) {
+  const { user } = useAuth()
+  
+  return useApiQuery({
+    queryKey: QUERY_KEYS.hierarchy.managerReports(user?.id || 'anonymous', filters),
+    queryFn: () => HierarchyService.getManagerReports(filters),
+    enabled: !!user?.id,
+    staleTime: 0,
+    gcTime: 0,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    retry: (failureCount, error) => failureCount < 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
 }
 
@@ -54,13 +88,17 @@ export function useUserDetails(userId: string, filters?: {
  * Get report details for admin view
  */
 export function useReportDetailsForAdmin(userId: string, reportId: string) {
+  const { user } = useAuth()
+  
   return useApiQuery({
-    queryKey: ['hierarchy', 'report-details', userId, reportId],
-    queryFn: () => HierarchyService.getReportDetails(userId, reportId),
-      refetchOnMount: true, // Always refetch when component mounts
-    refetchOnWindowFocus: true, // Refetch when window gains focus
-    enabled: !!userId && !!reportId,
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    queryKey: QUERY_KEYS.hierarchy.reportDetailsAdmin(user?.id || 'anonymous', reportId),
+    queryFn: () => HierarchyService.getReportDetailsForAdmin(userId, reportId),
+    enabled: !!userId && !!reportId && !!user?.id,
+    staleTime: 3 * 60 * 1000,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
+    retry: (failureCount, error) => failureCount < 3,
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
   })
 }
 
@@ -69,10 +107,11 @@ export function useUserReportsForAdmin(userId: string, filters?: {
   limit?: number
   year?: number
 }) {
+  const { user } = useAuth()
+  
   return useApiQuery({
-    queryKey: ['hierarchy', 'user-reports', userId, filters],
+    queryKey: QUERY_KEYS.hierarchy.userReports(userId, filters),
     queryFn: async () => {
-      // Note: This is a mock - replace with actual API call
       const params = new URLSearchParams()
       if (filters?.page) params.append('page', filters.page.toString())
       if (filters?.limit) params.append('limit', filters.limit.toString())
@@ -82,8 +121,8 @@ export function useUserReportsForAdmin(userId: string, filters?: {
       if (!response.ok) throw new Error('Failed to fetch user reports')
       return response.json()
     },
-    enabled: !!userId,
-    staleTime: 2 * 60 * 1000, // 2 minutes
+    enabled: !!userId && !!user?.id,
+    staleTime: 2 * 60 * 1000,
   })
 }
 

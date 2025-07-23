@@ -1,3 +1,6 @@
+import { Task } from "."
+import { User, WeeklyReport} from "./index"
+
 // Base types
 export interface Office {
   id: string
@@ -28,16 +31,225 @@ export interface JobPosition {
   department: Department
 }
 
-export interface User {
-  id: string
-  employeeCode: string
-  firstName: string
-  lastName: string
-  email: string
-  role?: string
-  office: Office
-  jobPosition: JobPosition
+// ==========================================
+// MANAGER REPORTS TYPES - Based on Backend Implementation
+// ==========================================
+
+// Backend getManagerReports return type
+export interface ManagerReportsResponse {
+  manager: {
+    id: string
+    firstName: string
+    lastName: string
+    fullName: string
+    office: {
+      id: string
+      name: string
+      type: string
+      description?: string
+      createdAt?: string
+      updatedAt?: string
+    }
+    jobPosition: {
+      id: string
+      jobName: string
+      code?: string
+      description?: string
+      positionId: string
+      departmentId: string
+      officeId: string
+      isActive: boolean
+      createdAt: string
+      updatedAt: string
+      position: {
+        id: string
+        name: string
+        description?: string
+        level?: number
+        priority?: number
+        isManagement?: boolean
+        isReportable?: boolean
+        canViewHierarchy?: boolean
+        createdAt?: string
+        updatedAt?: string
+      }
+      department: {
+        id: string
+        name: string
+        description?: string
+        officeId: string
+        createdAt?: string
+        updatedAt?: string
+        office: {
+          id: string
+          name: string
+          type: string
+          description?: string
+          createdAt?: string
+          updatedAt?: string
+        }
+      }
+    }
+    role: string
+    level?: number
+    officeId: string
+  }
+  weekNumber: number
+  year: number
+  groupedReports: ManagerReportsPositionGroup[]
+  summary: ManagerReportsSummary
 }
+
+export interface ManagerReportsPositionGroup {
+  position: {
+    id: string
+    name: string
+    level: number
+    description?: string
+    isManagement: boolean
+  }
+  jobPositionGroups: Record<string, never> // Empty object from Map conversion
+  totalUsers: number
+  usersWithReports: number
+  usersWithCompletedReports: number
+  jobPositions: ManagerReportsJobPositionGroup[]
+}
+
+export interface ManagerReportsJobPositionGroup {
+  jobPosition: {
+    id: string
+    jobName: string
+    code: string
+    description?: string
+    department: {
+      id: string
+      name: string
+      description?: string
+      officeId: string
+      createdAt?: string
+      updatedAt?: string
+      office: {
+        id: string
+        name: string
+        type: string
+        description?: string
+        createdAt?: string
+        updatedAt?: string
+      }
+    }
+    position: {
+      id: string
+      name: string
+      description?: string
+      level?: number
+      priority?: number
+      isManagement?: boolean
+      isReportable?: boolean
+      canViewHierarchy?: boolean
+      createdAt?: string
+      updatedAt?: string
+    }
+  }
+  employees: ManagerReportsEmployee[]
+  stats: {
+    totalUsers: number
+    usersWithReports: number
+    usersWithCompletedReports: number
+    totalTasks: number
+    completedTasks: number
+    taskCompletionRate: number
+  }
+}
+
+export interface ManagerReportsEmployee {
+  user: {
+    id: string
+    employeeCode: string
+    firstName: string
+    lastName: string
+    fullName: string
+    email: string
+    phone?: string
+    role: string
+    isActive: boolean
+    office: {
+      id: string
+      name: string
+      type: string
+      description?: string
+      createdAt?: string
+      updatedAt?: string
+    }
+    jobPosition: {
+      id: string
+      jobName: string
+      code?: string
+      description?: string
+      positionId: string
+      departmentId: string
+      officeId: string
+      isActive: boolean
+      createdAt: string
+      updatedAt: string
+      position: {
+        id: string
+        name: string
+        description?: string
+        level?: number
+        priority?: number
+        isManagement?: boolean
+        isReportable?: boolean
+        canViewHierarchy?: boolean
+        createdAt?: string
+        updatedAt?: string
+      }
+      department: {
+        id: string
+        name: string
+        description?: string
+        officeId: string
+        createdAt?: string
+        updatedAt?: string
+        office: {
+          id: string
+          name: string
+          type: string
+          description?: string
+          createdAt?: string
+          updatedAt?: string
+        }
+      }
+    }
+  }
+  report?:  WeeklyReport
+  stats: {
+    hasReport: boolean
+    isCompleted: boolean
+    totalTasks: number
+    completedTasks: number
+    incompleteTasks: number
+    taskCompletionRate: number
+    status: 'not_submitted' | 'incomplete' | 'completed'
+  }
+}
+
+export interface ManagerReportsSummary {
+  totalSubordinates: number
+  subordinatesWithReports: number
+  subordinatesWithoutReports: number
+  subordinatesWithCompletedReports: number
+  subordinatesWithIncompleteReports: number
+  reportSubmissionRate: number
+  totalTasks: number
+  totalCompletedTasks: number
+  overallTaskCompletionRate: number
+  totalPositions: number
+  totalJobPositions: number
+}
+
+// ==========================================
+// EXISTING TYPES (kept for backward compatibility)
+// ==========================================
 
 // Report status types
 export interface ReportStatus {
@@ -485,38 +697,7 @@ export interface DepartmentDetailsResponse {
 }
 
 export interface UserDetailsResponse {
-  user: {
-    id: string
-    employeeCode: string
-    firstName: string
-    lastName: string
-    email: string
-    role: string
-    isActive: boolean
-    office: {
-      id: string
-      name: string
-      type: string
-    }
-    jobPosition: {
-      id: string
-      jobName: string
-      positionName: string
-      department: {
-        id: string
-        name: string
-        office: {
-          id: string
-          name: string
-        }
-      }
-      position: {
-        id: string
-        name: string
-        description?: string
-      }
-    }
-  }
+  user: User
   overallStats: {
     totalReports: number
     completedReports: number
@@ -525,46 +706,36 @@ export interface UserDetailsResponse {
     completedTasks: number
     taskCompletionRate: number
   }
-  reports: Array<{
-    id: string
-    weekNumber: number
-    year: number
-    isCompleted: boolean
-    isLocked: boolean
-    createdAt: string
-    updatedAt: string
-    stats: {
-      totalTasks: number
-      completedTasks: number
-      incompleteTasks: number
-      taskCompletionRate: number
-      tasksByDay: {
-        monday: number
-        tuesday: number
-        wednesday: number
-        thursday: number
-        friday: number
-        saturday: number
-      }
-      incompleteReasons: Array<{
-        reason: string
-        count: number
-        tasks: string[]
-      }>
-    }
-    tasks: Array<{
-      id: string
-      taskName: string
-      isCompleted: boolean
-      reasonNotDone?: string
-      monday: boolean
-      tuesday: boolean
-      wednesday: boolean
-      thursday: boolean
-      friday: boolean
-      saturday: boolean
-    }>
-  }>
+  reports: WeeklyReport[]
+  // reports: Array<{
+  //   id: string
+  //   weekNumber: number
+  //   year: number
+  //   isCompleted: boolean
+  //   isLocked: boolean
+  //   createdAt: string
+  //   updatedAt: string
+  //   stats: {
+  //     totalTasks: number
+  //     completedTasks: number
+  //     incompleteTasks: number
+  //     taskCompletionRate: number
+  //     tasksByDay: {
+  //       monday: number
+  //       tuesday: number
+  //       wednesday: number
+  //       thursday: number
+  //       friday: number
+  //       saturday: number
+  //     }
+  //     incompleteReasons: Array<{
+  //       reason: string
+  //       count: number
+  //       tasks: string[]
+  //     }>
+  //   }
+  //   tasks: Task[]
+  // }>
 }
 
 // Helper function để tính ranking từ completion rate
@@ -737,4 +908,56 @@ export interface EmployeesReportingStatusResponse {
     usersWithReports: number
     usersWithoutReports: number
   }
+}
+
+// Type for department breakdown in summary
+export interface SubordinateDepartmentBreakdown {
+  id: string
+  name: string
+  totalSubordinates: number
+  subordinatesWithReports: number
+  subordinatesWithCompletedReports: number
+  totalTasks: number
+  completedTasks: number
+}
+
+// Type for subordinate stats
+export interface SubordinateStats {
+  hasReport: boolean
+  isCompleted: boolean
+  totalTasks: number
+  completedTasks: number
+  incompleteTasks: number
+  taskCompletionRate: number
+  status: 'not_submitted' | 'incomplete' | 'completed' | 'all'
+}
+
+// Type for subordinate item
+export interface SubordinateItem {
+  user: User & { fullName: string }
+  report: any | null
+  stats: SubordinateStats
+}
+
+// Type for summary
+export interface SubordinatesSummary {
+  totalSubordinates: number
+  subordinatesWithReports: number
+  subordinatesWithoutReports: number
+  subordinatesWithCompletedReports: number
+  subordinatesWithIncompleteReports: number
+  reportSubmissionRate: number
+  totalTasks: number
+  totalCompletedTasks: number
+  overallTaskCompletionRate: number
+  departmentBreakdown: SubordinateDepartmentBreakdown[]
+}
+
+// Main type for manager-subordinates hierarchy
+export interface ManagerSubordinatesHierarchy {
+  manager: User & { fullName: string }
+  weekNumber: number
+  year: number
+  subordinates: SubordinateItem[]
+  summary: SubordinatesSummary
 }

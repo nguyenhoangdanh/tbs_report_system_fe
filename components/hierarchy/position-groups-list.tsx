@@ -56,6 +56,8 @@ interface PositionGroupsListProps {
   isJobPosition?: boolean
   weekNumber: number
   year: number
+  canEvaluation?: boolean
+  onEvaluationChange?: () => void
 }
 
 const containerVariants = {
@@ -75,7 +77,7 @@ const itemVariants = {
 }
 
 export const PositionGroupsList = memo(
-  ({ positions, filterDisplayText, isManagement, isJobPosition, weekNumber, year }: PositionGroupsListProps) => {
+  ({ positions, filterDisplayText, isManagement, isJobPosition, weekNumber, year, canEvaluation, onEvaluationChange }: PositionGroupsListProps) => {
     if (!positions || positions.length === 0) {
       return (
         <motion.div
@@ -96,7 +98,7 @@ export const PositionGroupsList = memo(
       <motion.div className="space-y-4" variants={containerVariants} initial="initial" animate="animate">
         {positions.map((position, index) => (
           <motion.div key={position.position?.id || position.jobPosition?.id || index} variants={itemVariants}>
-            <PositionCard position={position} weekNumber={weekNumber} year={year} />
+            <PositionCard position={position} weekNumber={weekNumber} year={year} canEvaluation={canEvaluation} />
           </motion.div>
         ))}
       </motion.div>

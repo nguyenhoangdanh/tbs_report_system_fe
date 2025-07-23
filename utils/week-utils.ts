@@ -276,9 +276,9 @@ export function isValidWeekForCreation(
   }
   
   // Previous week
-  if (isPreviousWeek(weekNumber, year, current.weekNumber, current.year)) {
-    return { isValid: true };
-  }
+  // if (isPreviousWeek(weekNumber, year, current.weekNumber, current.year)) {
+  //   return { isValid: true };
+  // }
   
   // Next week
   if (isNextWeek(weekNumber, year, current.weekNumber, current.year)) {
@@ -287,7 +287,7 @@ export function isValidWeekForCreation(
   
   return { 
     isValid: false, 
-    reason: 'Chỉ có thể tạo báo cáo cho tuần trước, tuần hiện tại và tuần tiếp theo' 
+    reason: 'Chỉ có thể tạo báo cáo cho tuần hiện tại và tuần tiếp theo' 
   };
 }
 

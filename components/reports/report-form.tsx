@@ -8,7 +8,7 @@ import { TaskTable } from './task-table'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { toast } from 'react-toast-kit'
 import { getCurrentWeek, isValidWeekForCreation, WeekValidationResult, getWorkWeekRange, formatWorkWeek } from '@/utils/week-utils'
-import type { WeeklyReport } from '@/types'
+import type { Task, WeeklyReport } from '@/types'
 import { SubmitButton } from '../ui/submit-button'
 import useReportStore from '@/store/report-store'
 
@@ -100,6 +100,7 @@ interface ReportFormProps {
   weekNumber?: number
   year?: number
   isLoading: boolean
+  tasks?: Task[]
 }
 
 export const ReportForm = memo(function ReportForm({
@@ -314,7 +315,8 @@ export const ReportForm = memo(function ReportForm({
             friday: task.friday || false,
             saturday: task.saturday || false,
             isCompleted: task.isCompleted || false,
-            reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined)
+            reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined),
+            evaluations: task.evaluations,
           })),
           weekNumber,
           year,
@@ -337,7 +339,7 @@ export const ReportForm = memo(function ReportForm({
         }
       }
 
-      const result = await onSave(reportData)
+       await onSave(reportData)
 
     } catch (error: any) {
       console.error('❌ ReportForm: Save failed:', error)
@@ -454,7 +456,7 @@ export const ReportForm = memo(function ReportForm({
                     </span>
                   ) : (
                     <span className="text-amber-600">
-                      ⚠️ Chỉ có thể tạo báo cáo cho tuần trước, tuần hiện tại và tuần tiếp theo
+                      ⚠️ Chỉ có thể tạo báo cáo cho tuần hiện tại và tuần tiếp theo
                     </span>
                   )}
                 </div>
@@ -470,7 +472,7 @@ export const ReportForm = memo(function ReportForm({
                   </span>
                 ) : (
                   <span className="text-amber-600 bg-amber-50 dark:bg-amber-950/20 px-3 py-2 rounded border border-amber-200 dark:border-amber-800">
-                    ⚠️ Chỉ có thể chỉnh sửa báo cáo tuần trước, tuần hiện tại và tuần tiếp theo
+                    ⚠️ Chỉ có thể chỉnh sửa báo cáo cho tuần hiện tại và tuần tiếp theo
                   </span>
                 )}
               </div>
@@ -503,7 +505,7 @@ export const ReportForm = memo(function ReportForm({
       )}
 
       {/* Validation Warning */}
-      {!canEdit && !isLoading && (
+      {/* {!canEdit && !isLoading && (
         <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-orange-700 dark:text-orange-300">
@@ -519,10 +521,10 @@ export const ReportForm = memo(function ReportForm({
             </div>
           </CardContent>
         </Card>
-      )}
+      )} */}
 
       {/* Main Content */}
-      {((!isLoading || selectedReport) && canEdit) && (
+      {((!isLoading || selectedReport)) && (
         <div className="space-y-6">
           <TaskTable
             weekNumber={weekNumber}
@@ -532,7 +534,7 @@ export const ReportForm = memo(function ReportForm({
           />
           <div className="flex justify-end items-center gap-2">
             {/* Save button */}
-            {(currentTasks.length !== 0) && (
+            {(currentTasks.length !== 0 && canEdit) && (
               <SubmitButton
                 disabled={isSaving}
                 onClick={canEditCurrentWeek && currentTasks.length > 0 ? handleSave : undefined}

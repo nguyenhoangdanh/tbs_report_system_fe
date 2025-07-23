@@ -27,20 +27,21 @@ const ROLE_ROUTES = {
     "/images",
     "/loading",
   ],
-  USER: ["/dashboard", "/reports", "/profile", "/images"],
+  USER: ["/dashboard", "/reports", "/profile", "/images", "/admin/overview"],
 }
 
 const getDefaultRouteForUser = (user: any): string => {
   if (!user) return "/"
 
-  const userRole = user.role as string
+  const userRole = user.role as string;
+
 
   switch (userRole) {
     case "SUPERADMIN":
     case "ADMIN":
       return "/admin/hierarchy"
     case "USER":
-      return "/dashboard"
+      return  user?.isManager ? "/admin/overview" : "/dashboard"
     default:
       return "/"
   }
@@ -66,6 +67,8 @@ interface AuthGuardProps {
 
 function AuthGuardLogic({ children }: AuthGuardProps) {
   const { user, isLoading, isAuthenticated, error, checkAuth, clearError } = useAuth()
+
+  console.error("AuthGuardLogic rendered with user:", user)
   const router = useRouter()
   const pathname = usePathname()
   const [isNavigating, setIsNavigating] = useState(false)

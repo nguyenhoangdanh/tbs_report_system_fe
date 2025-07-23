@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import { PositionUsersTable } from "./position-users-table"
 import { PerformancePieChart } from "@/components/charts"
 import { getPerformanceBadge, classifyPerformance } from "@/utils/performance-classification"
-import { JobPosition } from '../../types/hierarchy';
 
 interface PositionCardProps {
   position: {
@@ -51,9 +50,10 @@ interface PositionCardProps {
   }
   weekNumber: number
   year: number
+  canEvaluation?: boolean
 }
 
-export const PositionCard = memo(({ position, weekNumber, year }: PositionCardProps) => {
+export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }: PositionCardProps) => {
   const positionInfo = {
     id: position.position?.id || position.jobPosition?.id || "",
     name: position.position?.name || position.jobPosition?.jobName || "Vị trí không xác định",
@@ -346,6 +346,7 @@ export const PositionCard = memo(({ position, weekNumber, year }: PositionCardPr
                     year={year}
                     users={transformedUsers}
                     positionName={positionInfo.name}
+                    canEvaluation={canEvaluation}
                   />
                 </div>
               )}

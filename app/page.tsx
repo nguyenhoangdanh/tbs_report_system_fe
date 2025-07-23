@@ -258,7 +258,7 @@ export default function HomePage() {
           <BackgroundDecorations />
 
           <motion.div
-            className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8"
+            className="relative max-w-8xl mx-auto px-4 sm:px-6 lg:px-8"
             style={{ y: springY, opacity }}
             variants={containerVariants}
             initial="hidden"
@@ -327,7 +327,7 @@ export default function HomePage() {
             <div className="absolute top-0 left-0 w-full h-full bg-grid-pattern" />
           </div>
 
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
               <motion.h2
                 className="text-3xl md:text-5xl font-bold text-foreground mb-6"
@@ -401,7 +401,7 @@ export default function HomePage() {
 
         {/* Benefits Section */}
         <section id="benefits" className="py-20 md:py-32 relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
               <motion.div
                 initial={{ opacity: 0, x: shouldReduceMotion ? 0 : -50 }}

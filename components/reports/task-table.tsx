@@ -13,6 +13,11 @@ import type { Task } from '@/types'
 import { SubmitButton } from '../ui/submit-button'
 import { formatWorkWeek } from '@/utils/week-utils'
 import useReportStore from '@/store/report-store'
+import { format } from 'date-fns'
+import { is, vi } from 'date-fns/locale'
+import { ConvertEvaluationTypeToVietNamese } from '@/utils'
+import { EvaluationType } from '../../types/index';
+import { color } from 'framer-motion';
 
 interface TaskTableProps {
   weekNumber: number
@@ -248,11 +253,53 @@ const TaskCard = memo(function TaskCard({
               )}
             </div>
           )}
+
+          {/* Evaluation  */}
+          <div className="space-y-2">
+            <div className="text-sm font-medium text-gray-700 dark:text-gray-300">
+              Đánh giá 
+            </div>
+            {task.evaluations && task.evaluations.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {task.evaluations.map((evalItem) => (
+                  <Badge
+                    key={evalItem.id}
+                    variant="outline"
+                    className="text-xs font-medium"
+                  >
+                    {evalItem.evaluatedReasonNotDone} - {evalItem.evaluatorComment || 'Chưa có nhận xét'}
+                  </Badge>
+                ))}
+              </div>
+            )}
+            </div>
         </div>
       </CardContent>
     </Card>
   )
 })
+
+const EvaluationTypeBadge = ({ type }: { type: EvaluationType }) => {
+  const typeText = ConvertEvaluationTypeToVietNamese(type);
+  const colorClasses = useMemo(() => {
+    switch (type) {
+      case EvaluationType.REVIEW:
+        return 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300';
+      case EvaluationType.APPROVAL:
+        return 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300';
+      case EvaluationType.REJECTION:
+        return 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300';
+      default:
+        return 'bg-gray-100 text-gray-700';
+    }
+  }, [type]);
+
+  return (
+    <Badge className={`text-xs font-medium ${colorClasses}`}>
+      {typeText}
+    </Badge>
+  )
+}
 
 export const TaskTable = memo(function TaskTable({
   weekNumber,
@@ -267,7 +314,6 @@ export const TaskTable = memo(function TaskTable({
     removeTask,
     updateTask,
     isSaving,
-    selectedReport
   } = useReportStore()
 
   const [editingTask, setEditingTask] = useState<string | null>(null)
@@ -330,7 +376,7 @@ export const TaskTable = memo(function TaskTable({
       reasonNotDone: '',
       reportId: task.reportId,
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
     }
 
     // Add task using store
@@ -348,7 +394,10 @@ export const TaskTable = memo(function TaskTable({
           <div className="text-muted-foreground mb-6">
             <Calendar className="w-16 h-16 mx-auto mb-4 opacity-50" />
             <h3 className="text-xl font-semibold mb-2">Chưa có công việc nào</h3>
-            <p className="text-gray-600">Bắt đầu thêm công việc để tạo báo cáo tuần {weekNumber}/{year}</p>
+            {/* <p className="text-gray-600">Bắt đầu thêm công việc để tạo báo cáo tuần {weekNumber}/{year}</p> */}
+            {isEditable && (  
+              <p className="text-gray-600">Bắt đầu thêm công việc để tạo báo cáo tuần {weekDisplayTitle}</p>
+            )}
           </div>
           {isEditable && (
             <Button onClick={addTask} className="bg-green-600 hover:bg-green-700">
@@ -455,30 +504,33 @@ export const TaskTable = memo(function TaskTable({
             {/* Table Header */}
             <thead className="bg-gray-50 dark:bg-gray-900/50">
               <tr>
-                <th className="sticky left-0 bg-gray-50 dark:bg-gray-900/50 border-r border-b px-4 py-3 text-left font-semibold text-sm w-16">
+                <th className="sticky left-0 bg-gray-50 dark:bg-gray-900/50 border-r border-b px-4 py-3 text-left font-semibold text-sm w-12">
                   STT
                 </th>
-                <th className="sticky left-16 bg-gray-50 dark:bg-gray-900/50 border-r border-b px-4 py-3 text-left font-semibold text-sm min-w-[300px]">
+                <th className="sticky left-12 bg-gray-50 dark:bg-gray-900/50 border-r border-b px-4 py-3 text-left font-semibold text-sm  min-w-[300px] max-w-[500px]">
                   Tên công việc
                 </th>
                 {weekdays.map((day) => (
-                  <th key={day.key} className="border-r border-b px-2 py-3 text-center font-semibold text-sm w-16">
+                  <th key={day.key} className="border-r border-b px-2 py-3 text-center font-semibold text-sm w-12">
                     <div className="flex flex-col items-center">
                       <span className="text-xs text-muted-foreground">{day.short}</span>
                     </div>
                   </th>
                 ))}
-                <th className="border-r border-b px-4 py-3 text-center font-semibold text-sm w-24">
+                <th className="border-r border-b px-4 py-3 text-center font-semibold text-sm w-16">
                   Trạng thái
                 </th>
                 <th className="border-r border-b px-4 py-3 text-left font-semibold text-sm min-w-[200px]">
                   Lý do chưa hoàn thành
                 </th>
                 {isEditable && (
-                  <th className="border-b px-4 py-3 text-center font-semibold text-sm w-24">
+                  <th className="border-b border-r px-4 py-3 text-center font-semibold text-sm w-20">
                     Thao tác
                   </th>
                 )}
+                <th className="border-b px-4 py-3 text-center font-semibold text-sm w-64">
+                  Đánh giá
+                </th>
               </tr>
             </thead>
 
@@ -506,7 +558,7 @@ export const TaskTable = memo(function TaskTable({
                   </td>
 
                   {/* Task Name */}
-                  <td className="sticky left-16 bg-inherit border-r px-4 py-3">
+                  <td className="sticky left-12 bg-inherit border-r px-4 py-3">
                     {isEditable && editingTask === task.id ? (
                       <Textarea
                         value={task.taskName}
@@ -546,7 +598,7 @@ export const TaskTable = memo(function TaskTable({
                           isEditable && handleDayToggle(task.id, day.key, !!checked)
                         }
                         disabled={!isEditable}
-                        className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600"
+                        className="data-[state=checked]:bg-green-600 data-[state=checked]:border-green-600 h-5 w-5 mx-auto"
                       />
                     </td>
                   ))}
@@ -610,7 +662,7 @@ export const TaskTable = memo(function TaskTable({
 
                   {/* Actions */}
                   {isEditable && (
-                    <td className="px-4 py-3 text-center">
+                    <td className="border-r px-4 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
                         <Button
                           onClick={() => duplicateTask(task)}
@@ -633,6 +685,78 @@ export const TaskTable = memo(function TaskTable({
                       </div>
                     </td>
                   )}
+
+                  {/* Evaluation */}
+                  <td className="px-4 py-3 text-xs text-gray-900 dark:text-gray-100">
+                    {/* Hiển thị tất cả đánh giá */}
+                    {task?.evaluations && task?.evaluations.length > 0 ? (
+                      <div className="space-y-2 max-w-xs lg:max-w-sm">
+                        {task.evaluations.map((evalItem, evalIndex) => (
+                          <div
+                            key={evalIndex}
+                            className="break-words border-b last:border-b-0 pb-2 last:pb-0 border-gray-200 dark:border-gray-600"
+                          >
+                            <div className="flex flex-col sm:flex-row sm:items-center gap-1 text-xs mb-1">
+                              <span className="font-semibold text-blue-600 dark:text-blue-400 truncate">
+                                {evalItem.evaluator?.firstName} {evalItem.evaluator?.lastName}
+                              </span>
+                              {/* <span className="text-gray-400 dark:text-gray-500 text-xs">
+                                ({evalItem.evaluator?.employeeCode})
+                              </span> */}
+                              {/* <span className="px-2 py-1 rounded-full bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 text-xs font-medium whitespace-nowrap">
+                                {ConvertEvaluationTypeToVietNamese(evalItem.evaluationType)}
+                              </span> */}
+                              <EvaluationTypeBadge type={evalItem.evaluationType} />
+                            </div>
+                            <div className="space-y-1">
+                              <div className="flex flex-col sm:flex-row sm:items-center gap-1 sm:gap-2">
+                                <span className="font-medium text-gray-600 dark:text-gray-400 text-xs">
+                                  Trạng thái:
+                                </span>
+                                <span
+                                  className={`px-2 py-1 rounded-full text-xs font-medium whitespace-nowrap ${evalItem.evaluatedIsCompleted
+                                    ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300"
+                                    : "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300"
+                                    }`}
+                                >
+                                  {evalItem.evaluatedIsCompleted ? "Hoàn thành" : "Chưa hoàn thành"}
+                                </span>
+                              </div>
+                              {evalItem.evaluatedReasonNotDone && (
+                                <div className="mt-1">
+                                  <span className="font-medium text-gray-600 dark:text-gray-400 text-xs">
+                                    Nguyên nhân/Giải pháp:
+                                  </span>
+                                  <p className="text-gray-800 dark:text-gray-200 mt-1 bg-gray-50 dark:bg-gray-800 p-2 rounded text-xs break-words">
+                                    {evalItem.evaluatedReasonNotDone}
+                                  </p>
+                                </div>
+                              )}
+                              {evalItem.evaluatorComment && (
+                                <div className="mt-1">
+                                  <span className="font-medium text-gray-600 dark:text-gray-400 text-xs">
+                                    Nhận xét:
+                                  </span>
+                                  <p className="text-gray-800 dark:text-gray-200 mt-1 bg-yellow-50 dark:bg-yellow-900/20 p-2 rounded text-xs break-words">
+                                    {evalItem.evaluatorComment}
+                                  </p>
+                                </div>
+                              )}
+                              <div className="text-xs text-gray-400 dark:text-gray-500">
+                                {/* {format(new Date(evalItem.updatedAt), "dd/MM/yyyy HH:mm", { locale: 'vi' })} */}
+                                <span>{format(new Date(evalItem.updatedAt), "dd/MM/yyyy HH:mm", { locale: vi })}</span>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-2">
+                        <span className="text-gray-400 dark:text-gray-500 text-xs">Chưa có đánh giá nào</span>
+                      </div>
+                    )}
+
+                  </td>
                 </tr>
               ))}
             </tbody>

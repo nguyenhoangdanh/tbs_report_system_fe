@@ -1,29 +1,24 @@
 'use client'
 
-import { useQueryClient } from '@tanstack/react-query'
 import { AuthService } from '@/services/auth.service'
 import { UserService } from '@/services/user.service'
 import { toast } from 'react-toast-kit'
 import { ChangePasswordDto, UpdateProfileDto } from '@/types'
+import { QUERY_KEYS } from './query-key'
 import { useApiMutation, useApiQuery } from './use-api-query'
-
-// Query keys for profile data
-const PROFILE_QUERY_KEYS = {
-  profile: ['auth', 'profile'] as const,
-}
+import { useOptimizedMutation } from './use-mutation'
 
 /**
  * Get current user profile
  */
 export function useProfile() {
   return useApiQuery({
-    queryKey: PROFILE_QUERY_KEYS.profile,
+    queryKey: QUERY_KEYS.auth.profile(),
     queryFn: AuthService.getProfile,
-    staleTime: 2 * 60 * 1000, // 2 minutes - shorter for profile data
-    gcTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 2 * 60 * 1000,
+    gcTime: 5 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: (failureCount, error: any) => {
-      // Không retry nếu là lỗi 401 (Unauthorized)
       if (error?.status === 401 || error?.response?.status === 401) {
         return false
       }
@@ -36,41 +31,20 @@ export function useProfile() {
  * Update profile mutation
  */
 export function useUpdateProfile() {
-  const queryClient = useQueryClient()
-  
-  return useApiMutation({
+  return useOptimizedMutation({
     mutationFn: (data: UpdateProfileDto) => UserService.updateProfile(data),
     onSuccess: (updatedUser) => {
-      const userId = updatedUser?.id;
-
-      // Update profile cache immediately
-      queryClient.setQueryData(PROFILE_QUERY_KEYS.profile, updatedUser)
-      
-      // Also update other user-related caches
-      queryClient.setQueryData(['users', 'profile'], updatedUser)
-      
-      // Invalidate and refetch to ensure consistency
-      queryClient.invalidateQueries({ 
-        queryKey: PROFILE_QUERY_KEYS.profile,
-        exact: true 
-      })
-      
-      // Invalidate user-specific queries to refresh with new user context
-      queryClient.invalidateQueries({ 
-        queryKey: ['reports', userId],
-        exact: false 
-      })
-      
-      queryClient.invalidateQueries({ 
-        queryKey: ['statistics', userId],
-        exact: false 
-      })
-      
       toast.success('Cập nhật thông tin cá nhân thành công!')
     },
     onError: (error: any) => {
       console.error('❌ Update profile error:', error)
       toast.error(error.message || 'Cập nhật thông tin thất bại')
+    },
+    invalidateQueries: async (cacheManager, updatedUser) => {
+      const userId = updatedUser?.id;
+      if (userId) {
+        await cacheManager.invalidateUserData(userId)
+      }
     },
     retry: 1,
   })

@@ -31,7 +31,7 @@ function ProfileContent() {
   } = useProfileManagement();
 
   const { isAuthenticated, checkAuth, user } = useAuth()
-  const router = useRouter()
+  const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<'info' | 'password'>('info')
   const [jobPositions, setJobPositions] = useState<JobPosition[]>([])

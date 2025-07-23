@@ -1,6 +1,15 @@
 import { api, ErrorResponse, type ApiResult } from '@/lib/api'
 import type { WeeklyReport, PaginatedResponse } from '@/types'
 
+import type {
+  CreateEvaluationDto,
+  UpdateEvaluationDto,
+  TaskEvaluation,
+  EvaluationType,
+  Task
+} from '@/types'
+
+
 export interface CreateWeeklyReportDto {
   weekNumber: number
   year: number
@@ -25,6 +34,7 @@ export interface UpdateReportDto {
 }
 
 export interface UpdateTaskDto {
+  id: string
   taskName?: string
   monday?: boolean
   tuesday?: boolean
@@ -34,6 +44,7 @@ export interface UpdateTaskDto {
   saturday?: boolean
   isCompleted?: boolean
   reasonNotDone?: string
+  evaluations: TaskEvaluation[]
 }
 
 export interface PaginationParams {
@@ -191,5 +202,73 @@ export class ReportService {
    */
   static async reopenReport(id: string): Promise<ApiResult<WeeklyReport>> {
     return await api.patch<WeeklyReport>(`/reports/${id}/reopen`)
+  }
+
+  /**
+   * Approve task
+   */
+  static async approveTask(taskId: string): Promise<ApiResult<void>> {
+    return await api.patch<void>(`/reports/tasks/${taskId}/approve`)
+}
+
+  /**
+   * Reject task
+   */
+  static async rejectTask(taskId: string): Promise<ApiResult<void>> {
+    return await api.patch<void>(`/reports/tasks/${taskId}/reject`)
+  }
+}
+
+export class TaskEvaluationsService {
+  /**
+   * Create a new task evaluation
+   */
+  static async createTaskEvaluation(data: CreateEvaluationDto): Promise<ApiResult<TaskEvaluation>> {
+    return await api.post<TaskEvaluation>('/task-evaluations', data)
+  }
+
+  /**
+   * Update an existing task evaluation
+   */
+  static async updateTaskEvaluation(evaluationId: string, data: UpdateEvaluationDto): Promise<ApiResult<TaskEvaluation>> {
+    return await api.put<TaskEvaluation>(`/task-evaluations/${evaluationId}`, data)
+  }
+
+  /**
+   * Delete a task evaluation
+   */
+  static async deleteTaskEvaluation(evaluationId: string): Promise<ApiResult<{ message: string }>> {
+    return await api.delete<{ message: string }>(`/task-evaluations/${evaluationId}`)
+  }
+
+  /**
+   * Get all evaluations for a specific task
+   */
+  static async getTaskEvaluations(taskId: string): Promise<ApiResult<TaskEvaluation[]>> {
+    return await api.get<TaskEvaluation[]>(`/task-evaluations/task/${taskId}`)
+  }
+
+  /**
+   * Get evaluations created by the current user
+   */
+  static async getMyEvaluations(params?: {
+    weekNumber?: number
+    year?: number
+    userId?: string
+    evaluationType?: EvaluationType
+  }): Promise<ApiResult<TaskEvaluation[]>> {
+    return await api.get<TaskEvaluation[]>('/task-evaluations/my-evaluations', { params })
+  }
+
+  /**
+   * Get tasks that can be evaluated by the current manager
+   */
+  static async getEvaluableTasksForManager(params?: {
+    weekNumber?: number
+    year?: number
+    userId?: string
+    isCompleted?: boolean
+  }): Promise<ApiResult<Task[]>> {
+    return await api.get<Task[]>('/task-evaluations/evaluable-tasks', { params })
   }
 }

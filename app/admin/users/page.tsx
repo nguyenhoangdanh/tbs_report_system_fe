@@ -126,28 +126,6 @@ function AdminUsersContent() {
   }, [users, searchTerm]);
 
 
-  // Remove or comment out this permission check since RouteGuard handles it
-  // if (currentUser?.role !== 'SUPERADMIN') {
-  //   return (
-  //     <MainLayout
-  //       title="Không có quyền truy cập"
-  //       showBreadcrumb
-  //       breadcrumbItems={[
-  //         { label: 'Dashboard', href: '/dashboard' },
-  //         { label: 'Admin', href: '/admin' },
-  //         { label: 'Quản lý Users' }
-  //       ]}
-  //     >
-  //       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-  //         <div className="text-center">
-  //           <h1 className="text-2xl font-bold text-red-600 mb-4">Không có quyền truy cập</h1>
-  //           <p className="text-muted-foreground">Chỉ Superadmin mới có thể truy cập trang này.</p>
-  //         </div>
-  //       </div>
-  //     </MainLayout>
-  //   );
-  // }
-
   // Add loading check for currentUser
   if (!currentUser) {
     return (
@@ -169,7 +147,7 @@ function AdminUsersContent() {
           { label: 'Quản lý Users' }
         ]}
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
           <div className="text-center">
             <h1 className="text-2xl font-bold text-yellow-600 mb-4">Quyền truy cập hạn chế</h1>
             <p className="text-muted-foreground">
@@ -185,7 +163,7 @@ function AdminUsersContent() {
   }
 
   return (
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Search */}
         <Card className="mb-6">
           <CardContent className="p-6">

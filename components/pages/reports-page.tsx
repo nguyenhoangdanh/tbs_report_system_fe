@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { MainLayout } from '@/components/layout/main-layout'
 import { Button } from '@/components/ui/button'
 import { ReportForm } from '@/components/reports/report-form'
@@ -12,48 +12,22 @@ import { Plus, ArrowLeft, Edit } from 'lucide-react'
 import { toast } from 'react-toast-kit'
 import { getCurrentWeek, isValidWeekForCreation } from '@/utils/week-utils'
 import { useMyReports, useCurrentWeekReport, useCreateWeeklyReport, useUpdateReport, useDeleteReport, useReportByWeek } from '@/hooks/use-reports'
-import { WeeklyReport } from '@/types'
+import {  Task, UpdateTaskDto, WeeklyReport } from '@/types'
 import { ScreenLoading } from '../loading/screen-loading'
+import { UpdateReportDto } from '@/services/report.service'
 
 type FilterTab = 'week' | 'month' | 'year'
 type ViewMode = 'list' | 'form' | 'template'
 
-interface UpdateReportDto {
-  tasks?: Array<{
-    taskName?: string
-    monday?: boolean
-    tuesday?: boolean
-    wednesday?: boolean
-    thursday?: boolean
-    friday?: boolean
-    saturday?: boolean
-    isCompleted?: boolean
-    reasonNotDone?: string
-  }>
-  isCompleted?: boolean
-}
-
 interface ReportData {
   weekNumber: number
   year: number
-  tasks: Array<{
-    id?: string
-    taskName: string
-    monday?: boolean
-    tuesday?: boolean
-    wednesday?: boolean
-    thursday?: boolean
-    friday?: boolean
-    saturday?: boolean
-    isCompleted?: boolean
-    reasonNotDone?: string
-  }>
+  tasks: Task[]
 }
 
 function ReportsPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const searchParams = useSearchParams()
-  const router = useRouter()
 
   // Parse URL params for initial filter state - ONLY for UI state, not API calls
   const initialFilter = useMemo(() => {
@@ -98,7 +72,7 @@ function ReportsPage() {
 
   // Memoized data processing - FIX: Handle API response structure correctly
   const reports = useMemo(() => {
-    
+
     // Handle direct array response or paginated response
     if (Array.isArray(reportsData?.data)) {
       return reportsData.data
@@ -110,7 +84,7 @@ function ReportsPage() {
     if (reportsData?.data && Array.isArray(reportsData.data)) {
       return reportsData.data
     }
-   
+
     return []
   }, [reportsData])
 
@@ -123,16 +97,16 @@ function ReportsPage() {
           const current = getCurrentWeek()
           return report?.weekNumber === current.weekNumber && report?.year === current.year
         }
-        
+
         if (filterTab === 'month') {
           if (!report?.createdAt) return false
           const reportDate = new Date(report.createdAt)
           const reportMonth = reportDate.getMonth() + 1
           const reportYear = reportDate.getFullYear()
-          
+
           return reportMonth === selectedMonth && reportYear === selectedYear
         }
-        
+
         if (filterTab === 'year') {
           return report?.year === selectedYear
         }
@@ -146,11 +120,11 @@ function ReportsPage() {
 
   const availableYears = useMemo(() => {
     if (!Array.isArray(reports)) return [new Date().getFullYear()]
-    
+
     const yearsFromReportYear = reports
       .filter((r: any) => r?.year && typeof r.year === 'number')
       .map((r: any) => r.year)
-    
+
     const yearsFromCreatedAt = reports
       .filter((r: any) => r?.createdAt && typeof r.createdAt === 'string')
       .map((r: any) => {
@@ -192,10 +166,10 @@ function ReportsPage() {
     }
 
     const newURL = `${window.location.pathname}?${params.toString()}`
-    
+
     // Use replace to avoid adding to history
     window.history.replaceState(null, '', newURL)
-    
+
   }, []) // Remove router dependency to prevent re-renders
 
   // Event handlers with stable references
@@ -235,7 +209,7 @@ function ReportsPage() {
         Number(reportData.weekNumber),
         Number(reportData.year)
       );
-      
+
       if (!weekValidation.isValid) {
         throw new Error(weekValidation.reason || 'Tuần được chọn không hợp lệ');
       }
@@ -266,8 +240,9 @@ function ReportsPage() {
 
       if (isUpdating) {
         const updateData: UpdateReportDto = {
-          tasks: reportData.tasks.map((task: any) => ({
-            taskName: task.taskName.trim(),
+          tasks: reportData.tasks.map((task) => ({
+            id: task.id,
+            taskName: task.taskName || '',
             monday: task.monday || false,
             tuesday: task.tuesday || false,
             wednesday: task.wednesday || false,
@@ -275,10 +250,11 @@ function ReportsPage() {
             friday: task.friday || false,
             saturday: task.saturday || false,
             isCompleted: task.isCompleted || false,
-            reasonNotDone: task.isCompleted ? undefined : (task.reasonNotDone?.trim() || undefined)
+            reasonNotDone: task.reasonNotDone || undefined,
+            evaluations: task.evaluations || []
           }))
         };
-        
+
         result = await updateReportMutation.mutateAsync({ id: selectedReport.id, data: updateData });
       } else {
         const createData = {
@@ -303,13 +279,13 @@ function ReportsPage() {
 
       // Wait for mutations to complete and caches to update
       await new Promise(resolve => setTimeout(resolve, 300))
-      
+
       // Force refetch to ensure UI updates
       await Promise.all([
         refetchReports(),
         refetchCurrentWeek()
       ])
-      
+
       // Navigate back to list
       setSelectedReport(null);
       setViewMode('list');
@@ -382,7 +358,7 @@ function ReportsPage() {
   // Calculate week availability - FIX: Type safety for reports
   const weekAvailability = useMemo(() => {
     const current = getCurrentWeek()
-    
+
     // Calculate previous week
     let prevWeek = current.weekNumber - 1
     let prevYear = current.year
@@ -445,7 +421,7 @@ function ReportsPage() {
     setCurrentWeekNumber(weekNumber)
     setCurrentYear(year)
     setViewMode('form')
-    
+
   }, [])
 
   // Loading states
@@ -473,7 +449,7 @@ function ReportsPage() {
         { label: 'Báo cáo của tôi', href: '/reports' }
       ]}
     >
-      <div className="max-w-7xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+      <div className="max-w-8xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         {viewMode === 'list' ? (
           <div className="space-y-4 sm:space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -491,8 +467,8 @@ function ReportsPage() {
                 {weekAvailability.previous.shouldShow && (
                   <Button
                     onClick={() => handleCreateForWeek(
-                      weekAvailability.previous.weekNumber, 
-                      weekAvailability.previous.year, 
+                      weekAvailability.previous.weekNumber,
+                      weekAvailability.previous.year,
                       'previous'
                     )}
                     variant="outline"
@@ -510,8 +486,8 @@ function ReportsPage() {
                 {weekAvailability.current.shouldShow && (
                   <Button
                     onClick={() => handleCreateForWeek(
-                      weekAvailability.current.weekNumber, 
-                      weekAvailability.current.year, 
+                      weekAvailability.current.weekNumber,
+                      weekAvailability.current.year,
                       'current'
                     )}
                     size="sm"
@@ -528,8 +504,8 @@ function ReportsPage() {
                 {weekAvailability.next.shouldShow && (
                   <Button
                     onClick={() => handleCreateForWeek(
-                      weekAvailability.next.weekNumber, 
-                      weekAvailability.next.year, 
+                      weekAvailability.next.weekNumber,
+                      weekAvailability.next.year,
                       'next'
                     )}
                     variant="outline"
@@ -635,7 +611,7 @@ function ReportsPage() {
                   <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
                   <span className="text-xs sm:text-sm">Trở về danh sách</span>
                 </Button>
-                
+
                 {selectedReport && (
                   <Button
                     onClick={() => handleEditReport(selectedReport)}
@@ -651,8 +627,9 @@ function ReportsPage() {
             </div>
 
             {selectedReport && (
-              <ReportTemplate 
+              <ReportTemplate
                 report={selectedReport}
+                canEvaluation={user?.isManager}
                 className="print:max-w-none"
               />
             )}
@@ -691,6 +668,8 @@ function ReportsPage() {
               weekNumber={currentWeekNumber}
               year={currentYear}
               isLoading={isFormLoading}
+              // truyền thêm prop tasks để TaskTable nhận đúng data
+              tasks={selectedReport?.tasks ?? weekReport?.tasks}
             />
           </div>
         )}

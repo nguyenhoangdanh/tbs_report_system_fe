@@ -61,7 +61,7 @@ function ReportDetailsContent() {
   if (isLoading) {
     return (
       <MainLayout>
-        <div className="max-w-7xl mx-auto p-responsive">
+        <div className="max-w-8xl mx-auto p-responsive">
           <ScreenLoading text="Đang tải chi tiết báo cáo..." />
         </div>
       </MainLayout>
@@ -144,7 +144,7 @@ function ReportDetailsContent() {
         { label: `Tuần ${report?.weekNumber || "N/A"}/${report?.year || "N/A"}` },
       ]}
     >
-      <div className="max-w-7xl mx-auto p-responsive space-y-6">
+      <div className="max-w-8xl mx-auto p-responsive space-y-6">
         {/* Navigation */}
         <div>
           <Link href={getBackUrl()}>
@@ -391,7 +391,7 @@ export default function ReportDetailsPage() {
     <Suspense
       fallback={
         <MainLayout>
-          <div className="max-w-7xl mx-auto p-responsive">
+          <div className="max-w-8xl mx-auto p-responsive">
             <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop text="Đang tải dữ liệu..." />
           </div>
         </MainLayout>

@@ -1,9 +1,9 @@
 'use client'
 
 import { useQueryClient } from '@tanstack/react-query'
-import { ReportService, CreateWeeklyReportDto, UpdateReportDto, PaginationParams } from '@/services/report.service'
+import { ReportService, CreateWeeklyReportDto, UpdateReportDto, PaginationParams, TaskEvaluationsService } from '@/services/report.service'
 import { toast } from 'react-toast-kit'
-import { WeeklyReport, PaginatedResponse } from '@/types'
+import { WeeklyReport, PaginatedResponse, TaskEvaluation, EvaluationType, Task } from '@/types'
 import { useAuth } from '@/components/providers/auth-provider'
 import { useApiMutation, useApiQuery } from './use-api-query'
 import useReportStore from '@/store/report-store'
@@ -326,6 +326,80 @@ export function useDeleteReport() {
     onError: (error) => {
       console.error('❌ Delete report failed:', error)
       handleError(error, 'Không thể xóa báo cáo')
+    },
+    retry: 1,
+  })
+}
+
+export function useApproveTask() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+  
+  return useApiMutation<void, string, Error>({
+    mutationFn: (taskId: string) => ReportService.approveTask(taskId),
+    onMutate: async (taskId) => {
+      if (!user?.id) return
+    },
+    onSuccess: (result, taskId) => {
+      if (!user?.id) return
+      
+      // Invalidate related queries
+      setTimeout(() => {
+        queryClient.invalidateQueries({ 
+          queryKey: QUERY_KEYS.reports(user.id),
+          exact: false,
+          refetchType: 'active'
+        })
+        
+        queryClient.invalidateQueries({ 
+          queryKey: QUERY_KEYS.statistics(user.id),
+          exact: false,
+          refetchType: 'active'
+        })
+      }, 100)
+      
+      toast.success('Task approved successfully!')
+    },
+    onError: (error) => {
+      console.error('❌ Approve task failed:', error)
+      handleError(error, 'Failed to approve task')
+    },
+    retry: 1,
+  })
+}
+
+export function useRejectTask() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+  
+  return useApiMutation<void, string, Error>({
+    mutationFn: (taskId: string) => ReportService.rejectTask(taskId),
+    onMutate: async (taskId) => {
+      if (!user?.id) return
+    },
+    onSuccess: (result, taskId) => {
+      if (!user?.id) return
+      
+      // Invalidate related queries
+      setTimeout(() => {
+        queryClient.invalidateQueries({ 
+          queryKey: QUERY_KEYS.reports(user.id),
+          exact: false,
+          refetchType: 'active'
+        })
+        
+        queryClient.invalidateQueries({ 
+          queryKey: QUERY_KEYS.statistics(user.id),
+          exact: false,
+          refetchType: 'active'
+        })
+      }, 100)
+      
+      toast.success('Task rejected successfully!')
+    },
+    onError: (error) => {
+      console.error('❌ Reject task failed:', error)
+      handleError(error, 'Failed to reject task')
     },
     retry: 1,
   })

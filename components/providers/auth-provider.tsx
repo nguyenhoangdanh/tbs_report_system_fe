@@ -144,6 +144,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             return result.data!.user
           })
           retryCount.current = 0
+          // Gọi lại checkAuth để đảm bảo context user đồng bộ với backend
+          await checkAuth()
+          // Force reload để đảm bảo toàn bộ cache và state được reset (nếu vẫn lỗi)
+          // window.location.reload()
           return true
         } else {
           const errorMessage = result.error?.message || "Đăng nhập thất bại"
@@ -161,7 +165,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoggingIn.current = false
       }
     },
-    [queryClient],
+    [queryClient, checkAuth],
   )
 
   const logout = useCallback(async () => {

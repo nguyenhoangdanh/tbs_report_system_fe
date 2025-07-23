@@ -7,6 +7,7 @@ import { useQueryClient, useMutation } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { toast } from 'react-toast-kit'
 import { useApiMutation } from './use-api-query'
+import { QUERY_KEYS } from './query-key'
 
 // Query keys for auth
 const AUTH_QUERY_KEYS = {

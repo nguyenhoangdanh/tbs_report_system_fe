@@ -1,3 +1,5 @@
+import { EmployeeWithoutReport } from "./statistics"
+
 export enum Role {
   SUPERADMIN = 'SUPERADMIN',
   ADMIN = 'ADMIN',
@@ -59,6 +61,7 @@ export interface User {
       description?: string
     }
   }
+  isManager: boolean
   createdAt: string
   updatedAt: string
 }
@@ -101,6 +104,45 @@ export interface Task {
   createdAt: string
   updatedAt: string
   reportId: string
+  evaluations?: TaskEvaluation[]
+}
+
+export enum EvaluationType {
+  REVIEW = 'REVIEW',
+  APPROVAL = 'APPROVAL',
+  REJECTION = 'REJECTION',
+}
+
+// Task Evaluation types
+export interface CreateEvaluationDto {
+  taskId: string
+  evaluatedIsCompleted: boolean
+  evaluatedReasonNotDone?: string
+  evaluatorComment?: string
+  evaluationType: EvaluationType
+}
+
+export interface UpdateEvaluationDto {
+  evaluatedIsCompleted?: boolean
+  evaluatedReasonNotDone?: string
+  evaluatorComment?: string
+  evaluationType?: EvaluationType
+}
+
+export interface TaskEvaluation {
+  id: string
+  taskId: string
+  evaluatorId: string
+  originalIsCompleted: boolean
+  evaluatedIsCompleted: boolean
+  originalReasonNotDone?: string
+  evaluatedReasonNotDone?: string
+  evaluatorComment?: string
+  evaluationType: EvaluationType
+  createdAt: string
+  updatedAt: string
+  task?: Task
+  evaluator?: User
 }
 
 // Weekly Report types - Fix to match backend exactly
@@ -114,6 +156,7 @@ export interface WeeklyReport {
   updatedAt: string
   userId: string
   tasks: Task[]
+  evaluations: TaskEvaluation[]
   user: User
   // Optional statistics
   totalTasks?: number
@@ -141,7 +184,8 @@ export interface CreateWeeklyReportDto {
 }
 
 export interface UpdateTaskDto {
-  taskName?: string
+  id: string
+  taskName: string
   monday?: boolean
   tuesday?: boolean
   wednesday?: boolean
@@ -277,4 +321,85 @@ export interface ErrorResponse {
 export interface RequestConfig {
   headers?: Record<string, string>
   timeout?: number
+}
+
+export interface JobPositionGroup {
+  jobPosition: JobPosition
+  employees: EmployeeWithoutReport[]
+  stats: {
+    totalUsers: number
+    usersWithReports: number
+    usersWithCompletedReports: number
+    totalTasks: number
+    completedTasks: number
+    taskCompletionRate: number
+  }
+}
+
+export interface PositionGroup {
+  position: Position
+  jobPositionGroups: Record<string, any>
+  totalUsers: number
+  usersWithReports: number
+  usersWithCompletedReports: number
+  jobPositions: JobPositionGroup[]
+}
+
+
+
+export interface ManagerOverviewResponse {
+  manager: User
+  weekNumber: number
+  year: number
+  groupedReports: PositionGroup[]
+  summary: {
+    totalSubordinates: number
+    subordinatesWithReports: number
+    totalTasks: number
+    completedTasks: number
+    taskCompletionRate: number
+  }
+}
+
+// Transformed types for UI compatibility
+export interface SubordinateInfo {
+  user: User
+  stats: {
+    status: "completed" | "incomplete" | "not_submitted"
+    totalTasks: number
+    completedTasks: number
+    taskCompletionRate: number
+  }
+  report?: WeeklyReport
+  tasks?: Task[]
+}
+
+export interface DepartmentBreakdown {
+  id: string
+  name: string
+  totalSubordinates: number
+  subordinatesWithReports: number
+  subordinatesWithCompletedReports: number
+  completedTasks: number
+  totalTasks: number
+}
+
+export interface TransformedManagerOverview {
+  manager: User
+  summary: {
+    totalPositions?: number
+    totalJobPositions?: number
+    totalUsers: number
+    totalUsersWithReports: number
+    totalUsersWithCompletedReports?: number
+    totalUsersWithoutReports?: number
+    averageSubmissionRate: number
+    averageCompletionRate: number
+    departmentBreakdown: DepartmentBreakdown[]
+    managementSummary?: any
+    staffSummary?: any
+  }
+  subordinates: SubordinateInfo[]
+  weekNumber: number
+  year: number
 }

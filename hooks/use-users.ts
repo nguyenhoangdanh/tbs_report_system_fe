@@ -9,7 +9,9 @@ import type {
   PaginatedResponse 
 } from '@/types'
 import { toast } from 'react-toast-kit'
-import { useApiMutation, useApiQuery } from './use-api-query'
+import { QUERY_KEYS } from './query-key'
+import { useApiQuery } from './use-api-query'
+import { useOptimizedMutation } from './use-mutation'
 
 // Query keys for user data
 const USER_QUERY_KEYS = {
@@ -22,10 +24,10 @@ const USER_QUERY_KEYS = {
  */
 export function useAllUsers(page = 1, limit = 10) {
   return useApiQuery<PaginatedResponse<User>, Error>({
-    queryKey: USER_QUERY_KEYS.users(page, limit),
+    queryKey: QUERY_KEYS.users.list(page, limit),
     queryFn: () => UserService.getAllUsers(page, limit),
-    staleTime: 3 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
+    staleTime: 2 * 60 * 1000,
+    gcTime: 10 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
     throwOnError: false,
@@ -37,11 +39,11 @@ export function useAllUsers(page = 1, limit = 10) {
  */
 export function useUserById(id: string) {
   return useApiQuery<User, Error>({
-    queryKey: USER_QUERY_KEYS.userById(id),
+    queryKey: QUERY_KEYS.users.detail(id),
     queryFn: () => UserService.getUserById(id),
     enabled: !!id,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 20 * 60 * 1000,
+    staleTime: 3 * 60 * 1000,
+    gcTime: 15 * 60 * 1000,
     refetchOnWindowFocus: false,
     retry: 2,
     throwOnError: false,
@@ -52,20 +54,17 @@ export function useUserById(id: string) {
  * Create user mutation (admin only)
  */
 export function useCreateUser() {
-  const queryClient = useQueryClient()
-  
-  return useApiMutation<User, CreateUserDto, Error>({
+  return useOptimizedMutation<User, CreateUserDto, Error>({
     mutationFn: (data: CreateUserDto) => UserService.createUser(data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['users', 'all'],
-        exact: false 
-      })
       toast.success('Tạo người dùng thành công!')
     },
     onError: (error) => {
       console.error('Create user error:', error)
       toast.error(error.message || 'Tạo người dùng thất bại')
+    },
+    invalidateQueries: async (cacheManager) => {
+      await cacheManager.invalidateUserManagementData()
     },
     retry: 1,
   })
@@ -75,21 +74,18 @@ export function useCreateUser() {
  * Update user by admin
  */
 export function useUpdateUser() {
-  const queryClient = useQueryClient()
-
-  return useApiMutation<User, { id: string; data: UpdateProfileDto }, Error>({
+  return useOptimizedMutation<User, { id: string; data: UpdateProfileDto }, Error>({
     mutationFn: ({ id, data }) => UserService.updateUser(id, data),
     onSuccess: (updatedUser, variables) => {
-      queryClient.setQueryData(USER_QUERY_KEYS.userById(variables.id), updatedUser)
-      queryClient.invalidateQueries({ 
-        queryKey: ['users', 'all'],
-        exact: false 
-      })
       toast.success('Cập nhật thông tin người dùng thành công!')
     },
     onError: (error) => {
       console.error('Update user error:', error)
       toast.error(error.message || 'Cập nhật thông tin người dùng thất bại')
+    },
+    invalidateQueries: async (cacheManager, data, variables) => {
+      await cacheManager.invalidateUserManagementData(variables.id)
+      await cacheManager.invalidateUserData(variables.id)
     },
     retry: 1,
   })
@@ -99,21 +95,18 @@ export function useUpdateUser() {
  * Delete user by admin
  */
 export function useDeleteUser() {
-  const queryClient = useQueryClient()
-
-  return useApiMutation<void, string, Error>({
+  return useOptimizedMutation<void, string, Error>({
     mutationFn: (userId: string) => UserService.deleteUser(userId),
-    onSuccess: (_, deletedUserId) => {
-      queryClient.removeQueries({ queryKey: USER_QUERY_KEYS.userById(deletedUserId) })
-      queryClient.invalidateQueries({ 
-        queryKey: ['users', 'all'],
-        exact: false 
-      })
+    onSuccess: () => {
       toast.success('Xóa người dùng thành công!')
     },
     onError: (error) => {
       console.error('Delete user error:', error)
       toast.error(error.message || 'Xóa người dùng thất bại')
+    },
+    invalidateQueries: async (cacheManager, data, userId) => {
+      cacheManager.clearUserCache(userId)
+      await cacheManager.invalidateUserManagementData()
     },
     retry: 1,
   })
@@ -158,11 +151,10 @@ export function useUser(userId: string) {
  */
 export function useProfile() {
   return useQuery({
-    queryKey: ['users', 'profile'],
+    queryKey: QUERY_KEYS.users.profile,
     queryFn: () => UserService.getProfile(),
-    staleTime: 5 * 60 * 1000, // 5 minutes
+    staleTime: 3 * 60 * 1000,
     retry: (failureCount, error: any) => {
-      // Don't retry if error is 401 (Unauthorized)
       if (error?.status === 401 || error?.response?.status === 401) {
         return false
       }
@@ -180,9 +172,8 @@ export function useUpdateProfile() {
   return useMutation({
     mutationFn: (userData: UpdateProfileDto) => UserService.updateProfile(userData),
     onSuccess: (updatedUser) => {
-      // Update cache with new user info
-      queryClient.setQueryData(['users', 'profile'], updatedUser)
-      queryClient.invalidateQueries({ queryKey: ['users', 'profile'] })
+      queryClient.setQueryData(QUERY_KEYS.users.profile, updatedUser)
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users.profile })
     },
   })
 }
@@ -202,9 +193,9 @@ export function useChangePassword() {
  */
 export function useOffices() {
   return useQuery({
-    queryKey: ['organizations', 'offices'],
+    queryKey: QUERY_KEYS.organizations.offices,
     queryFn: () => UserService.getOffices(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000,
   })
 }
 
@@ -213,9 +204,9 @@ export function useOffices() {
  */
 export function useJobPositions() {
   return useQuery({
-    queryKey: ['organizations', 'job-positions'],
+    queryKey: QUERY_KEYS.organizations.jobPositions,
     queryFn: () => UserService.getJobPositions(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000,
   })
 }
 
@@ -224,9 +215,9 @@ export function useJobPositions() {
  */
 export function useDepartments() {
   return useQuery({
-    queryKey: ['organizations', 'departments'],
+    queryKey: QUERY_KEYS.organizations.departments,
     queryFn: () => UserService.getDepartments(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000,
   })
 }
 
@@ -235,9 +226,9 @@ export function useDepartments() {
  */
 export function usePositions() {
   return useQuery({
-    queryKey: ['organizations', 'positions'],
+    queryKey: QUERY_KEYS.organizations.positions,
     queryFn: () => UserService.getPositions(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
+    staleTime: 10 * 60 * 1000,
   })
 }
 
@@ -250,8 +241,8 @@ export function useUsersWithRanking(filters?: {
   periodWeeks?: number
 }) {
   return useQuery({
-    queryKey: ['users', 'with-ranking', filters],
+    queryKey: QUERY_KEYS.users.withRanking(filters),
     queryFn: () => UserService.getUsersWithRankingData(filters),
-    staleTime: 3 * 60 * 1000, // 3 minutes
+    staleTime: 2 * 60 * 1000,
   })
 }

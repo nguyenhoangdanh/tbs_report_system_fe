@@ -15,7 +15,7 @@ import { HierarchySummaryCards } from "./hierarchy-summary-cards"
 import { PositionGroupsList } from "./position-groups-list"
 import { HierarchyHeader } from "./hierarchy-header"
 import { AlertTriangle, BarChart3, Crown, Users, ArrowLeft, ChevronRight } from "lucide-react"
-import { hy } from "date-fns/locale"
+import { useQueryClient } from "@tanstack/react-query"
 
 interface TabConfig {
   id: string
@@ -199,6 +199,7 @@ const HierarchyDashboard = memo(() => {
   const [activeTab, setActiveTab] = useState<string>("overview")
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const shouldReduceMotion = useReducedMotion()
+  const queryClient = useQueryClient()
 
   const {
     data: hierarchyData,
@@ -345,6 +346,12 @@ const HierarchyDashboard = memo(() => {
     setActiveTab("overview")
   }, [])
 
+  // Handler to be passed to children for evaluation actions
+  const handleEvaluationChange = () => {
+    // Invalidate hierarchy data to force refetch after evaluation
+    queryClient.invalidateQueries({ queryKey: ['hierarchy', 'my-view'], refetchType: 'all' })
+  }
+
   if (hierarchyLoading || isRefreshing) {
     return <HierarchyLoadingSkeleton />
   }
@@ -394,7 +401,6 @@ const HierarchyDashboard = memo(() => {
 
       {summary && <HierarchySummaryCards summary={summary} />}
 
-      {/* <Card className="glass-green border-green-500/20 shadow-green-glow/20"> */}
       <Card className="border-border/50 dark:border-border/90 shadow-green-glow/20">
         <CardHeader>
           {effectiveActiveTab !== "overview" && (
@@ -537,6 +543,8 @@ const HierarchyDashboard = memo(() => {
                   isManagement={true}
                   weekNumber={hierarchyData.weekNumber}
                   year={hierarchyData.year || new Date().getFullYear()}
+                  canEvaluation={user?.isManager}
+                  onEvaluationChange={handleEvaluationChange}
                 />
               )}
 
@@ -548,6 +556,8 @@ const HierarchyDashboard = memo(() => {
                   isJobPosition={true}
                   weekNumber={hierarchyData.weekNumber}
                   year={hierarchyData.year || new Date().getFullYear()}
+                  canEvaluation={user?.isManager}
+                  onEvaluationChange={handleEvaluationChange}
                 />
               )}
             </motion.div>

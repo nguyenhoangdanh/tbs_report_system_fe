@@ -74,3 +74,4 @@ export class AuthService {
     return await api.post<any>('/auth/check-cookie')
   }
 }
+

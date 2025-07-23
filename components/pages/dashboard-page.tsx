@@ -119,7 +119,7 @@ function DashboardPage() {
     if (isDashboardLoading || !workWeekInfo) {
         return (
             <MainLayout>
-                <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                <div className="max-w-8xl mx-auto py-6 sm:px-6 lg:px-8">
                     <div className="px-4 sm:px-6 py-6">
                         <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
                     </div>
@@ -131,7 +131,7 @@ function DashboardPage() {
     if (error) {
         return (
             <MainLayout>
-                <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+                <div className="max-w-8xl mx-auto py-6 sm:px-6 lg:px-8">
                     <div className="px-4 sm:px-6 py-6">
                         <Card className="border-red-200 bg-red-50 dark:bg-red-950/20">
                             <CardContent className="p-6">
@@ -157,7 +157,7 @@ function DashboardPage() {
 
     return (
         <MainLayout>
-            <div className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+            <div className="max-w-8xl mx-auto py-6 sm:px-6 lg:px-8">
                 <div className="px-4 sm:px-6 py-6 space-y-8">
                     {/* Header with user-specific greeting */}
                     <motion.div

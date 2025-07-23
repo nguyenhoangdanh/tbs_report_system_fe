@@ -9,7 +9,8 @@ import type {
   EmployeesReportingStatusResponse,
   TaskCompletionTrendsResponse,
   IncompleteReasonsResponse,
-  PositionOverviewResponse
+  PositionOverviewResponse,
+  ManagerReportsResponse
 } from '@/types/hierarchy'
 
 export interface HierarchyFilters {
@@ -237,7 +238,8 @@ export class HierarchyService {
     }
     
     const query = params.toString() ? `?${params}` : ''
-    return await api.get<UserDetailsResponse>(`/hierarchy-reports/user/${userId}${query}`)
+    // Always fetch fresh data after evaluation actions by adding a cache-busting param
+    return await api.get<UserDetailsResponse>(`/hierarchy-reports/user/${userId}${query}${query ? '&' : '?'}_=${Date.now()}`)
   }
 
   /**
@@ -410,5 +412,33 @@ export class HierarchyService {
       console.error('[HIERARCHY] Get report details error:', error)
       throw error
     }
+  }
+
+  /**
+   * Get manager reports - for managers to view reports of their subordinates
+   */
+  static async getManagerReports(filters?: HierarchyFilters): Promise<ApiResult<ManagerReportsResponse>> {
+    const params = new URLSearchParams()
+    if (filters?.weekNumber !== undefined) {
+      const weekNum = Number(filters.weekNumber)
+      if (!isNaN(weekNum) && weekNum > 0 && weekNum <= 53) {
+        params.append('weekNumber', String(weekNum))
+      }
+    }
+    if (filters?.year !== undefined) {
+      const yearNum = Number(filters.year)
+      if (!isNaN(yearNum) && yearNum >= 2020 && yearNum <= 2030) {
+        params.append('year', String(yearNum))
+      }
+    }
+    const query = params.toString() ? `?${params}` : ''
+    return await api.get<ManagerReportsResponse>(`/hierarchy-reports/manager-reports${query}`)
+  }
+
+  /**
+   * Get specific report details for admin view
+   */
+  static async getReportDetailsForAdmin(userId: string, reportId: string): Promise<ApiResult<any>> {
+    return await api.get(`/hierarchy-reports/user/${userId}/report/${reportId}`)
   }
 }
