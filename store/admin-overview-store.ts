@@ -52,6 +52,9 @@ interface AdminOverviewState {
 
   // Reset all states
   resetAllStates: () => void
+
+  // Close evaluation modal
+  closeEvaluationModal: () => void
 }
 
 const defaultEvaluationForm: EvaluationFormState = {
@@ -138,6 +141,17 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
           selectedEmployeeDetail: employee,
           weeklyReport: null, // Reset weekly report when opening modal
         }, false, 'setEmployeeModal')
+      },
+
+      // Close evaluation modal
+      closeEvaluationModal: () => {
+        set({
+          openEvalModal: false,
+          selectedEmployee: null,
+          selectedTask: null,
+          editEvaluation: null,
+          evaluationForm: { ...defaultEvaluationForm },
+        }, false, 'closeEvaluationModal')
       },
 
       setWeeklyReport: (report) => {
