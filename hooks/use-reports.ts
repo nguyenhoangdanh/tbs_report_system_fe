@@ -9,7 +9,6 @@ import { useApiMutation, useApiQuery } from './use-api-query'
 import useReportStore from '@/store/report-store'
 import type { ApiResult, ProjectApiError  } from '@/lib/api'
 
-
 // User-specific query keys
 const QUERY_KEYS = {
   reports: (userId?: string) => ['reports', userId] as const,
@@ -46,9 +45,7 @@ export function useMyReports(page = 1, limit = 10) {
     queryKey: QUERY_KEYS.myReports(user?.id || 'anonymous', page, limit),
     queryFn: () => ReportService.getMyReports({ page, limit } as PaginationParams),
     enabled: !!user?.id,
-    staleTime: 0,
-    gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: true,
+    cacheStrategy: 'fresh',
     throwOnError: false,
   })
 }
@@ -60,9 +57,7 @@ export function useReportById(id?: string) {
     queryKey: QUERY_KEYS.reportById(user?.id || 'anonymous', id!),
     queryFn: () => ReportService.getReportById(id!),
     enabled: !!id && !!user?.id,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false,
+    cacheStrategy: 'normal',
     throwOnError: false,
   })
 }
@@ -100,14 +95,14 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
           }
         } else if (apiResult.success && !apiResult.data) {
           // No report found for this week (valid case)
-         // THÊM: Force clear selectedReport và cache
-  const { selectedReport, clearCacheForWeek } = useReportStore.getState()
-  if (selectedReport?.weekNumber === weekNumber && selectedReport?.year === year) {
-  }
-  clearCacheForWeek(weekNumber!, year!) // Clear cache
-  
-  syncReportToStore(null) // Này sẽ clear selectedReport
-  clearTasks()
+          // OPTIMIZED: Use store directly instead of hook
+          const { selectedReport, clearCacheForWeek } = useReportStore.getState()
+          if (selectedReport?.weekNumber === weekNumber && selectedReport?.year === year) {
+            clearCacheForWeek(weekNumber!, year!) // Clear cache
+            syncReportToStore(null) // Clear selectedReport
+            clearTasks()
+          }
+          
           return {
             success: true,
             data: null
@@ -140,9 +135,7 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
       }
     },
     enabled: !!weekNumber && !!year && weekNumber > 0 && year > 0 && !!user?.id,
-     staleTime: 0, // Always fetch fresh data
-    gcTime: 5 * 60 * 1000, // Keep in cache for 5 minutes
-    refetchOnWindowFocus: false,
+    cacheStrategy: 'fresh', // Always fresh for current work
     throwOnError: false,
   })
 }
@@ -154,9 +147,7 @@ export function useCurrentWeekReport() {
     queryKey: QUERY_KEYS.currentWeek(user?.id || 'anonymous'),
     queryFn: () => ReportService.getCurrentWeekReport(),
     enabled: !!user?.id,
-    staleTime: 0,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
+    cacheStrategy: 'fresh',
     throwOnError: false,
   })
 }
@@ -169,6 +160,19 @@ export function useCreateWeeklyReport() {
   
   return useApiMutation<WeeklyReport, CreateWeeklyReportDto, Error>({
     mutationFn: (data: CreateWeeklyReportDto) => ReportService.createWeeklyReport(data),
+    enableOptimistic: true,
+    optimisticUpdate: {
+      queryKey: QUERY_KEYS.myReports(user?.id || 'anonymous', 1, 10),
+      updater: (old: any, variables) => {
+        const optimisticReport = {
+          id: `temp-${Date.now()}`,
+          ...variables,
+          createdAt: new Date().toISOString(),
+          status: 'pending'
+        }
+        return old ? [optimisticReport, ...old.data] : [optimisticReport]
+      }
+    },
     onMutate: async (newReport) => {
       if (!user?.id) return
       setSaving(true)
@@ -287,11 +291,11 @@ export function useDeleteReport() {
     onSuccess: (result, deletedId) => {
       if (!user?.id) return
       
-
+      // OPTIMIZED: Use store directly instead of hook
       const { selectedReport } = useReportStore.getState()
-  if (selectedReport?.id === deletedId) {
-    syncReportToStore(null) // Đảm bảo clear selectedReport
-  }
+      if (selectedReport?.id === deletedId) {
+        syncReportToStore(null) // Ensure selectedReport is cleared
+      }
       
       // Clear store and cache immediately
       removeCachedReport(deletedId)

@@ -37,7 +37,7 @@ interface OverviewCardProps {
   isJobPosition?: boolean
 }
 
-const OverviewCard = memo(
+export const OverviewCard = memo(
   ({
     title,
     count,

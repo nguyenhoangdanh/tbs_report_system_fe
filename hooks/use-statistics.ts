@@ -15,13 +15,7 @@ export function useDashboardStats() {
     queryKey: QUERY_KEYS.statistics.dashboard(user?.id || 'anonymous'),
     queryFn: () => StatisticsService.getDashboardStats(),
     enabled: !!user?.id,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'fresh', // Real-time updates
     throwOnError: false,
   })
 }
@@ -36,13 +30,7 @@ export function useUserReportStats() {
     queryKey: QUERY_KEYS.statistics.userReports(user?.id || 'anonymous'),
     queryFn: () => StatisticsService.getUserReportStats(),
     enabled: !!user?.id,
-    staleTime: 1 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'fresh',
     throwOnError: false,
   })
 }
@@ -57,13 +45,7 @@ export function useRecentActivities() {
     queryKey: QUERY_KEYS.statistics.recentActivities(user?.id || 'anonymous'),
     queryFn: () => StatisticsService.getRecentActivities(),
     enabled: !!user?.id,
-    staleTime: 15 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'fresh',
     throwOnError: false,
   })
 }
@@ -81,13 +63,7 @@ export function useWeeklyTaskStats(filters?: {
     queryKey: QUERY_KEYS.statistics.weeklyTaskStats(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getWeeklyTaskStats(filters),
     enabled: !!user?.id,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'fresh',
     throwOnError: false,
   })
 }
@@ -102,13 +78,7 @@ export function useMonthlyTaskStats(year?: number) {
     queryKey: QUERY_KEYS.statistics.monthlyTaskStats(user?.id || 'anonymous', year),
     queryFn: () => StatisticsService.getMonthlyTaskStats(year),
     enabled: !!user?.id,
-    staleTime: 2 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'normal', // Monthly data can be cached longer
     throwOnError: false,
   })
 }
@@ -123,13 +93,7 @@ export function useYearlyTaskStats() {
     queryKey: QUERY_KEYS.statistics.yearlyTaskStats(user?.id || 'anonymous'),
     queryFn: () => StatisticsService.getYearlyTaskStats(),
     enabled: !!user?.id,
-    staleTime: 5 * 60 * 1000,
-    gcTime: 30 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'aggressive', // Yearly data is stable
     throwOnError: false,
   })
 }
@@ -149,13 +113,7 @@ export function useIncompleteReasonsAnalysis(filters: {
     queryKey: QUERY_KEYS.statistics.incompleteReasonsAnalysis(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getIncompleteReasonsAnalysis(filters),
     enabled: !!user?.id,
-    staleTime: 1 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'normal',
     throwOnError: false,
   })
 }
@@ -174,13 +132,7 @@ export function useAdminDashboardStats(filters?: {
     queryKey: QUERY_KEYS.statistics.adminDashboard(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getAdminDashboardStats(filters),
     enabled: !!user?.id,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'fresh',
     throwOnError: false,
   })
 }
@@ -195,13 +147,7 @@ export function useOverview() {
     queryKey: QUERY_KEYS.statistics.overview(user?.id || 'anonymous'),
     queryFn: () => StatisticsService.getOverview(),
     enabled: !!user?.id,
-    staleTime: 1 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'normal',
     throwOnError: false,
   })
 }
@@ -220,13 +166,7 @@ export function useCompletionRate(filters?: {
     queryKey: QUERY_KEYS.statistics.completionRate(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getCompletionRate(filters),
     enabled: !!user?.id,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'fresh',
     throwOnError: false,
   })
 }
@@ -244,13 +184,7 @@ export function useMissingReports(filters?: {
     queryKey: QUERY_KEYS.statistics.missingReports(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getMissingReports(filters),
     enabled: !!user?.id,
-    staleTime: 30 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'fresh',
     throwOnError: false,
   })
 }
@@ -268,13 +202,7 @@ export function useSummaryReport(filters?: {
     queryKey: QUERY_KEYS.statistics.summaryReport(user?.id || 'anonymous', filters),
     queryFn: () => StatisticsService.getSummaryReport(filters),
     enabled: !!user?.id,
-    staleTime: 1 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: true,
-    refetchOnMount: true,
-    refetchOnReconnect: true,
-    retry: 2,
-    retryDelay: 1000,
+    cacheStrategy: 'normal',
     throwOnError: false,
   })
 }

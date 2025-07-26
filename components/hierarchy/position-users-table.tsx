@@ -251,27 +251,27 @@ export const PositionUsersTable = memo(
         {/* Report Dialog - Fixed positioning to avoid header overlap */}
         <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
           <DialogContent
-            className="w-full h-full sm:max-w-7xl sm:w-[95vw] sm:h-[90vh] bg-white dark:bg-gray-900 rounded-none sm:rounded-xl p-0 m-0 sm:mt-4 sm:mb-4"
+            className="w-full h-full sm:max-w-7xl sm:w-[95vw] sm:h-[75vh] bg-white dark:bg-gray-900 rounded-none sm:rounded-xl p-0 m-0 sm:mt-4 sm:mb-4"
             style={{
               position: "fixed",
-              top: "0",
+              top: "15vh",
               left: "0",
               right: "0",
               bottom: "0",
               transform: "none",
-              maxHeight: "100vh",
+              maxHeight: "75vh",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
               ...(window.innerWidth >= 640 && {
-                top: "5vh",
+                top: "10vh",
                 left: "50%",
                 right: "auto",
                 bottom: "auto",
                 transform: "translateX(-50%)",
-                maxHeight: "90vh",
+                maxHeight: "80vh",
                 width: "95vw",
-                height: "90vh",
+                height: "80vh",
                 borderRadius: "12px",
               }),
             }}

@@ -10,14 +10,7 @@ import type {
 } from '@/types'
 import { toast } from 'react-toast-kit'
 import { QUERY_KEYS } from './query-key'
-import { useApiQuery } from './use-api-query'
-import { useOptimizedMutation } from './use-mutation'
-
-// Query keys for user data
-const USER_QUERY_KEYS = {
-  users: (page: number, limit: number) => ['users', 'all', page, limit] as const,
-  userById: (id: string) => ['users', 'by-id', id] as const,
-}
+import { useApiQuery, useApiMutation } from './use-api-query'
 
 /**
  * Get all users (admin only)
@@ -26,10 +19,7 @@ export function useAllUsers(page = 1, limit = 10) {
   return useApiQuery<PaginatedResponse<User>, Error>({
     queryKey: QUERY_KEYS.users.list(page, limit),
     queryFn: () => UserService.getAllUsers(page, limit),
-    staleTime: 2 * 60 * 1000,
-    gcTime: 10 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    retry: 2,
+    cacheStrategy: 'normal',
     throwOnError: false,
   })
 }
@@ -42,10 +32,7 @@ export function useUserById(id: string) {
     queryKey: QUERY_KEYS.users.detail(id),
     queryFn: () => UserService.getUserById(id),
     enabled: !!id,
-    staleTime: 3 * 60 * 1000,
-    gcTime: 15 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    retry: 2,
+    cacheStrategy: 'normal',
     throwOnError: false,
   })
 }
@@ -54,17 +41,20 @@ export function useUserById(id: string) {
  * Create user mutation (admin only)
  */
 export function useCreateUser() {
-  return useOptimizedMutation<User, CreateUserDto, Error>({
+  return useApiMutation<User, CreateUserDto, Error>({
     mutationFn: (data: CreateUserDto) => UserService.createUser(data),
+    invalidation: {
+      type: 'custom',
+      customInvalidation: async (queryClient) => {
+        await queryClient.invalidateQueries({ queryKey: ['users'] })
+      }
+    },
     onSuccess: () => {
       toast.success('Tạo người dùng thành công!')
     },
     onError: (error) => {
       console.error('Create user error:', error)
       toast.error(error.message || 'Tạo người dùng thất bại')
-    },
-    invalidateQueries: async (cacheManager) => {
-      await cacheManager.invalidateUserManagementData()
     },
     retry: 1,
   })
@@ -74,18 +64,21 @@ export function useCreateUser() {
  * Update user by admin
  */
 export function useUpdateUser() {
-  return useOptimizedMutation<User, { id: string; data: UpdateProfileDto }, Error>({
+  return useApiMutation<User, { id: string; data: UpdateProfileDto }, Error>({
     mutationFn: ({ id, data }) => UserService.updateUser(id, data),
+    invalidation: {
+      type: 'custom',
+      customInvalidation: async (queryClient, data, variables) => {
+        await queryClient.invalidateQueries({ queryKey: ['users'] })
+        await queryClient.invalidateQueries({ queryKey: QUERY_KEYS.users.detail(variables.id) })
+      }
+    },
     onSuccess: (updatedUser, variables) => {
       toast.success('Cập nhật thông tin người dùng thành công!')
     },
     onError: (error) => {
       console.error('Update user error:', error)
       toast.error(error.message || 'Cập nhật thông tin người dùng thất bại')
-    },
-    invalidateQueries: async (cacheManager, data, variables) => {
-      await cacheManager.invalidateUserManagementData(variables.id)
-      await cacheManager.invalidateUserData(variables.id)
     },
     retry: 1,
   })
@@ -95,18 +88,21 @@ export function useUpdateUser() {
  * Delete user by admin
  */
 export function useDeleteUser() {
-  return useOptimizedMutation<void, string, Error>({
+  return useApiMutation<void, string, Error>({
     mutationFn: (userId: string) => UserService.deleteUser(userId),
+    invalidation: {
+      type: 'custom',
+      customInvalidation: async (queryClient, data, userId) => {
+        queryClient.removeQueries({ queryKey: QUERY_KEYS.users.detail(userId) })
+        await queryClient.invalidateQueries({ queryKey: ['users'] })
+      }
+    },
     onSuccess: () => {
       toast.success('Xóa người dùng thành công!')
     },
     onError: (error) => {
       console.error('Delete user error:', error)
       toast.error(error.message || 'Xóa người dùng thất bại')
-    },
-    invalidateQueries: async (cacheManager, data, userId) => {
-      cacheManager.clearUserCache(userId)
-      await cacheManager.invalidateUserManagementData()
     },
     retry: 1,
   })
@@ -144,7 +140,6 @@ export function useUser(userId: string) {
     staleTime: 5 * 60 * 1000, // 5 minutes
   })
 }
-
 
 /**
  * Get current user profile

@@ -1,10 +1,11 @@
 "use client"
 
-import { useState, useMemo, useEffect } from "react"
+import { useState, useMemo, useEffect, useCallback } from "react"
 import { useManagerReports } from "@/hooks/use-hierarchy"
 import { useCurrentWeekFilters } from "@/hooks/use-hierarchy"
-import { useCreateTaskEvaluation, useUpdateTaskEvaluation, useDeleteTaskEvaluation  } from "@/hooks/use-task-evaluation"
 import { useAuth } from "@/components/providers/auth-provider"
+import { useAdminOverviewStore } from "@/store/admin-overview-store"
+import { useEvaluationForm } from "@/hooks/use-evaluation-form"
 import { HierarchySummaryCards } from "@/components/hierarchy/hierarchy-summary-cards"
 import { ScreenLoading } from "@/components/loading/screen-loading"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -13,59 +14,294 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { AnimatedButton } from "@/components/ui/animated-button"
 import { MainLayout } from "@/components/layout/main-layout"
-import { ReportTemplate } from "@/components/reports/report-template"
+import { PositionCard } from "@/components/hierarchy/position-card"
+import { OverviewCard } from "@/components/hierarchy/hierarchy-dashboard"
+import { FormField } from "@/components/ui/form-field"
 import {
   Users,
   Building2,
-  FileCheck,
-  Eye,
   Calendar,
-  AlertCircle,
-  CheckCircle2,
-  Clock,
   Star,
-  Loader2,
+  ArrowLeft,
+  Crown,
+  BarChart3,
 } from "lucide-react"
 import { type TaskEvaluation, EvaluationType, type Task, type WeeklyReport } from "@/types"
 import { Suspense } from "react"
-import { useApproveTask, useRejectTask } from "@/hooks/use-reports"
 import type { UserDetailsResponse, ManagerReportsEmployee } from "@/types/hierarchy"
 import { toast } from "react-toast-kit"
-import { useUserDetails } from "@/hooks/use-hierarchy"
 import { useQueryClient } from "@tanstack/react-query"
 import { Input } from "@/components/ui/input"
+import { Form, FormControl, FormField as ReactHookFormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { Switch } from "@/components/ui/switch"
 
-interface EvaluationFormState {
-  evaluatedIsCompleted: boolean
-  evaluatedReasonNotDone: string
-  evaluatorComment: string
-  evaluationType: EvaluationType
+// REWRITE: Transform ManagerReports data để tương thích với PositionCard
+function transformManagerReportsToPositionCardFormat(overview: any) {
+  if (!overview?.groupedReports) return []
+
+  const positionCards: any[] = []
+
+  overview.groupedReports.forEach((positionGroup: any, positionIndex: number) => {
+    const position = positionGroup.position
+
+    // Helper function để tính toán stats
+    const calculateStats = (employees: any[]) => {
+      const totalUsers = employees.length
+      const usersWithReports = employees.filter(emp => emp.stats.hasReport).length
+      const usersWithCompletedReports = employees.filter(emp => emp.stats.isCompleted).length
+      const usersWithoutReports = totalUsers - usersWithReports
+      const submissionRate = totalUsers > 0 ? Math.round((usersWithReports / totalUsers) * 100) : 0
+
+      const totalTasks = employees.reduce((sum, emp) => sum + emp.stats.totalTasks, 0)
+      const completedTasks = employees.reduce((sum, emp) => sum + emp.stats.completedTasks, 0)
+      const averageCompletionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
+
+      // Calculate ranking distribution
+      const rankingDistribution = {
+        excellent: { count: 0, percentage: 0 },
+        good: { count: 0, percentage: 0 },
+        average: { count: 0, percentage: 0 },
+        poor: { count: 0, percentage: 0 },
+        fail: { count: 0, percentage: 0 },
+      }
+
+      employees.forEach(emp => {
+        const rate = emp.stats.taskCompletionRate
+        if (rate === 100) rankingDistribution.excellent.count++
+        else if (rate >= 95) rankingDistribution.good.count++
+        else if (rate >= 90) rankingDistribution.average.count++
+        else if (rate >= 85) rankingDistribution.poor.count++
+        else rankingDistribution.fail.count++
+      })
+
+      // Convert to percentages
+      Object.keys(rankingDistribution).forEach(key => {
+        const item = rankingDistribution[key as keyof typeof rankingDistribution]
+        item.percentage = totalUsers > 0 ? Math.round((item.count / totalUsers) * 100) : 0
+      })
+
+      return {
+        totalUsers,
+        usersWithReports,
+        usersWithCompletedReports,
+        usersWithoutReports,
+        submissionRate,
+        totalTasks,
+        completedTasks,
+        averageCompletionRate,
+        rankingDistribution,
+      }
+    }
+
+    // Helper function để transform users
+    const transformUsers = (employees: any[]) => {
+      return employees.map(emp => ({
+        id: emp.user.id,
+        employeeCode: emp.user.employeeCode,
+        firstName: emp.user.firstName,
+        lastName: emp.user.lastName,
+        fullName: `${emp.user.firstName} ${emp.user.lastName}`,
+        email: emp.user.email,
+        office: {
+          id: emp.user.office?.id || '',
+          name: emp.user.office?.name || '',
+          type: emp.user.office?.type || '',
+        },
+        jobPosition: {
+          id: emp.user.jobPosition?.id || '',
+          jobName: emp.user.jobPosition?.jobName || '',
+          department: {
+            id: emp.user.jobPosition?.department?.id || '',
+            name: emp.user.jobPosition?.department?.name || '',
+            office: emp.user.jobPosition?.department?.office,
+          },
+        },
+        position: {
+          id: emp.user.jobPosition?.position?.id || '',
+          name: emp.user.jobPosition?.position?.name || '',
+          description: emp.user.jobPosition?.position?.description || '',
+        },
+        stats: {
+          hasReport: emp.stats.hasReport,
+          isCompleted: emp.stats.isCompleted,
+          totalTasks: emp.stats.totalTasks,
+          completedTasks: emp.stats.completedTasks,
+          taskCompletionRate: emp.stats.taskCompletionRate,
+        },
+        // Thêm thông tin report nếu có
+        report: emp.report || null,
+      }))
+    }
+
+    // LOGIC CHÍNH: Phân biệt Management vs Employee
+    if (position?.isManagement && positionGroup.employees) {
+      // ========== CẤP QUẢN LÝ ==========
+      // employees trực tiếp trong positionGroup, jobPositions = null
+      const employees = positionGroup.employees || []
+      const transformedUsers = transformUsers(employees)
+      const stats = calculateStats(employees)
+
+      // Tạo một card cho position này
+      positionCards.push({
+        position: {
+          id: position.id,
+          name: position.name,
+          level: position.level,
+          description: position.description,
+          isManagement: position.isManagement,
+        },
+        jobPosition: null, // Management không có jobPosition
+        stats: {
+          ...stats,
+          users: transformedUsers,
+        },
+        userCount: transformedUsers.length,
+        users: transformedUsers,
+        _uniqueKey: `mgmt-${position.id}-${positionIndex}`,
+        _type: 'management',
+        // Metadata for debugging
+        _debugInfo: {
+          positionIndex,
+          originalData: {
+            positionName: position.name,
+            employeeCount: employees.length,
+            isManagement: position.isManagement,
+          }
+        }
+      })
+
+    } else if (!position?.isManagement && positionGroup.jobPositions) {
+      // ========== CẤP NHÂN VIÊN ==========  
+      // jobPositions array chứa các nhóm, employees = null
+      positionGroup.jobPositions.forEach((jobPositionGroup: any, jobIndex: number) => {
+        const employees = jobPositionGroup.employees || []
+        const transformedUsers = transformUsers(employees)
+        const stats = calculateStats(employees)
+
+        // Tạo một card cho mỗi jobPosition
+        positionCards.push({
+          position: {
+            id: position.id,
+            name: position.name,
+            level: position.level,
+            description: position.description,
+            isManagement: position.isManagement,
+          },
+          jobPosition: {
+            id: jobPositionGroup.jobPosition?.id || '',
+            jobName: jobPositionGroup.jobPosition?.jobName || '',
+            code: jobPositionGroup.jobPosition?.code || '',
+            description: jobPositionGroup.jobPosition?.description || '',
+            department: {
+              id: jobPositionGroup.jobPosition?.department?.id || '',
+              name: jobPositionGroup.jobPosition?.department?.name || '',
+              description: jobPositionGroup.jobPosition?.department?.description || '',
+              office: jobPositionGroup.jobPosition?.department?.office,
+            },
+          },
+          stats: {
+            ...stats,
+            users: transformedUsers,
+          },
+          userCount: transformedUsers.length,
+          users: transformedUsers,
+          _uniqueKey: `emp-${position.id}-${jobPositionGroup.jobPosition?.id || jobIndex}-${positionIndex}-${jobIndex}`,
+          _type: 'employee',
+          // Metadata for debugging
+          _debugInfo: {
+            positionIndex,
+            jobIndex,
+            originalData: {
+              positionName: position.name,
+              jobPositionName: jobPositionGroup.jobPosition?.jobName,
+              departmentName: jobPositionGroup.jobPosition?.department?.name,
+              employeeCount: employees.length,
+              isManagement: position.isManagement,
+            }
+          }
+        })
+      })
+
+    } else {
+      // ========== FALLBACK ==========
+      // Trường hợp không xác định được structure
+
+      // Thử xử lý dữ liệu có sẵn
+      const fallbackEmployees = positionGroup.employees || []
+      if (fallbackEmployees.length > 0) {
+        const transformedUsers = transformUsers(fallbackEmployees)
+        const stats = calculateStats(fallbackEmployees)
+
+        positionCards.push({
+          position: {
+            id: position?.id || `fallback-${positionIndex}`,
+            name: position?.name || 'Vị trí không xác định',
+            level: position?.level || 999,
+            description: position?.description || '',
+            isManagement: position?.isManagement || false,
+          },
+          jobPosition: null,
+          stats: {
+            ...stats,
+            users: transformedUsers,
+          },
+          userCount: transformedUsers.length,
+          users: transformedUsers,
+          _uniqueKey: `fallback-${positionIndex}`,
+          _type: 'fallback',
+          _debugInfo: {
+            positionIndex,
+            originalData: position,
+            warning: 'Fallback processing used',
+          }
+        })
+      }
+    }
+  })
+
+  return positionCards
 }
 
-// Transform employee detail data to WeeklyReport format for ReportTemplate
-const transformToWeeklyReport = (data: UserDetailsResponse, weekNumber: number, year: number): WeeklyReport | null => {
-  if (!data.reports || data.reports.length === 0) {
-    return null
-  }
-
-  // Find the report for the specified week, or use the first available report
-  const targetReport = data.reports.find((r) => r.weekNumber === weekNumber && r.year === year) || data.reports[0]
-
+// Group positions for overview cards (similar to HierarchyDashboard)
+function groupPositionsForOverview(positionCards: any[]) {
+  const managementGroups = new Map<string, any[]>()
+  const jobPositionGroups = new Map<string, any[]>()
+  
+  positionCards.forEach((card) => {
+    const isManagement = card.position?.isManagement || 
+      card.position?.name?.toLowerCase().includes("trưởng") ||
+      card.position?.name?.toLowerCase().includes("giám đốc") ||
+      card.position?.name?.toLowerCase().includes("phó")
+    
+    if (isManagement) {
+      const key = card.position?.name || 'Vị trí quản lý'
+      if (!managementGroups.has(key)) {
+        managementGroups.set(key, [])
+      }
+      managementGroups.get(key)!.push(card)
+    } else {
+      const key = card.jobPosition?.jobName || card.position?.name || 'Vị trí công việc'
+      if (!jobPositionGroups.has(key)) {
+        jobPositionGroups.set(key, [])
+      }
+      jobPositionGroups.get(key)!.push(card)
+    }
+  })
+  
   return {
-    id: targetReport.id,
-    weekNumber: targetReport.weekNumber,
-    year: targetReport.year,
-    isCompleted: targetReport.isCompleted,
-    isLocked: targetReport.isLocked,
-    createdAt: targetReport.createdAt,
-    updatedAt: targetReport.updatedAt,
-    userId: data.user.id,
-    tasks: targetReport.tasks || [],
-    evaluations: targetReport.evaluations || [],
-    user: data.user,
-    totalTasks: targetReport.totalTasks,
-    completedTasks: targetReport.completedTasks,
-    taskCompletionRate: targetReport.taskCompletionRate,
+    managementTabs: Array.from(managementGroups.entries()).map(([key, cards], index) => ({
+      id: `mgmt-${index}-${key.toLowerCase().replace(/\s+/g, "-")}`,
+      label: key,
+      positions: cards,
+      isManagement: true,
+    })),
+    jobPositionTabs: Array.from(jobPositionGroups.entries()).map(([key, cards], index) => ({
+      id: `job-${index}-${key.toLowerCase().replace(/\s+/g, "-")}`,
+      label: key,
+      positions: cards,
+      isManagement: false,
+    }))
   }
 }
 
@@ -80,7 +316,6 @@ function transformManagerReportsSummaryForCards(summary: any): any {
     totalUsersWithoutReports: summary.subordinatesWithoutReports ?? 0,
     averageSubmissionRate: summary.reportSubmissionRate ?? 0,
     averageCompletionRate: summary.overallTaskCompletionRate ?? 0,
-    // Optionally add rankingDistribution or other fields if needed
   }
 }
 
@@ -89,233 +324,141 @@ function AdminOverview() {
   const filters = useCurrentWeekFilters()
   const queryClient = useQueryClient()
 
-  // Thêm userId vào queryKey để cache tách biệt theo user
-  const { data: overview, isLoading, error } = useManagerReports({ ...filters, userId: currentUser?.id })
+  // Local state for view mode - Similar to HierarchyDashboard
+  const [activeTab, setActiveTab] = useState<string>("overview")
 
-  // Search state
-  const [search, setSearch] = useState<string>("")
-
-  // Evaluation modal states
-  const [openEvalModal, setOpenEvalModal] = useState(false)
-  const [selectedEmployee, setSelectedEmployee] = useState<ManagerReportsEmployee | null>(null)
-  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  const [editEvaluation, setEditEvaluation] = useState<TaskEvaluation | null>(null)
-  const [form, setForm] = useState<EvaluationFormState>({
-    evaluatedIsCompleted: true,
-    evaluatedReasonNotDone: "",
-    evaluatorComment: "",
-    evaluationType: EvaluationType.REVIEW,
-  })
-
-  // Employee detail modal states
-  const [openEmployeeModal, setOpenEmployeeModal] = useState(false)
-  const [selectedEmployeeDetail, setSelectedEmployeeDetail] = useState<ManagerReportsEmployee | null>(null)
-  const [weeklyReport, setWeeklyReport] = useState<WeeklyReport | null>(null)
-
-  // Hooks for create/update/delete
-  const createEval = useCreateTaskEvaluation()
-  const updateEval = useUpdateTaskEvaluation()
-  const deleteEval = useDeleteTaskEvaluation()
-  const approveTask = useApproveTask()
-  const rejectTask = useRejectTask()
-
-  // Use React Query for user details (always fresh after invalidation)
+  // ZUSTAND store for evaluation modal only
   const {
-    data: employeeDetailData,
-    isLoading: loadingEmployeeDetail,
-    error: employeeDetailError,
-    refetch: refetchEmployeeDetail,
-  } = useUserDetails(
-    selectedEmployeeDetail?.user?.id || "",
-    openEmployeeModal ? { weekNumber: filters.weekNumber, year: filters.year, userId: currentUser?.id } : undefined,
-  )
+    search,
+    setSearch,
+    openEvalModal,
+    setEvaluationModal,
+    resetAllStates,
+    lastUserId,
+    setLastUserId,
+  } = useAdminOverviewStore()
 
-  // When employeeDetailData changes, update weeklyReport
-  useMemo(() => {
-    if (employeeDetailData && openEmployeeModal) {
-      const report = transformToWeeklyReport(employeeDetailData, filters.weekNumber, filters.year)
-      setWeeklyReport(report)
-    }
-  }, [employeeDetailData, filters.weekNumber, filters.year, openEmployeeModal])
+  // STABLE filters để tránh rerender
+  const stableFilters = useMemo(() => ({
+    ...filters, 
+    userId: currentUser?.id
+  }), [filters.weekNumber, filters.year, currentUser?.id])
 
-  // Flatten all employees from groupedReports
-  const allEmployees: ManagerReportsEmployee[] =
-    overview?.groupedReports.flatMap((positionGroup) =>
-      positionGroup.jobPositions.flatMap((jobPositionGroup) => jobPositionGroup.employees),
-    ) || []
+  // STABLE query với memoized filters - GIỮ NGUYÊN LOGIC CŨ
+  const { data: overview, isLoading, error } = useManagerReports(stableFilters)
 
-  // Department breakdown: aggregate from all employees
-  const departmentMap = new Map<
-    string,
-    {
+  // Evaluation form hook với react-hook-form + zod
+  const {
+    form: evaluationForm,
+    isSubmitting: isSubmittingEvaluation,
+    handleSubmitEvaluation,
+    handleDeleteEvaluation,
+    selectedTask,
+    selectedEmployee,
+    editEvaluation,
+  } = useEvaluationForm()
+
+  // THAY ĐỔI: Transform data để tương thích với PositionCard
+  const positionCards = useMemo(() => {
+    if (!overview) return []
+    return transformManagerReportsToPositionCardFormat(overview)
+  }, [overview])
+
+console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
+
+  // Group positions for overview display
+  const { managementTabs, jobPositionTabs } = useMemo(() => {
+    return groupPositionsForOverview(positionCards)
+  }, [positionCards])
+
+  // Available tabs similar to HierarchyDashboard
+  const availableTabs = useMemo(() => {
+    const tabs: Array<{
       id: string
-      name: string
-      totalSubordinates: number
-      subordinatesWithReports: number
-      subordinatesWithCompletedReports: number
-      completedTasks: number
-      totalTasks: number
-    }
-  >()
-  allEmployees.forEach((emp) => {
-    const dept = emp.user.jobPosition.department
-    const deptId = dept.id
-    if (!departmentMap.has(deptId)) {
-      departmentMap.set(deptId, {
-        id: deptId,
-        name: dept.name,
-        totalSubordinates: 0,
-        subordinatesWithReports: 0,
-        subordinatesWithCompletedReports: 0,
-        completedTasks: 0,
-        totalTasks: 0,
+      label: string
+      icon: any
+      show: boolean
+      positions?: any[]
+      isManagement?: boolean
+    }> = [
+      {
+        id: "overview",
+        label: "Tổng quan",
+        icon: BarChart3,
+        show: true,
+      },
+    ]
+
+    // Add management tabs
+    managementTabs.forEach(tab => {
+      tabs.push({
+        id: tab.id,
+        label: tab.label,
+        icon: Crown,
+        show: true,
+        positions: tab.positions,
+        isManagement: true,
       })
-    }
-    const d = departmentMap.get(deptId)!
-    d.totalSubordinates++
-    if (emp.stats.hasReport) d.subordinatesWithReports++
-    if (emp.stats.isCompleted) d.subordinatesWithCompletedReports++
-    d.completedTasks += emp.stats.completedTasks
-    d.totalTasks += emp.stats.totalTasks
-  })
-
-  // Filter employees by search
-  const filteredEmployees = search
-    ? allEmployees.filter((emp) => {
-      const name = `${emp.user.firstName} ${emp.user.lastName}`.toLowerCase()
-      return name.includes(search.trim().toLowerCase())
     })
-    : allEmployees
 
-  // Open evaluation modal
-  const handleOpenEval = (employee: ManagerReportsEmployee, task: Task) => {
-    setSelectedEmployee(employee)
-    setSelectedTask(task)
-    const myEval = task.evaluations?.find((ev: TaskEvaluation) => ev.evaluatorId === currentUser?.id) || null
-    setEditEvaluation(myEval)
-
-    // Properly populate form with existing values or defaults
-    setForm({
-      evaluatedIsCompleted: myEval?.evaluatedIsCompleted ?? task.isCompleted,
-      evaluatedReasonNotDone: myEval?.evaluatedReasonNotDone ?? task.reasonNotDone ?? "",
-      evaluatorComment: myEval?.evaluatorComment ?? "",
-      evaluationType: myEval?.evaluationType ?? EvaluationType.REVIEW,
+    // Add job position tabs
+    jobPositionTabs.forEach(tab => {
+      tabs.push({
+        id: tab.id,
+        label: tab.label,
+        icon: Users,
+        show: true,
+        positions: tab.positions,
+        isManagement: false,
+      })
     })
-    setOpenEvalModal(true)
-  }
 
-  // Submit evaluation with task status update
-  const handleSubmitEval = async () => {
-    if (!selectedTask || !selectedEmployee) return
+    return tabs.filter(tab => tab.show)
+  }, [managementTabs, jobPositionTabs])
 
-    try {
-      let evaluationResult: TaskEvaluation
-      const originalIsCompleted = selectedTask.isCompleted
-
-      if (editEvaluation) {
-        evaluationResult = await updateEval.mutateAsync({
-          evaluationId: editEvaluation.id,
-          data: form,
-        })
-      } else {
-        evaluationResult = await createEval.mutateAsync({
-          ...form,
-          taskId: selectedTask.id,
-        })
-      }
-
-      // Special logic: Check if manager changed the completion status
-      if (currentUser?.isManager && form.evaluatedIsCompleted !== originalIsCompleted) {
-        if (form.evaluatedIsCompleted) {
-          await approveTask.mutateAsync(selectedTask.id)
-        } else {
-          await rejectTask.mutateAsync(selectedTask.id)
-        }
-      }
-
-      // Invalidate manager-reports to force AdminOverviewPage to refetch new data
-      queryClient.invalidateQueries({ queryKey: ["hierarchy", "manager-reports"], refetchType: "all" })
-
-      setOpenEvalModal(false)
-      toast.success(editEvaluation ? "Đánh giá đã được cập nhật thành công!" : "Đánh giá đã được tạo thành công!")
-    } catch (error) {
-      console.error("Error submitting evaluation:", error)
-      toast.error("Có lỗi xảy ra khi gửi đánh giá. Vui lòng thử lại!")
+  // Current tab logic
+  const effectiveActiveTab = useMemo(() => {
+    const availableTabIds = availableTabs.map((tab) => tab.id)
+    if (!availableTabIds.includes(activeTab)) {
+      return availableTabIds[0] || "overview"
     }
-  }
+    return activeTab
+  }, [activeTab, availableTabs])
 
-  // Delete evaluation
-  const handleDeleteEval = async () => {
-    if (!editEvaluation) return
+  const currentTab = useMemo(() => {
+    return availableTabs.find((tab) => tab.id === effectiveActiveTab)
+  }, [availableTabs, effectiveActiveTab])
 
-    try {
-      await deleteEval.mutateAsync(editEvaluation.id)
-      // Invalidate manager-reports to force AdminOverviewPage to refetch new data
-      queryClient.invalidateQueries({ queryKey: ["hierarchy", "manager-reports"], refetchType: "all" })
-      setOpenEvalModal(false)
-      toast.success("Đánh giá đã được xóa thành công!")
-    } catch (error) {
-      console.error("Error deleting evaluation:", error)
-      toast.error("Có lỗi xảy ra khi xóa đánh giá. Vui lòng thử lại!")
-    }
-  }
+  // Handle back to overview
+  const handleBackToOverview = useCallback(() => {
+    setActiveTab("overview")
+  }, [])
 
-  // Open employee detail modal and trigger fetch
-  const handleViewEmployee = (employee: ManagerReportsEmployee) => {
-    if (!employee?.user?.id) {
-      toast.error("Thông tin nhân viên không hợp lệ")
-      return
-    }
-    setSelectedEmployeeDetail(employee)
-    setOpenEmployeeModal(true)
-    setWeeklyReport(null)
-  }
+  // Filter by search
+  const filteredManagementTabs = useMemo(() => {
+    if (!search) return managementTabs
+    return managementTabs.filter(tab => 
+      tab.label.toLowerCase().includes(search.toLowerCase())
+    )
+  }, [managementTabs, search])
 
-  // Get status color and icon
-  const getStatusInfo = (status: string) => {
-    switch (status) {
-      case "completed":
-        return {
-          color: "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300",
-          icon: CheckCircle2,
-          text: "Hoàn thành",
-        }
-      case "incomplete":
-        return {
-          color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-300",
-          icon: Clock,
-          text: "Chưa hoàn thành",
-        }
-      default:
-        return {
-          color: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300",
-          icon: AlertCircle,
-          text: "Chưa nộp",
-        }
-    }
-  }
+  const filteredJobPositionTabs = useMemo(() => {
+    if (!search) return jobPositionTabs
+    return jobPositionTabs.filter(tab => 
+      tab.label.toLowerCase().includes(search.toLowerCase())
+    )
+  }, [jobPositionTabs, search])
 
-  // Reset state & cache when user changes (logout/login)
+  // Reset state & cache when user changes (logout/login) - OPTIMIZED
   useEffect(() => {
-    // Reset all local states
-    setSearch("")
-    setOpenEvalModal(false)
-    setSelectedEmployee(null)
-    setSelectedTask(null)
-    setEditEvaluation(null)
-    setForm({
-      evaluatedIsCompleted: true,
-      evaluatedReasonNotDone: "",
-      evaluatorComment: "",
-      evaluationType: EvaluationType.REVIEW,
-    })
-    setOpenEmployeeModal(false)
-    setSelectedEmployeeDetail(null)
-    setWeeklyReport(null)
-    // Clear React Query cache for manager-reports and user-details
-    queryClient.removeQueries({ queryKey: ["hierarchy", "manager-reports"] })
-    queryClient.removeQueries({ queryKey: ["hierarchy", "user-details"] })
-  }, [currentUser?.id, queryClient])
+    if (currentUser?.id !== lastUserId) {
+      resetAllStates()
+      setLastUserId(currentUser?.id || null)
+      setActiveTab("overview")
+      // TARGETED cache clearing - only clear specific queries
+      queryClient.removeQueries({ queryKey: ["hierarchy"] })
+    }
+  }, [currentUser?.id, lastUserId, setLastUserId, queryClient, resetAllStates])
 
   if (isLoading) {
     return <ScreenLoading size="md" variant="dual-ring" text="Đang tải tổng quan quản lý..." fullScreen />
@@ -374,254 +517,138 @@ function AdminOverview() {
       {/* Summary Cards */}
       <HierarchySummaryCards summary={transformManagerReportsSummaryForCards(overview?.summary)} />
 
-      {/* Department Breakdown */}
-      <Card>
+      {/* Main Content Card */}
+      <Card className="border-border/50 dark:border-border/90 shadow-green-glow/20">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Building2 className="w-5 h-5" />
-            Phân bổ phòng ban
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from(departmentMap.values()).map((dept) => (
-              <div
-                key={dept.id}
-                className="p-4 bg-gray-50 dark:bg-gray-800/50 rounded-lg border border-gray-200 dark:border-gray-700"
+          {effectiveActiveTab !== "overview" && (
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleBackToOverview}
+                className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground w-fit"
               >
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-gray-900 dark:text-gray-100 truncate">{dept.name}</h4>
-                  <Badge variant="outline">{dept.totalSubordinates}</Badge>
-                </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Đã nộp:</span>
-                    <span className="font-medium">
-                      {dept.subordinatesWithReports}/{dept.totalSubordinates}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Hoàn thành:</span>
-                    <span className="font-medium text-green-600 dark:text-green-400">
-                      {dept.subordinatesWithCompletedReports}
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Công việc:</span>
-                    <span className="font-medium">
-                      {dept.completedTasks}/{dept.totalTasks}
-                    </span>
-                  </div>
-                  <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-2">
-                    <div
-                      className="bg-gradient-to-r from-blue-500 to-green-500 h-2 rounded-full transition-all duration-500"
-                      style={{ width: `${dept.totalTasks > 0 ? (dept.completedTasks / dept.totalTasks) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Search bar */}
-      <div className="flex justify-end mb-2">
-        <Input
-          type="text"
-          placeholder="Tìm kiếm nhân viên theo tên..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-xs"
-        />
-      </div>
-
-      {/* Subordinates Grid */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users className="w-5 h-5" />
-              Danh sách nhân viên cấp dưới
-            </div>
-            <Badge variant="secondary">{filteredEmployees.length} nhân viên</Badge>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {filteredEmployees.map((sub) => {
-              const statusInfo = getStatusInfo(sub.stats.status)
-              const StatusIcon = statusInfo.icon
-
-              return (
-                <div
-                  key={sub.user.id}
-                  className="p-4 bg-white dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700 hover:shadow-md transition-shadow"
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex-1 min-w-0">
-                      <h4 className="font-semibold text-gray-900 dark:text-gray-100 truncate">
-                        {`${sub.user.firstName} ${sub.user.lastName}`}
-                      </h4>
-                      <p className="text-sm text-muted-foreground truncate">
-                        {sub.user.jobPosition?.department?.name || "No Department"}
-                      </p>
-                      <p className="text-xs text-muted-foreground">{sub.user.employeeCode}</p>
-                    </div>
-                    <Badge className={statusInfo.color}>
-                      <StatusIcon className="w-3 h-3 mr-1" />
-                      {statusInfo.text}
-                    </Badge>
-                  </div>
-
-                  <div className="space-y-2 mb-4">
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Hoàn thành:</span>
-                      <span className="font-medium">
-                        {sub.stats.completedTasks}/{sub.stats.totalTasks}
-                      </span>
-                    </div>
-                    <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Tỷ lệ:</span>
-                      <span
-                        className={`font-medium ${sub.stats.taskCompletionRate >= 80
-                            ? "text-green-600 dark:text-green-400"
-                            : sub.stats.taskCompletionRate >= 60
-                              ? "text-yellow-600 dark:text-yellow-400"
-                              : "text-red-600 dark:text-red-400"
-                          }`}
-                      >
-                        {sub.stats.taskCompletionRate}%
-                      </span>
-                    </div>
-                    <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                      <div
-                        className={`h-2 rounded-full transition-all duration-500 ${sub.stats.taskCompletionRate >= 80
-                            ? "bg-gradient-to-r from-green-400 to-green-600"
-                            : sub.stats.taskCompletionRate >= 60
-                              ? "bg-gradient-to-r from-yellow-400 to-yellow-600"
-                              : "bg-gradient-to-r from-red-400 to-red-600"
-                          }`}
-                        style={{ width: `${sub.stats.taskCompletionRate}%` }}
-                      />
-                    </div>
-                  </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="flex-1 bg-transparent"
-                      onClick={() => handleViewEmployee(sub)}
-                    >
-                      <Eye className="w-3 h-3 mr-1" />
-                      Xem chi tiết
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Employee Detail Modal with ReportTemplate - Fixed positioning */}
-      <Dialog open={openEmployeeModal} onOpenChange={setOpenEmployeeModal}>
-        <DialogContent
-          className="w-full h-full sm:max-w-7xl sm:w-[95vw] sm:h-[90vh] overflow-y-auto rounded-none sm:rounded-xl p-0 m-0"
-          style={{
-            position: "fixed",
-            top: "15vh",
-            left: "0",
-            right: "0",
-            bottom: "0",
-            transform: "none",
-            maxHeight: "80vh",
-            borderRadius: "12px",
-            ...(window.innerWidth >= 640 && {
-              top: "12vh",
-              left: "50%",
-              right: "auto",
-              bottom: "auto",
-              transform: "translateX(-50%)",
-              maxHeight: "85vh",
-              width: "95vw",
-              // height: "90vh",
-              borderRadius: "12px",
-            }),
-          }}
-        >
-          <DialogHeader className="p-3 sm:p-6 border-b">
-            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <FileCheck className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="truncate">
-                Báo cáo chi tiết nhân viên:{" "}
-                {`${selectedEmployeeDetail?.user?.firstName || ""} ${selectedEmployeeDetail?.user?.lastName || ""}`}
-              </span>
-            </DialogTitle>
-          </DialogHeader>
-
-          {loadingEmployeeDetail ? (
-            <div className="flex items-center justify-center py-12">
-              <div className="flex items-center gap-3">
-                <Loader2 className="w-6 h-6 animate-spin" />
-                <span>Đang tải báo cáo nhân viên...</span>
-              </div>
-            </div>
-          ) : employeeDetailError ? (
-            <div className="text-center py-8 text-destructive">
-              <AlertCircle className="w-12 h-12 mx-auto mb-4" />
-              <p>{String(employeeDetailError)}</p>
-              <Button variant="outline" className="mt-4 bg-transparent" onClick={() => refetchEmployeeDetail()}>
-                Thử lại
+                <ArrowLeft className="w-4 h-4" />
+                Quay lại tổng quan
               </Button>
             </div>
-          ) : weeklyReport ? (
-            <div className="space-y-4">
-              {/* Display ReportTemplate */}
-              <ReportTemplate report={weeklyReport} canEvaluation={true} className="border-0 shadow-none" />
+          )}
+          
+          {effectiveActiveTab === "overview" && (
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <CardTitle className="flex items-center gap-2">
+                <BarChart3 className="w-5 h-5" />
+                Tổng quan theo vị trí
+              </CardTitle>
+              <Input
+                type="text"
+                placeholder="Tìm kiếm theo vị trí..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                className="w-full max-w-xs"
+              />
             </div>
-          ) : employeeDetailData ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <FileCheck className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>
-                Nhân viên này chưa có báo cáo cho tuần {filters.weekNumber}/{filters.year}.
-              </p>
-
-              {/* Show available reports if any */}
-              {employeeDetailData.reports && employeeDetailData.reports.length > 0 && (
-                <div className="mt-6">
-                  <p className="text-sm mb-4">Các báo cáo có sẵn:</p>
-                  <div className="flex flex-wrap gap-2 justify-center">
-                    {employeeDetailData.reports.map((report) => (
-                      <Button
-                        key={report.id}
-                        variant="outline"
-                        size="sm"
-                        onClick={() => {
-                          const transformedReport = transformToWeeklyReport(
-                            employeeDetailData,
-                            report.weekNumber,
-                            report.year,
-                          )
-                          if (transformedReport) {
-                            setWeeklyReport(transformedReport)
-                          }
-                        }}
-                      >
-                        Tuần {report.weekNumber}/{report.year}
-                      </Button>
+          )}
+        </CardHeader>
+        
+        <CardContent>
+          {effectiveActiveTab === "overview" ? (
+            <div className="space-y-6">
+              {/* Management positions cards */}
+              {filteredManagementTabs.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-2 rounded-lg bg-warm-gradient shadow-green-glow">
+                      <Crown className="w-5 h-5 text-white" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-green-gradient">Cấp quản lý</h3>
+                    <Badge variant="outline" className="glass-green border-green-500/30">
+                      {managementTabs.length} nhóm
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredManagementTabs.map((tab) => (
+                      <OverviewCard
+                        key={tab.id}
+                        title={tab.label}
+                        count={tab.positions?.length || 0}
+                        icon={Crown}
+                        onClick={() => setActiveTab(tab.id)}
+                        description="Cấp quản lý"
+                        variant="management"
+                        positions={tab.positions || []}
+                        isJobPosition={false}
+                      />
                     ))}
                   </div>
                 </div>
               )}
-            </div>
-          ) : null}
-        </DialogContent>
-      </Dialog>
 
-      {/* Evaluation Modal */}
-      <Dialog open={openEvalModal} onOpenChange={setOpenEvalModal}>
+              {/* Job positions cards */}
+              {filteredJobPositionTabs.length > 0 && (
+                <div className="space-y-4">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
+                      <Users className="w-5 h-5 text-white" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-green-gradient">Vị trí công việc</h3>
+                    <Badge variant="outline" className="glass-green border-green-500/30">
+                      {jobPositionTabs.length} nhóm
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {filteredJobPositionTabs.map((tab) => (
+                      <OverviewCard
+                        key={tab.id}
+                        title={tab.label}
+                        count={tab.positions?.length || 0}
+                        icon={Users}
+                        onClick={() => setActiveTab(tab.id)}
+                        description="Vị trí công việc"
+                        variant="employee"
+                        positions={tab.positions || []}
+                        isJobPosition={true}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback if no data */}
+              {filteredManagementTabs.length === 0 && filteredJobPositionTabs.length === 0 && (
+                <div className="text-center py-12">
+                  <Building2 className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+                  <h3 className="text-lg font-semibold mb-2">
+                    {search ? "Không tìm thấy kết quả" : "Không có dữ liệu"}
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {search 
+                      ? `Không tìm thấy vị trí nào phù hợp với "${search}"`
+                      : "Không tìm thấy dữ liệu với bộ lọc hiện tại"
+                    }
+                  </p>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              {/* THAY ĐỔI: Sử dụng PositionCard để hiển thị chi tiết */}
+              {currentTab?.positions?.map((position, index) => (
+                <PositionCard
+                  key={position._uniqueKey || position.position?.id || position.jobPosition?.id || index}
+                  position={position}
+                  weekNumber={filters.weekNumber}
+                  year={filters.year}
+                  canEvaluation={currentUser?.isManager}
+                />
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Evaluation Modal - GIỮ NGUYÊN */}
+      <Dialog open={openEvalModal} onOpenChange={(open) => setEvaluationModal(open)}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -639,101 +666,140 @@ function AdminOverview() {
             </div>
           </DialogHeader>
 
-          <div className="space-y-4">
-            {editEvaluation && (
-              <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-3">
-                <div className="text-sm font-medium text-orange-800 dark:text-orange-300 mb-2">Đánh giá hiện tại:</div>
-                <div className="space-y-1 text-sm">
-                  <div>
-                    Trạng thái:{" "}
-                    <span className={editEvaluation.evaluatedIsCompleted ? "text-green-600" : "text-red-600"}>
-                      {editEvaluation.evaluatedIsCompleted ? "Hoàn thành" : "Chưa hoàn thành"}
-                    </span>
-                  </div>
-                  {editEvaluation.evaluatorComment && <div>Nhận xét: {editEvaluation.evaluatorComment}</div>}
-                </div>
-              </div>
-            )}
-
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Trạng thái hoàn thành <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={form.evaluatedIsCompleted ? "true" : "false"}
-                  onChange={(e) =>
-                    setForm((f) => ({
-                      ...f,
-                      evaluatedIsCompleted: e.target.value === "true",
-                      evaluatedReasonNotDone: e.target.value === "true" ? "" : f.evaluatedReasonNotDone,
-                    }))
-                  }
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                >
-                  <option value="true">✅ Hoàn thành</option>
-                  <option value="false">❌ Chưa hoàn thành</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Nguyên nhân/Giải pháp</label>
-                <textarea
-                  value={form.evaluatedReasonNotDone}
-                  onChange={(e) => setForm((f) => ({ ...f, evaluatedReasonNotDone: e.target.value }))}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  rows={3}
-                  placeholder="Nhập nguyên nhân nếu chưa hoàn thành..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">Nhận xét của bạn</label>
-                <textarea
-                  value={form.evaluatorComment}
-                  onChange={(e) => setForm((f) => ({ ...f, evaluatorComment: e.target.value }))}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                  rows={3}
-                  placeholder="Nhập nhận xét, góp ý..."
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-2">
-                  Loại đánh giá <span className="text-red-500">*</span>
-                </label>
-                <select
-                  value={form.evaluationType}
-                  onChange={(e) => setForm((f) => ({ ...f, evaluationType: e.target.value as EvaluationType }))}
-                  className="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100"
-                >
-                  {Object.values(EvaluationType).map((type) => (
-                    <option key={type} value={type}>
-                      {type}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-              <Button variant="outline" onClick={() => setOpenEvalModal(false)}>
-                Hủy
-              </Button>
+          <Form {...evaluationForm}>
+            <form onSubmit={handleSubmitEvaluation} className="space-y-4">
               {editEvaluation && (
-                <Button variant="destructive" onClick={handleDeleteEval} disabled={deleteEval.isPending}>
-                  Xóa đánh giá
-                </Button>
+                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-3">
+                  <div className="text-sm font-medium text-orange-800 dark:text-orange-300 mb-2">Đánh giá hiện tại:</div>
+                  <div className="space-y-1 text-sm">
+                    <div>
+                      Trạng thái:{" "}
+                      <span className={editEvaluation.evaluatedIsCompleted ? "text-green-600" : "text-red-600"}>
+                        {editEvaluation.evaluatedIsCompleted ? "Hoàn thành" : "Chưa hoàn thành"}
+                      </span>
+                    </div>
+                    {editEvaluation.evaluatorComment && <div>Nhận xét: {editEvaluation.evaluatorComment}</div>}
+                  </div>
+                </div>
               )}
-              <AnimatedButton
-                onClick={handleSubmitEval}
-                loading={createEval.isPending || updateEval.isPending || approveTask.isPending || rejectTask.isPending}
-                className="bg-blue-600 hover:bg-blue-700"
-              >
-                {editEvaluation ? "Cập nhật" : "Gửi đánh giá"}
-              </AnimatedButton>
-            </div>
-          </div>
+
+              <div className="space-y-4">
+                <ReactHookFormField
+                  control={evaluationForm.control}
+                  name="evaluatedIsCompleted"
+                  render={({ field }: { field: any }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Trạng thái hoàn thành <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <FormControl>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                          <span>{field.value ? "✅ Hoàn thành" : "❌ Chưa hoàn thành"}</span>
+                        </div>
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <ReactHookFormField
+                  control={evaluationForm.control}
+                  name="evaluatedReasonNotDone"
+                  render={({ field }: { field: any }) => (
+                    <FormItem>
+                      <FormLabel>Nguyên nhân/Giải pháp</FormLabel>
+                      <FormControl>
+                        <FormField
+                          id="evaluatedReasonNotDone"
+                          type="text"
+                          placeholder="Nhập nguyên nhân nếu chưa hoàn thành..."
+                          {...field}
+                          showPasswordToggle={false}
+                          className="w-full min-h-[80px] resize-y"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <ReactHookFormField
+                  control={evaluationForm.control}
+                  name="evaluatorComment"
+                  render={({ field }: { field: any }) => (
+                    <FormItem>
+                      <FormLabel>Nhận xét của bạn</FormLabel>
+                      <FormControl>
+                        <FormField
+                          id="evaluatorComment"
+                          type="text"
+                          placeholder="Nhập nhận xét, góp ý..."
+                          {...field}
+                          showPasswordToggle={false}
+                          className="w-full min-h-[80px] resize-y"
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <ReactHookFormField
+                  control={evaluationForm.control}
+                  name="evaluationType"
+                  render={({ field }: { field: any }) => (
+                    <FormItem>
+                      <FormLabel>
+                        Loại đánh giá <span className="text-red-500">*</span>
+                      </FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Chọn loại đánh giá" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {Object.values(EvaluationType).map((type) => (
+                            <SelectItem key={type} value={type}>
+                              {type}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button variant="outline" type="button" onClick={() => setEvaluationModal(false)}>
+                  Hủy
+                </Button>
+                {editEvaluation && (
+                  <Button 
+                    variant="destructive" 
+                    type="button"
+                    onClick={handleDeleteEvaluation} 
+                    disabled={isSubmittingEvaluation}
+                  >
+                    Xóa đánh giá
+                  </Button>
+                )}
+                <AnimatedButton
+                  type="submit"
+                  loading={isSubmittingEvaluation}
+                  className="bg-blue-600 hover:bg-blue-700"
+                >
+                  {editEvaluation ? "Cập nhật" : "Gửi đánh giá"}
+                </AnimatedButton>
+              </div>
+            </form>
+          </Form>
         </DialogContent>
       </Dialog>
     </div>

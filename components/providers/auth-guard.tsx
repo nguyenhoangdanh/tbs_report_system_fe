@@ -68,7 +68,6 @@ interface AuthGuardProps {
 function AuthGuardLogic({ children }: AuthGuardProps) {
   const { user, isLoading, isAuthenticated, error, checkAuth, clearError } = useAuth()
 
-  console.error("AuthGuardLogic rendered with user:", user)
   const router = useRouter()
   const pathname = usePathname()
   const [isNavigating, setIsNavigating] = useState(false)
@@ -101,6 +100,10 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
     [router, isNavigating, navigationAttempts, maxNavigationAttempts],
   )
 
+  const userId = user?.id
+  const userRole = user?.role
+  const isManager = user?.isManager
+
   useEffect(() => {
     if (!isLoading && !initialLoadComplete) {
       setInitialLoadComplete(true)
@@ -130,19 +133,19 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
       return
     }
 
-    if (isAuthenticated && user && (pathname === "/login" || pathname === "/register")) {
+    if (isAuthenticated && userId && (pathname === "/login" || pathname === "/register")) {
       const defaultRoute = getDefaultRouteForUser(user)
       safeNavigate(defaultRoute, "Authenticated user on auth page")
       return
     }
 
-    if (isAuthenticated && user && pathname === "/") {
+    if (isAuthenticated && userId && pathname === "/") {
       const defaultRoute = getDefaultRouteForUser(user)
       safeNavigate(defaultRoute, "Authenticated user on root path")
       return
     }
 
-    if (isAuthenticated && user && !isPublicRoute) {
+    if (isAuthenticated && userId && !isPublicRoute) {
       const hasRouteAccess = hasAccess(user, pathname)
 
       if (!hasRouteAccess) {
@@ -154,7 +157,9 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
     initialLoadComplete,
     isAuthenticated,
     pathname,
-    user,
+    userId,
+    userRole,
+    isManager,
     isPublicRoute,
     isNavigating,
     error,

@@ -360,11 +360,11 @@ class EnhancedApiClient {
           isServerError: response.status >= 500,
         }
         
-        console.error('🚫 HTTP Error Response:', {
-          status: response.status,
-          message: errorMessage,
-          data: response.data
-        })
+        // console.error('🚫 HTTP Error Response:', {
+        //   status: response.status,
+        //   message: errorMessage,
+        //   data: response.data
+        // })
         
         return { success: false, error: apiError }
       }

@@ -2,27 +2,17 @@
 
 import { UserService } from '@/services/user.service'
 import { useApiQuery } from './use-api-query'
+import { QUERY_KEYS } from './query-key'
 import type { Department, Position, JobPosition, Office } from '@/types'
-
-// Query keys for organization data
-const ORGANIZATION_QUERY_KEYS = {
-  departments: ['organizations', 'departments'] as const,
-  positions: ['organizations', 'positions'] as const,
-  jobPositions: ['organizations', 'job-positions'] as const,
-  offices: ['organizations', 'offices'] as const,
-}
 
 /**
  * Get all departments
  */
 export function useDepartments() {
   return useApiQuery<Department[]>({
-    queryKey: ORGANIZATION_QUERY_KEYS.departments,
+    queryKey: QUERY_KEYS.organizations.departments,
     queryFn: () => UserService.getDepartments(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
-    refetchOnWindowFocus: false,
-    retry: 2,
+    cacheStrategy: 'aggressive', // Stable organization data
     throwOnError: false,
   })
 }
@@ -32,12 +22,9 @@ export function useDepartments() {
  */
 export function usePositions() {
   return useApiQuery<Position[]>({
-    queryKey: ORGANIZATION_QUERY_KEYS.positions,
+    queryKey: QUERY_KEYS.organizations.positions,
     queryFn: () => UserService.getPositions(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
-    refetchOnWindowFocus: false,
-    retry: 2,
+    cacheStrategy: 'aggressive',
     throwOnError: false,
   })
 }
@@ -47,12 +34,9 @@ export function usePositions() {
  */
 export function useJobPositions() {
   return useApiQuery<JobPosition[]>({
-    queryKey: ORGANIZATION_QUERY_KEYS.jobPositions,
+    queryKey: QUERY_KEYS.organizations.jobPositions,
     queryFn: () => UserService.getJobPositions(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
-    refetchOnWindowFocus: false,
-    retry: 2,
+    cacheStrategy: 'aggressive',
     throwOnError: false,
   })
 }
@@ -62,12 +46,9 @@ export function useJobPositions() {
  */
 export function useOffices() {
   return useApiQuery<Office[]>({
-    queryKey: ORGANIZATION_QUERY_KEYS.offices,
+    queryKey: QUERY_KEYS.organizations.offices,
     queryFn: () => UserService.getOffices(),
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 60 * 60 * 1000, // 1 hour
-    refetchOnWindowFocus: false,
-    retry: 2,
+    cacheStrategy: 'aggressive',
     throwOnError: false,
   })
 }

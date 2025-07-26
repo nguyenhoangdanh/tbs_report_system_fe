@@ -6,7 +6,7 @@ import { toast } from 'react-toast-kit'
 import { ChangePasswordDto, UpdateProfileDto } from '@/types'
 import { QUERY_KEYS } from './query-key'
 import { useApiMutation, useApiQuery } from './use-api-query'
-import { useOptimizedMutation } from './use-mutation'
+import { useQueryClient } from '@tanstack/react-query'
 
 /**
  * Get current user profile
@@ -15,15 +15,8 @@ export function useProfile() {
   return useApiQuery({
     queryKey: QUERY_KEYS.auth.profile(),
     queryFn: AuthService.getProfile,
-    staleTime: 2 * 60 * 1000,
-    gcTime: 5 * 60 * 1000,
-    refetchOnWindowFocus: false,
-    retry: (failureCount, error: any) => {
-      if (error?.status === 401 || error?.response?.status === 401) {
-        return false
-      }
-      return failureCount < 2
-    },
+    cacheStrategy: 'normal',
+    throwOnError: false,
   })
 }
 
@@ -31,20 +24,22 @@ export function useProfile() {
  * Update profile mutation
  */
 export function useUpdateProfile() {
-  return useOptimizedMutation({
+  const queryClient = useQueryClient()
+  
+  return useApiMutation({
     mutationFn: (data: UpdateProfileDto) => UserService.updateProfile(data),
     onSuccess: (updatedUser) => {
+      // Update profile cache immediately using queryClient directly
+      queryClient.setQueryData(QUERY_KEYS.auth.profile(), updatedUser)
+      // Invalidate all user-related queries
+      queryClient.invalidateQueries({ queryKey: ['users'] })
+      queryClient.invalidateQueries({ queryKey: ['auth'] })
+      
       toast.success('Cập nhật thông tin cá nhân thành công!')
     },
     onError: (error: any) => {
       console.error('❌ Update profile error:', error)
       toast.error(error.message || 'Cập nhật thông tin thất bại')
-    },
-    invalidateQueries: async (cacheManager, updatedUser) => {
-      const userId = updatedUser?.id;
-      if (userId) {
-        await cacheManager.invalidateUserData(userId)
-      }
     },
     retry: 1,
   })

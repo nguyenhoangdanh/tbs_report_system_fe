@@ -11,6 +11,7 @@ import type {
 import { useApiQuery } from './use-api-query'
 import { QUERY_KEYS } from './query-key'
 import { useAuth } from "@/components/providers/auth-provider"
+import { useMemo } from 'react'
 
 export function useMyHierarchyView(filters?: {
   weekNumber?: number
@@ -31,14 +32,8 @@ export function useMyHierarchyView(filters?: {
       }
     },
     enabled: !!user?.id,
-    staleTime: 0,
-    gcTime: 30 * 1000,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    retry: (failureCount, error) => {
-      return failureCount < 3
-    },
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    cacheStrategy: 'fresh', // Always fresh for hierarchy data
+    throwOnError: false,
   })
 }
 
@@ -54,15 +49,13 @@ export function useUserDetails(userId: string, filters?: {
     queryKey: QUERY_KEYS.hierarchy.userDetails(user?.id || 'anonymous', userId, filters),
     queryFn: () => HierarchyService.getUserDetails(userId, filters),
     enabled: !!userId && !!user?.id,
-    staleTime: 0,
-    gcTime: 1 * 60 * 1000,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
+    cacheStrategy: 'fresh',
+    throwOnError: false,
   })
 }
 
 /**
- * Hook for manager reports (subordinate reports view)
+ * Hook for manager reports - OPTIMIZED for real-time updates
  */
 export function useManagerReports(filters?: {
   weekNumber?: number
@@ -71,16 +64,44 @@ export function useManagerReports(filters?: {
 }) {
   const { user } = useAuth()
   
+  // STABLE queryKey - Use useMemo for filters to prevent unnecessary re-computation
+  const stableQueryKey = useMemo(() => [
+    'hierarchy', 
+    'managerReports', 
+    user?.id || 'anonymous',
+    filters?.weekNumber || 0,
+    filters?.year || 0,
+    user?.employeeCode, // Stable identifier
+    'realtime' // Add version to force fresh when needed
+  ], [user?.id, user?.employeeCode, filters?.weekNumber, filters?.year])
+  
   return useApiQuery({
-    queryKey: QUERY_KEYS.hierarchy.managerReports(user?.id || 'anonymous', filters),
-    queryFn: () => HierarchyService.getManagerReports(filters),
+    queryKey: stableQueryKey,
+    queryFn: async () => {
+      // CRITICAL: Validate user context before making request
+      if (!user?.id) {
+        throw new Error('No authenticated user found')
+      }
+      
+      const enhancedFilters = {
+        ...filters,
+        userId: user.id
+      }
+      
+      
+      try {
+        const result = await HierarchyService.getManagerReports(enhancedFilters)
+        
+        return result
+      } catch (error) {
+        console.error('❌ useManagerReports: Fetch failed:', error)
+        throw error
+      }
+    },
     enabled: !!user?.id,
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    retry: (failureCount, error) => failureCount < 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    cacheStrategy: 'realtime', // NO CACHE - Always fresh data
+    throwOnError: true,
+    notifyOnChangeProps: ['data', 'error', 'isLoading'], // Limit what causes rerender
   })
 }
 
@@ -94,11 +115,8 @@ export function useReportDetailsForAdmin(userId: string, reportId: string) {
     queryKey: QUERY_KEYS.hierarchy.reportDetailsAdmin(user?.id || 'anonymous', reportId),
     queryFn: () => HierarchyService.getReportDetailsForAdmin(userId, reportId),
     enabled: !!userId && !!reportId && !!user?.id,
-    staleTime: 3 * 60 * 1000,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    retry: (failureCount, error) => failureCount < 3,
-    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    cacheStrategy: 'normal', // Can cache report details for a bit
+    throwOnError: false,
   })
 }
 
@@ -122,7 +140,8 @@ export function useUserReportsForAdmin(userId: string, filters?: {
       return response.json()
     },
     enabled: !!userId && !!user?.id,
-    staleTime: 2 * 60 * 1000,
+    cacheStrategy: 'normal',
+    throwOnError: false,
   })
 }
 

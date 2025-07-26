@@ -1,14 +1,13 @@
 "use client"
 
 import type React from "react"
-
-import { createContext, useContext, useEffect, useState, useCallback, useRef } from "react"
+import { createContext, useContext, useEffect, useState, useCallback, useRef, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { useQueryClient } from "@tanstack/react-query"
 import { AuthService } from "@/services/auth.service"
-import { clearUserCaches } from "@/hooks/use-reports"
 import { toast } from "react-toast-kit"
 import type { User, LoginDto } from "@/types"
+import { clearUserCaches } from "@/lib/cache-utils"
 
 interface AuthContextType {
   user: User | null
@@ -39,27 +38,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = !!user
 
-  const clearUserData = useCallback(
-    (previousUserId?: string) => {
-      setUser(null)
-      setError(null)
-      clearUserCaches(queryClient, previousUserId)
-    },
-    [queryClient],
-  )
+  // STABLE user object to prevent unnecessary rerenders
+  const stableUser = useMemo(() => user, [user?.id, user?.employeeCode])
 
   const clearError = useCallback(() => {
     setError(null)
   }, [])
 
   const checkAuth = useCallback(async () => {
+    // Prevent concurrent auth checks
     if (isCheckingAuth.current) {
       return
     }
 
+    // Simple retry limit
     if (retryCount.current >= maxRetries) {
       setIsLoading(false)
-      isCheckingAuth.current = false
       setError("Không thể xác thực người dùng")
       return
     }
@@ -73,50 +67,51 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await AuthService.getProfile()
 
       if (result.success && result.data) {
+        // Simple user update - clear cache only if user changes
         setUser((prevUser) => {
-          const previousUserId = prevUser?.id
-          const newUserId = result.data!.id
-
-          if (previousUserId && previousUserId !== newUserId) {
-            clearUserCaches(queryClient, previousUserId)
+          const newUser = result.data!
+          
+          // Only clear cache if different user
+          if (prevUser?.id && prevUser.id !== newUser.id) {
+            console.log('🔄 User changed, clearing cache:', { 
+              from: prevUser.id, 
+              to: newUser.id 
+            })
+            queryClient.clear()
           }
 
-          return result.data!
+          return newUser
         })
         setError(null)
         retryCount.current = 0
       } else {
-        const errorMessage = result.error?.message || "Xác thực thất bại"
-        const errorStatus = result.error?.status
-
-        if (errorStatus && errorStatus >= 400 && errorStatus < 500) {
-          setUser((prevUser) => {
-            if (prevUser) {
-              clearUserCaches(queryClient, prevUser.id)
-            }
-            return null
-          })
-        }
-
-        if (errorStatus && errorStatus >= 500) {
-          setError(errorMessage)
-        } else {
-          setError(null)
-        }
-      }
-    } catch (error: any) {
-      console.error("💥 Auth check error:", error)
-
-      if (error?.message?.includes("Network") || error?.message?.includes("fetch")) {
-        setError("Lỗi kết nối mạng")
-      } else {
+        // Auth failed - clear user and cache
         setUser((prevUser) => {
           if (prevUser) {
-            clearUserCaches(queryClient, prevUser.id)
+            queryClient.clear()
           }
           return null
         })
-        setError(error?.message || "Lỗi xác thực")
+        
+        // Only show error for server errors
+        if (result.error?.status && result.error.status >= 500) {
+          setError(result.error.message || "Lỗi server")
+        }
+      }
+    } catch (error: any) {
+      console.error("Auth check failed:", error)
+      
+      // Clear user on any error
+      setUser((prevUser) => {
+        if (prevUser) {
+          queryClient.clear()
+        }
+        return null
+      })
+      
+      // Only show network errors to user
+      if (error?.message?.includes("Network") || error?.message?.includes("fetch")) {
+        setError("Lỗi kết nối mạng")
       }
     } finally {
       setIsLoading(false)
@@ -137,17 +132,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const result = await AuthService.login(credentials)
 
         if (result.success && result.data?.user) {
-          setUser((prevUser) => {
-            if (prevUser) {
-              clearUserCaches(queryClient, prevUser.id)
-            }
-            return result.data!.user
-          })
+          const newUser = result.data.user
+          
+          // Always clear cache on login for fresh state
+          queryClient.clear()
+          setUser(newUser)
           retryCount.current = 0
-          // Gọi lại checkAuth để đảm bảo context user đồng bộ với backend
-          await checkAuth()
-          // Force reload để đảm bảo toàn bộ cache và state được reset (nếu vẫn lỗi)
-          // window.location.reload()
+          
           return true
         } else {
           const errorMessage = result.error?.message || "Đăng nhập thất bại"
@@ -156,7 +147,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           return false
         }
       } catch (error: any) {
-        console.error("💥 Login error:", error)
+        console.error("Login error:", error)
         const errorMessage = error?.message || "Đăng nhập thất bại"
         setError(errorMessage)
         toast.error(errorMessage)
@@ -165,7 +156,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         isLoggingIn.current = false
       }
     },
-    [queryClient, checkAuth],
+    [queryClient],
   )
 
   const logout = useCallback(async () => {
@@ -175,34 +166,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     try {
       isLoggingOut.current = true
-
-      const result = await AuthService.logout()
-
-      setUser((prevUser) => {
-        if (prevUser) {
-          clearUserCaches(queryClient, prevUser.id)
-        }
-        return null
-      })
+      
+      // Clear user and cache immediately
+      setUser(null)
+      queryClient.clear()
       retryCount.current = 0
 
-      if (result.success) {
-        toast.success("Đăng xuất thành công!")
-      } else {
-        toast.success("Đã đăng xuất!")
-      }
-
+      // Try to logout from server (but don't block UI)
+      await AuthService.logout()
+      
+      toast.success("Đăng xuất thành công!")
       router.push("/login")
     } catch (error: any) {
-      setUser((prevUser) => {
-        if (prevUser) {
-          clearUserCaches(queryClient, prevUser.id)
-        }
-        return null
-      })
-      router.push("/login")
-
+      // Even if logout fails, user is already cleared
       toast.success("Đã đăng xuất!")
+      router.push("/login")
     } finally {
       isLoggingOut.current = false
     }
@@ -232,8 +210,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(timeoutId)
   }, [isLoading])
 
-  const contextValue = {
-    user,
+  // STABLE context value to prevent child rerenders
+  const contextValue = useMemo(() => ({
+    user: stableUser,
     isAuthenticated,
     isLoading,
     error,
@@ -241,7 +220,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     logout,
     checkAuth,
     clearError,
-  }
+  }), [stableUser, isAuthenticated, isLoading, error, login, logout, checkAuth, clearError])
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
 }
