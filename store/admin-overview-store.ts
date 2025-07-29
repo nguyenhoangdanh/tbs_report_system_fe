@@ -25,7 +25,7 @@ interface AdminOverviewState {
   isRefetching: boolean
   setIsRefetching: (loading: boolean) => void
 
-  // Evaluation modal state
+  // Evaluation modal state - RESTORED ORIGINAL INTERFACE
   openEvalModal: boolean
   selectedEmployee: ManagerReportsEmployee | null
   selectedTask: Task | null
@@ -53,7 +53,10 @@ interface AdminOverviewState {
   // Reset all states
   resetAllStates: () => void
 
-  // Close evaluation modal
+  // ✅ ADDED: Helper methods for ReportTemplate compatibility
+  setSelectedTask: (task: Task | null) => void
+  setSelectedEmployee: (employee: ManagerReportsEmployee | null) => void
+  setEditEvaluation: (evaluation: TaskEvaluation | null) => void
   closeEvaluationModal: () => void
 }
 
@@ -85,7 +88,7 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
         set({ isRefetching: loading }, false, 'setIsRefetching')
       },
 
-      // Evaluation modal state
+      // Evaluation modal state - RESTORED ORIGINAL LOGIC
       openEvalModal: false,
       selectedEmployee: null,
       selectedTask: null,
@@ -143,17 +146,6 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
         }, false, 'setEmployeeModal')
       },
 
-      // Close evaluation modal
-      closeEvaluationModal: () => {
-        set({
-          openEvalModal: false,
-          selectedEmployee: null,
-          selectedTask: null,
-          editEvaluation: null,
-          evaluationForm: { ...defaultEvaluationForm },
-        }, false, 'closeEvaluationModal')
-      },
-
       setWeeklyReport: (report) => {
         set({ weeklyReport: report }, false, 'setWeeklyReport')
       },
@@ -174,6 +166,32 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
           isSubmittingEvaluation: false,
           isRefetching: false,
         }, false, 'resetAllStates')
+      },
+
+      // ✅ ADDED: Helper methods for ReportTemplate compatibility
+      setSelectedTask: (task) => {
+        console.log('📋 AdminOverviewStore: Setting selected task:', task?.id)
+        set({ selectedTask: task })
+      },
+
+      setSelectedEmployee: (employee) => {
+        console.log('👤 AdminOverviewStore: Setting selected employee:', employee?.user?.id)
+        set({ selectedEmployee: employee })
+      },
+
+      setEditEvaluation: (evaluation) => {
+        console.log('✏️ AdminOverviewStore: Setting edit evaluation:', evaluation?.id)
+        set({ editEvaluation: evaluation })
+      },
+
+      closeEvaluationModal: () => {
+        console.log('❌ AdminOverviewStore: Closing evaluation modal')
+        set({
+          openEvalModal: false,
+          selectedTask: null,
+          editEvaluation: null,
+          // Keep selectedEmployee for reference
+        })
       },
     }),
     {

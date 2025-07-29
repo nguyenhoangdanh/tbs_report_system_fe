@@ -7,8 +7,10 @@ import { useCreateTaskEvaluation, useUpdateTaskEvaluation, useDeleteTaskEvaluati
 import { useApproveTask, useRejectTask } from '@/hooks/use-reports'
 import { useAdminOverviewStore } from '@/store/admin-overview-store'
 import { evaluationFormSchema, type EvaluationFormData } from '@/schemas/evaluation-schema'
-import { EvaluationType } from '@/types'
+import { EvaluationType, Role } from '@/types'
 import { toast } from 'react-toast-kit'
+import { QUERY_KEYS } from './query-key'
+import { hierarchyStoreActions } from '@/store/hierarchy-store'
 
 export function useEvaluationForm() {
   const { user: currentUser } = useAuth()
@@ -21,6 +23,7 @@ export function useEvaluationForm() {
     setEvaluationModal,
     isSubmittingEvaluation,
     setSubmittingEvaluation,
+    weeklyReport
   } = useAdminOverviewStore()
 
   // Mutations
@@ -62,7 +65,7 @@ export function useEvaluationForm() {
   }, [selectedTask, editEvaluation, form])
 
   // Submit evaluation
-  const handleSubmitEvaluation = useCallback(async (data: EvaluationFormData) => {
+  const handleSubmitEvaluation = useCallback(async (data: EvaluationFormData): Promise<void> => {
     if (!selectedTask || !selectedEmployee || !currentUser?.id) return
 
     setSubmittingEvaluation(true)
@@ -92,8 +95,100 @@ export function useEvaluationForm() {
         }
       }
 
-      // Force refresh manager reports cache
-      queryClient.removeQueries({ queryKey: ['hierarchy', 'managerReports'] })
+      // ✅ CRITICAL: Force hierarchy store refresh FIRST
+      console.log('🔄 Evaluation submitted, forcing hierarchy store refresh')
+      hierarchyStoreActions.forceRefresh()
+
+      // ✅ ENHANCED: Complete cache invalidation with specific targeting
+      console.log('🔄 Starting complete cache invalidation...')
+      
+      // Step 1: Remove ALL hierarchy queries immediately
+      queryClient.removeQueries({ 
+        queryKey: ['hierarchy'], 
+        exact: false 
+      })
+      
+      // Step 2: Remove specific user-related queries  
+      queryClient.removeQueries({ 
+        queryKey: ['hierarchy', 'user-details'], 
+        exact: false 
+      })
+      
+      queryClient.removeQueries({ 
+        queryKey: ['hierarchy', 'managerReports'], 
+        exact: false 
+      })
+      
+      // Step 3: Force invalidate with ALL refetch type
+      await queryClient.invalidateQueries({ 
+        queryKey: ['hierarchy'], 
+        exact: false,
+        refetchType: 'all'
+      })
+      
+      // Step 4: Specific invalidation for current user's myView with current filters
+      if (weeklyReport?.year && weeklyReport?.weekNumber) {
+        const currentFilters = {
+          year: weeklyReport.year,
+          weekNumber: weeklyReport.weekNumber,
+        }
+        
+        // Remove and invalidate specific myView query
+        const myViewQueryKey = QUERY_KEYS.hierarchy.myView(currentUser.id, currentFilters)
+        console.log('🔄 Invalidating specific myView query:', myViewQueryKey)
+        
+        queryClient.removeQueries({ 
+          queryKey: myViewQueryKey,
+          exact: true 
+        })
+        
+        await queryClient.invalidateQueries({ 
+          queryKey: myViewQueryKey,
+          exact: true,
+          refetchType: 'all'
+        })
+        
+        // Force refetch this specific query
+        await queryClient.refetchQueries({ 
+          queryKey: myViewQueryKey,
+          exact: true
+        })
+      }
+      
+      // Step 5: Additional invalidation for user role-specific queries
+      if (currentUser?.role !== 'USER') {
+        const filters = {
+          year: weeklyReport?.year,
+          weekNumber: weeklyReport?.weekNumber,
+        }
+        const roleSpecificKey = QUERY_KEYS.hierarchy.myView(currentUser.id, filters)
+        
+        queryClient.removeQueries({ 
+          queryKey: roleSpecificKey,
+          exact: true 
+        })
+        
+        await queryClient.invalidateQueries({ 
+          queryKey: roleSpecificKey,
+          exact: true,
+          refetchType: 'all'
+        })
+      }
+      
+      // Step 6: Wait for cache to settle, then force comprehensive refetch
+      setTimeout(async () => {
+        console.log('🔄 Final comprehensive refetch after cache settlement')
+        
+        // Force refetch ALL active hierarchy queries
+        await queryClient.refetchQueries({ 
+          queryKey: ['hierarchy'], 
+          type: 'active',
+          exact: false
+        })
+        
+        // Additional force refresh of hierarchy store
+        hierarchyStoreActions.forceRefresh()
+      }, 1000)
       
       setEvaluationModal(false)
       toast.success(editEvaluation ? 'Đánh giá đã được cập nhật thành công!' : 'Đánh giá đã được tạo thành công!')
@@ -115,10 +210,11 @@ export function useEvaluationForm() {
     setSubmittingEvaluation,
     setEvaluationModal,
     queryClient,
+    weeklyReport
   ])
 
   // Delete evaluation
-  const handleDeleteEvaluation = useCallback(async () => {
+  const handleDeleteEvaluation = useCallback(async (): Promise<void> => {
     if (!editEvaluation) return
 
     setSubmittingEvaluation(true)
@@ -126,8 +222,31 @@ export function useEvaluationForm() {
     try {
       await deleteEval.mutateAsync(editEvaluation.id)
       
-      // Force refresh manager reports cache
-      queryClient.removeQueries({ queryKey: ['hierarchy', 'managerReports'] })
+      // ✅ ENHANCED: Same comprehensive invalidation for delete
+      console.log('🔄 Evaluation deleted, forcing hierarchy store refresh')
+      hierarchyStoreActions.forceRefresh()
+      
+      // Complete cache removal and invalidation
+      queryClient.removeQueries({ 
+        queryKey: ['hierarchy'], 
+        exact: false 
+      })
+      
+      await queryClient.invalidateQueries({ 
+        queryKey: ['hierarchy'], 
+        exact: false,
+        refetchType: 'all'
+      })
+      
+      // Force refetch after delay
+      setTimeout(async () => {
+        await queryClient.refetchQueries({ 
+          queryKey: ['hierarchy'], 
+          type: 'active',
+          exact: false
+        })
+        hierarchyStoreActions.forceRefresh()
+      }, 1000)
       
       setEvaluationModal(false)
       toast.success('Đánh giá đã được xóa thành công!')

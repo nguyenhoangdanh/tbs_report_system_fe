@@ -5,6 +5,7 @@ import type { CreateEvaluationDto, EvaluationType, Task, TaskEvaluation, UpdateE
 import { toast } from "react-toast-kit"
 import { useApiMutation, useApiQuery } from "./use-api-query"
 import { useAuth } from "@/components/providers/auth-provider"
+import { hierarchyStoreActions } from '@/store/hierarchy-store'
 
 const handleError = (error: any, defaultMessage: string) => {
   const message = error?.message || defaultMessage
@@ -18,7 +19,7 @@ export function useCreateTaskEvaluation() {
     mutationFn: async (data: CreateEvaluationDto) => await TaskEvaluationsService.createTaskEvaluation(data),
     enableOptimistic: true,
     optimisticUpdate: {
-      queryKey: ["task-evaluations", "{taskId}"], // Will be replaced
+      queryKey: ["task-evaluations", "{taskId}"],
       updater: (old: TaskEvaluation[] = [], variables) => {
         const optimisticEvaluation: TaskEvaluation = {
           id: `temp-${Date.now()}`,
@@ -36,15 +37,28 @@ export function useCreateTaskEvaluation() {
         return [...old, optimisticEvaluation]
       }
     },
-    invalidation: {
-      type: 'evaluation',
-      userId: user?.id,
+    onMutate: async (newEvaluation) => {
+      if (!user?.id) return
+      console.log('🔄 CREATE evaluation mutation started')
     },
-    onSuccess: () => {
+    onSuccess: (newEvaluation, variables) => {
+      if (!user?.id) return
+      
+      console.log('✅ CREATE evaluation successful, triggering hierarchy refresh')
+      
+      // ✅ ENHANCED: Force refresh with small delay to ensure backend processing
+      setTimeout(() => {
+        hierarchyStoreActions.forceRefresh()
+      }, 200)
+      
       toast.success("Đánh giá nhiệm vụ thành công!")
     },
     onError: (error) => {
       handleError(error, "Không thể đánh giá nhiệm vụ")
+    },
+    invalidation: {
+      type: 'evaluation',
+      userId: user?.id,
     },
     retry: 1,
   })
@@ -55,15 +69,28 @@ export function useUpdateTaskEvaluation() {
   
   return useApiMutation<TaskEvaluation, { evaluationId: string; data: UpdateEvaluationDto }, Error>({
     mutationFn: async ({ evaluationId, data }) => await TaskEvaluationsService.updateTaskEvaluation(evaluationId, data),
-    invalidation: {
-      type: 'evaluation',
-      userId: user?.id,
+    onMutate: async (variables) => {
+      if (!user?.id) return
+      console.log('🔄 UPDATE evaluation mutation started')
     },
-    onSuccess: () => {
+    onSuccess: (updatedEvaluation, variables) => {
+      if (!user?.id) return
+      
+      console.log('✅ UPDATE evaluation successful, triggering hierarchy refresh')
+      
+      // ✅ ENHANCED: Force refresh with small delay
+      setTimeout(() => {
+        hierarchyStoreActions.forceRefresh()
+      }, 200)
+      
       toast.success("Cập nhật đánh giá thành công!")
     },
     onError: (error) => {
       handleError(error, "Không thể cập nhật đánh giá")
+    },
+    invalidation: {
+      type: 'evaluation',
+      userId: user?.id,
     },
     retry: 1,
   })
@@ -74,15 +101,28 @@ export function useDeleteTaskEvaluation() {
   
   return useApiMutation<{ message: string }, string, Error>({
     mutationFn: async (evaluationId: string) => await TaskEvaluationsService.deleteTaskEvaluation(evaluationId),
-    invalidation: {
-      type: 'evaluation',
-      userId: user?.id,
+    onMutate: async (evaluationId) => {
+      if (!user?.id) return
+      console.log('🔄 DELETE evaluation mutation started')
     },
-    onSuccess: () => {
+    onSuccess: (result, deletedId) => {
+      if (!user?.id) return
+      
+      console.log('✅ DELETE evaluation successful, triggering hierarchy refresh')
+      
+      // ✅ ENHANCED: Force refresh with small delay
+      setTimeout(() => {
+        hierarchyStoreActions.forceRefresh()
+      }, 200)
+      
       toast.success("Xóa đánh giá thành công!")
     },
     onError: (error) => {
       handleError(error, "Không thể xóa đánh giá")
+    },
+    invalidation: {
+      type: 'evaluation',
+      userId: user?.id,
     },
     retry: 1,
   })

@@ -11,7 +11,7 @@ export default function HierarchyPage() {
     <MainLayout
       enableBackgroundAnimation
       title="Báo cáo Hierarchy"
-      subtitle="Quản lý và theo dõi báo cáo Kế hoạch & Kết quả công việc theo tuần"
+      // subtitle="Quản lý và theo dõi báo cáo Kế hoạch & Kết quả công việc theo tuần"
     >
       <div className="container mx-auto py-6">
         <Suspense

@@ -175,8 +175,20 @@ const useReportStore = create<ReportState>()(
             return
           }
 
+          // ✅ ENHANCED: Ensure imported tasks don't inherit evaluations
+          const cleanTasks = tasks.map(task => ({
+            ...task,
+            id: task.id || `temp-${Date.now()}-${Math.random()}`, // Ensure unique ID
+            evaluations: [], // ✅ CRITICAL: Always clear evaluations for imported tasks
+            reportId: '', // Clear report association
+            createdAt: task.createdAt || new Date().toISOString(),
+            updatedAt: new Date().toISOString()
+          }))
+
+          console.log('📥 Adding multiple clean tasks:', cleanTasks.length, 'for user:', state.currentUserId)
+          
           set({
-            currentTasks: [...state.currentTasks, ...tasks]
+            currentTasks: [...state.currentTasks, ...cleanTasks]
           })
         },
 

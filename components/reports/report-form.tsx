@@ -142,14 +142,12 @@ export const ReportForm = memo(function ReportForm({
   // Enhanced sync with better cleanup
   useEffect(() => {
     if (propWeekNumber !== undefined && propYear !== undefined) {
-      console.log('📅 ReportForm: Syncing week props:', propWeekNumber, propYear)
       navigateToWeek(propWeekNumber, propYear, false)
     }
   }, [propWeekNumber, propYear, navigateToWeek])
 
   // Enhanced report sync
   useEffect(() => {
-    console.log('📄 ReportForm: Syncing report:', report?.id || 'null')
     if (report) {
       syncReportToStore(report)
     } else {
@@ -163,7 +161,6 @@ export const ReportForm = memo(function ReportForm({
   // Force clear when no report and week changes - Enhanced
   useEffect(() => {
     if (!report && (propWeekNumber !== undefined || propYear !== undefined)) {
-      console.log('🧹 ReportForm: Force clearing for new week without report')
       setIsFormOperationLoading(true)
       
       setTimeout(() => {

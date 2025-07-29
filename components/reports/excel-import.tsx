@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useMemo } from 'react'
 import { Button } from '@/components/ui/button'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Upload, FileSpreadsheet, AlertCircle, CheckCircle, Download, Replace, Plus } from 'lucide-react'
@@ -45,6 +45,29 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
 
   // Check if there are existing tasks
   const hasExistingTasks = currentTasks.length > 0
+
+  // ✅ NEW: Identify tasks with evaluations that cannot be replaced
+  const tasksWithEvaluations = useMemo(() => {
+    return currentTasks.filter(task => 
+      task.evaluations && 
+      task.evaluations.length > 0
+    ).map((task, index) => ({
+      task,
+      originalIndex: index,
+      taskName: task.taskName,
+      evaluationCount: task.evaluations?.length || 0
+    }))
+  }, [currentTasks])
+
+  // ✅ NEW: Calculate which tasks can be replaced safely
+  const replaceableTasksCount = useMemo(() => {
+    return currentTasks.length - tasksWithEvaluations.length
+  }, [currentTasks.length, tasksWithEvaluations.length])
+
+  // ✅ ENHANCED: Better import mode validation
+  const canUseReplaceMode = useMemo(() => {
+    return tasksWithEvaluations.length === 0 // Only allow replace if no tasks have evaluations
+  }, [tasksWithEvaluations.length])
 
   // Download template Excel file
 //   const downloadTemplate = useCallback(() => {
@@ -427,7 +450,7 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
     }
   }, [parseExcelFile])
 
-  // Import tasks to store with mode selection
+  // ✅ ENHANCED: Import tasks with better task creation
   const handleImport = useCallback(() => {
     if (parsedTasks.length === 0) {
       toast.error('Không có công việc nào để import')
@@ -439,9 +462,9 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
       return
     }
 
-    // Convert parsed tasks to Task objects
-    const tasksToAdd: Task[] = parsedTasks.map((parsedTask, index) => ({
-      id: `temp-${Date.now()}-${index}`,
+    // ✅ CRITICAL: Create completely new Task objects without copying any existing evaluations
+    const tasksToAdd: Task[] = parsedTasks.map((parsedTask) => ({
+      id: `temp-import-${Date.now()}-${Math.random()}`, // Unique ID for imported tasks
       taskName: parsedTask.taskName,
       monday: parsedTask.monday,
       tuesday: parsedTask.tuesday,
@@ -453,23 +476,30 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
       reasonNotDone: parsedTask.reasonNotDone,
       reportId: '',
       createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
+      updatedAt: new Date().toISOString(),
+      // ✅ CRITICAL: Explicitly set evaluations to empty array for new tasks
+      evaluations: []
     }))
 
     // Handle import based on mode
     if (importMode === 'replace') {
-      // Clear existing tasks and add new ones
+      if (!canUseReplaceMode) {
+        toast.error('Không thể thay thế do có công việc đã được đánh giá!')
+        return
+      }
+      
+      // ✅ SAFE: Clear all tasks and add new ones (only when no evaluations exist)
       clearTasks()
       addMultipleTasks(tasksToAdd)
       toast.success(`Đã thay thế ${currentTasks.length} công việc cũ bằng ${tasksToAdd.length} công việc mới!`)
     } else {
-      // Append to existing tasks
+      // ✅ SAFE: Append mode - just add new tasks without touching existing ones
       addMultipleTasks(tasksToAdd)
       toast.success(`Đã thêm ${tasksToAdd.length} công việc mới vào ${currentTasks.length} công việc hiện có!`)
     }
 
     onClose()
-  }, [parsedTasks, errors, importMode, currentTasks.length, clearTasks, addMultipleTasks, onClose])
+  }, [parsedTasks, errors, importMode, currentTasks.length, clearTasks, addMultipleTasks, onClose, canUseReplaceMode])
 
   const handleClose = useCallback(() => {
     setParsedTasks([])
@@ -480,7 +510,7 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-          <DialogContent className="w-[95vw] max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0 sm:max-h-[70vh]">
+      <DialogContent className="w-[95vw] max-w-4xl max-h-[80vh] overflow-hidden flex flex-col p-0 sm:max-h-[70vh]">
         <DialogHeader className="flex-shrink-0 space-y-3 p-4 sm:p-6 border-b border-gray-200 dark:border-gray-700">
           <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
             <FileSpreadsheet className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0" />
@@ -528,7 +558,48 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
             </div>
           </div>
 
-          {/* Import Mode Selection - Only show if there are existing tasks and parsed tasks */}
+          {/* ✅ NEW: Tasks with evaluations warning */}
+          {tasksWithEvaluations.length > 0 && (
+            <Card className="border-2 border-amber-200 bg-amber-50/50 dark:bg-amber-950/20">
+              <CardContent className="p-3 sm:p-4 space-y-4">
+                <div className="flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 text-amber-600 flex-shrink-0" />
+                  <h3 className="font-semibold text-amber-800 dark:text-amber-300 text-sm sm:text-base">
+                    ⚠️ Có {tasksWithEvaluations.length} công việc đã được đánh giá
+                  </h3>
+                </div>
+                
+                <p className="text-amber-700 dark:text-amber-300 text-xs sm:text-sm">
+                  Các công việc sau đã có đánh giá và <strong>không thể bị thay thế</strong>:
+                </p>
+
+                <div className="bg-white dark:bg-gray-800 rounded-lg p-3 max-h-32 overflow-y-auto">
+                  <div className="space-y-2">
+                    {tasksWithEvaluations.map((item, index) => (
+                      <div key={item.task.id} className="flex items-center justify-between text-xs border-b last:border-b-0 pb-1 last:pb-0">
+                        <span className="font-medium text-gray-700 dark:text-gray-300 truncate flex-1 mr-2">
+                          {index + 1}. {item.taskName}
+                        </span>
+                        <span className="text-blue-600 dark:text-blue-400 font-semibold whitespace-nowrap">
+                          {item.evaluationCount} đánh giá
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {!canUseReplaceMode && (
+                  <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-2">
+                    <p className="text-red-700 dark:text-red-300 text-xs font-medium">
+                      🚫 Chế độ "Thay thế tất cả" đã bị vô hiệu hóa do có công việc đã được đánh giá
+                    </p>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Import Mode Selection - Enhanced with evaluation validation */}
           {hasExistingTasks && parsedTasks.length > 0 && (
             <Card className="border-2 border-orange-200 bg-orange-50/50 dark:bg-orange-950/20">
               <CardContent className="p-3 sm:p-4 space-y-4">
@@ -543,33 +614,64 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
                   Bạn muốn xử lý như thế nào với {parsedTasks.length} công việc mới từ file Excel?
                 </p>
 
-                <RadioGroup value={importMode} onValueChange={(value) => setImportMode(value as ImportMode)}>
+                <RadioGroup 
+                  value={importMode} 
+                  onValueChange={(value) => setImportMode(value as ImportMode)}
+                  disabled={!canUseReplaceMode && importMode === 'replace'}
+                >
                   <div className="space-y-3">
                     <div className="flex items-start space-x-3 p-2 sm:p-3 rounded-lg border border-orange-200 bg-white/50 dark:bg-gray-800/50">
                       <RadioGroupItem value="append" id="append" className="mt-0.5 flex-shrink-0" />
                       <div className="space-y-1 flex-1 min-w-0">
                         <Label htmlFor="append" className="flex items-center gap-2 font-medium cursor-pointer text-xs sm:text-sm">
                           <Plus className="w-3 h-3 sm:w-4 sm:h-4 text-green-600 flex-shrink-0" />
-                          <span>Thêm vào công việc hiện có</span>
+                          <span>Thêm vào công việc hiện có (Khuyến nghị)</span>
                         </Label>
                         <p className="text-xs text-gray-600 dark:text-gray-400 break-words">
                           Giữ lại {currentTasks.length} công việc hiện tại và thêm {parsedTasks.length} công việc mới
                           {' '}(Tổng: {currentTasks.length + parsedTasks.length} công việc)
                         </p>
+                        {tasksWithEvaluations.length > 0 && (
+                          <p className="text-xs text-green-600 dark:text-green-400 font-medium">
+                            ✅ An toàn: Không ảnh hưởng đến {tasksWithEvaluations.length} công việc đã có đánh giá
+                          </p>
+                        )}
                       </div>
                     </div>
 
-                    <div className="flex items-start space-x-3 p-2 sm:p-3 rounded-lg border border-orange-200 bg-white/50 dark:bg-gray-800/50">
-                      <RadioGroupItem value="replace" id="replace" className="mt-0.5 flex-shrink-0" />
+                    <div className={`flex items-start space-x-3 p-2 sm:p-3 rounded-lg border border-orange-200 bg-white/50 dark:bg-gray-800/50 ${!canUseReplaceMode ? 'opacity-50 cursor-not-allowed' : ''}`}>
+                      <RadioGroupItem 
+                        value="replace" 
+                        id="replace" 
+                        className="mt-0.5 flex-shrink-0" 
+                        disabled={!canUseReplaceMode}
+                      />
                       <div className="space-y-1 flex-1 min-w-0">
-                        <Label htmlFor="replace" className="flex items-center gap-2 font-medium cursor-pointer text-xs sm:text-sm">
+                        <Label 
+                          htmlFor="replace" 
+                          className={`flex items-center gap-2 font-medium text-xs sm:text-sm ${!canUseReplaceMode ? 'cursor-not-allowed' : 'cursor-pointer'}`}
+                        >
                           <Replace className="w-3 h-3 sm:w-4 sm:h-4 text-red-600 flex-shrink-0" />
-                          <span>Thay thế tất cả</span>
+                          <span>Thay thế tất cả {!canUseReplaceMode && '(Không khả dụng)'}</span>
                         </Label>
                         <p className="text-xs text-gray-600 dark:text-gray-400 break-words">
-                          Xóa {currentTasks.length} công việc hiện tại và thay thế bằng {parsedTasks.length} công việc mới
-                          {' '}(Tổng: {parsedTasks.length} công việc)
+                          {canUseReplaceMode ? (
+                            <>
+                              Xóa {currentTasks.length} công việc hiện tại và thay thế bằng {parsedTasks.length} công việc mới
+                              {' '}(Tổng: {parsedTasks.length} công việc)
+                            </>
+                          ) : (
+                            <>
+                              Không thể thay thế do có {tasksWithEvaluations.length} công việc đã được đánh giá.
+                              Chỉ có thể thay thế {replaceableTasksCount} công việc chưa có đánh giá.
+                            </>
+                          )}
                         </p>
+                        {!canUseReplaceMode && (
+                          <p className="text-xs text-red-600 dark:text-red-400 font-medium">
+                            🚫 Vô hiệu hóa để bảo vệ dữ liệu đánh giá
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -684,6 +786,7 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
                 onClick={handleImport} 
                 className="bg-green-600 hover:bg-green-700 flex items-center gap-2 justify-center order-1 sm:order-2"
                 size="sm"
+                disabled={!canUseReplaceMode && importMode === 'replace'}
               >
                 {importMode === 'replace' ? (
                   <Replace className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
@@ -692,7 +795,7 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
                 )}
                 <span className="truncate">
                   {importMode === 'replace' 
-                    ? `Thay thế bằng ${parsedTasks.length} CV`
+                    ? (canUseReplaceMode ? `Thay thế bằng ${parsedTasks.length} CV` : 'Không khả dụng')
                     : `Thêm ${parsedTasks.length} CV`
                   }
                 </span>

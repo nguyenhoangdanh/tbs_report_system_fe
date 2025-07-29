@@ -11,7 +11,8 @@ import type {
 import { useApiQuery } from './use-api-query'
 import { QUERY_KEYS } from './query-key'
 import { useAuth } from "@/components/providers/auth-provider"
-import { useMemo, useState, useCallback } from 'react'
+import { useMemo, useState, useCallback, useEffect } from 'react'
+import useHierarchyStore from '@/store/hierarchy-store'
 
 export function useMyHierarchyView(filters?: {
   weekNumber?: number
@@ -20,21 +21,79 @@ export function useMyHierarchyView(filters?: {
 }) {
   const { user } = useAuth()
   
-  return useApiQuery({
+  const {
+    hierarchyData,
+    currentFilters,
+    lastRefreshTimestamp,
+    isRefreshing,
+    setCurrentUser,
+    setHierarchyData,
+    setRefreshing,
+    shouldRefetch
+  } = useHierarchyStore()
+
+  // Sync user to store
+  useEffect(() => {
+    setCurrentUser(user?.id || null)
+  }, [user?.id, setCurrentUser])
+
+  // ✅ ENHANCED: More reliable shouldRefetch logic
+  const needsRefetch = useMemo(() => {
+    if (!user?.id) return false
+    
+    return shouldRefetch(user.id, filters)
+  }, [user?.id, filters, shouldRefetch, lastRefreshTimestamp])
+
+  const queryResult = useApiQuery({
     queryKey: QUERY_KEYS.hierarchy.myView(user?.id || 'anonymous', filters),
     queryFn: async () => {
       try {
+        console.log('🔄 useMyHierarchyView: Fetching with filters:', filters, 'for user:', user?.id)
+        setRefreshing(true)
+        
         const result = await HierarchyService.getMyHierarchyView(filters)
-        return result
+        
+        console.log('✅ useMyHierarchyView: Fresh data received:', result?.success, result?.data)
+        
+        // ✅ FIXED: Handle ApiResult structure correctly
+        if (result?.success && result.data) {
+          setHierarchyData(result.data, filters)
+          setRefreshing(false) // ✅ CRITICAL: Ensure loading state is cleared
+          return result
+        } else {
+          // Handle error case
+          setHierarchyData(null, filters)
+          setRefreshing(false) // ✅ CRITICAL: Ensure loading state is cleared
+          throw new Error(result?.error?.message || 'Failed to fetch hierarchy data')
+        }
       } catch (error) {
         console.error('useMyHierarchyView: Error in queryFn:', error)
+        setRefreshing(false) // ✅ CRITICAL: Always clear loading state
         throw error
       }
     },
-    enabled: !!user?.id,
-    cacheStrategy: 'fresh', // Always fresh for hierarchy data
+    enabled: !!user?.id && needsRefetch,
+    cacheStrategy: 'realtime',
     throwOnError: false,
+    refetchOnMount: needsRefetch ? 'always' : false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    staleTime: 500,
+    gcTime: 1000,
   })
+
+
+  const finalData = queryResult.data;
+
+  // ✅ FIXED: Return the correct loading state
+  return {
+    data: finalData,
+    isLoading: (queryResult.isLoading && needsRefetch) || isRefreshing,
+    isError: queryResult.isError,
+    error: queryResult.error,
+    isStoreRefreshing: isRefreshing,
+    isFetching: queryResult.isFetching,
+  }
 }
 
 export function useUserDetails(userId: string, filters?: {
@@ -62,67 +121,30 @@ export function useManagerReports(filters?: {
   year?: number
   userId?: string
 }) {
-  // const { user } = useAuth()
-  
-  // STABLE queryKey - Use useMemo for filters to prevent unnecessary re-computation
-  // const stableQueryKey = useMemo(() => [
-  //   'hierarchy',
-  //   'managerReports',
-  //   user?.id || 'anonymous',
-  //   filters?.weekNumber || 0,
-  //   filters?.year || 0,
-  //   user?.employeeCode, // Stable identifier
-  //   'realtime' // Add version to force fresh when needed
-  // ], [user?.id, user?.employeeCode, filters?.weekNumber, filters?.year])
-  
-  // const stableQueryKey = useMemo(() => {
-  //   // CRITICAL: Don't create query if no authenticated user
-  //   if (!user?.id) {
-  //     return ['hierarchy', 'disabled'] as const
-  //   }
-    
-  //   return [
-  //     'hierarchy',
-  //     'managerReports',
-  //     user.id,
-  //     filters
-  //   ] as const
-  // }, [user?.id, user?.employeeCode, filters?.weekNumber, filters?.year])
-  
-  
   return useApiQuery({
-    // queryKey: stableQueryKey,
-      queryKey: ['hierarchy', 'managerReports', filters],
+    queryKey: ['hierarchy', 'managerReports', filters],
     queryFn: async () => {
-      // CRITICAL: Validate user context before making request
-      // if (!user?.id) {
-      //   throw new Error('No authenticated user found')
-      // }
-      
       const enhancedFilters = {
         ...filters,
       }
       
-      
       try {
         const result = await HierarchyService.getManagerReports(enhancedFilters)
-
+        console.log('✅ useManagerReports: Fresh data received')
         return result
       } catch (error) {
         console.error('❌ useManagerReports: Fetch failed:', error)
         throw error
       }
     },
-    // FIXED: Only enable query if user exists and query key is valid
     enabled: !!filters?.weekNumber && !!filters?.year && !!filters?.userId,
-    cacheStrategy: 'realtime-stable', // NEW strategy
+    cacheStrategy: 'realtime',
     throwOnError: true,
     notifyOnChangeProps: ['data', 'error', 'isLoading'],
-
-    // enabled: !!user?.id,
-    // cacheStrategy: 'realtime', // NO CACHE - Always fresh data
-    // throwOnError: true,
-    // notifyOnChangeProps: ['data', 'error', 'isLoading'], // Limit what causes rerender
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+    staleTime: 0,
+    gcTime: 1000,
   })
 }
 
