@@ -40,7 +40,7 @@ interface PositionData {
     completedTasks: number
     averageCompletionRate: number
     needsImprovementCount?: number
-    positionRanking?: "EXCELLENT" | "GOOD" | "AVERAGE" | "FAIL" | "POOR"
+    positionRanking?: "EXCELLENT" | "GOOD" | "AVERAGE" | "POOR"
     rankingDistribution?: any
     users?: any[]
   }

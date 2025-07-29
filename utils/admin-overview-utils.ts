@@ -35,16 +35,20 @@ export function transformManagerReportsToHierarchyFormat(overview: ManagerReport
         good: { count: 0, percentage: 0 },
         average: { count: 0, percentage: 0 },
         poor: { count: 0, percentage: 0 },
-        fail: { count: 0, percentage: 0 },
+        // fail: { count: 0, percentage: 0 },
       }
       
       allEmployees.forEach((emp) => {
         const rate = emp.stats.taskCompletionRate
-        if (rate === 100) rankingDistribution.excellent.count++
-        else if (rate >= 95) rankingDistribution.good.count++
-        else if (rate >= 90) rankingDistribution.average.count++
-        else if (rate >= 85) rankingDistribution.poor.count++
-        else rankingDistribution.fail.count++
+        // if (rate === 100) rankingDistribution.excellent.count++
+        // else if (rate >= 95) rankingDistribution.good.count++
+        // else if (rate >= 90) rankingDistribution.average.count++
+        // else if (rate >= 85) rankingDistribution.poor.count++
+        // else rankingDistribution.fail.count++
+        if (rate > 90) rankingDistribution.excellent.count++
+        else if (rate >= 80) rankingDistribution.good.count++
+        else if (rate >= 70) rankingDistribution.average.count++
+        else rankingDistribution.poor.count++
       })
       
       // Convert percentages
@@ -132,16 +136,20 @@ export function transformManagerReportsToHierarchyFormat(overview: ManagerReport
           good: { count: 0, percentage: 0 },
           average: { count: 0, percentage: 0 },
           poor: { count: 0, percentage: 0 },
-          fail: { count: 0, percentage: 0 },
+          // fail: { count: 0, percentage: 0 },
         }
         
         employees.forEach((emp) => {
           const rate = emp.stats.taskCompletionRate
-          if (rate === 100) rankingDistribution.excellent.count++
-          else if (rate >= 95) rankingDistribution.good.count++
-          else if (rate >= 90) rankingDistribution.average.count++
-          else if (rate >= 85) rankingDistribution.poor.count++
-          else rankingDistribution.fail.count++
+          // if (rate === 100) rankingDistribution.excellent.count++
+          // else if (rate >= 95) rankingDistribution.good.count++
+          // else if (rate >= 90) rankingDistribution.average.count++
+          // else if (rate >= 85) rankingDistribution.poor.count++
+          // else rankingDistribution.fail.count++
+          if (rate > 90) rankingDistribution.excellent.count++
+          else if (rate >= 80) rankingDistribution.good.count++
+          else if (rate >= 70) rankingDistribution.average.count++
+          else rankingDistribution.poor.count++
         })
         
         // Convert percentages

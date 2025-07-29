@@ -130,7 +130,7 @@ function AdminUsersContent() {
   if (!currentUser) {
     return (
       <MainLayout>
-        <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+        <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
       </MainLayout>
     );
   }
@@ -416,7 +416,7 @@ export default function AdminUsersPage() {
       ]}
     >
       <Suspense fallback={
-        <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+        <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
       }>
         <AdminUsersContent />
       </Suspense>

@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { Role } from '@/types'
 
 export function UserNav() {
   const { user, logout } = useAuth()
@@ -51,6 +52,18 @@ export function UserNav() {
             description: 'Toàn quyền quản trị'
           }
         )
+
+        break
+      
+      case 'USER':
+        if (user.isManager) {
+          links.push({
+            href: '/admin/overview',
+            icon: '📊',
+            label: 'Báo cáo KH & KQCV',
+            description: 'Xem báo cáo theo cấu trúc tổ chức'
+          })
+        }
         break
 
       // case 'ADMIN':
@@ -61,6 +74,7 @@ export function UserNav() {
       //     description: 'Quản lý người dùng'
       //   })
       //   break
+
     }
 
     return links

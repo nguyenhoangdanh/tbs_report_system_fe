@@ -135,7 +135,7 @@ export function RegisterForm() {
   }
 
   if (loading) {
-    return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+    return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
   }
 
   return (

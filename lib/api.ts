@@ -272,6 +272,7 @@ class EnhancedApiClient {
       '/refresh',
       '/statistics/',
       'admin/hierarchy',
+      "admin/overview",
       '/dashboard/',
       '/reports/',
       '/profile',

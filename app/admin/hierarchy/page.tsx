@@ -16,7 +16,7 @@ export default function HierarchyPage() {
       <div className="container mx-auto py-6">
         <Suspense
           fallback={
-            <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+            <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
           }
         >
           <HierarchyDashboard />

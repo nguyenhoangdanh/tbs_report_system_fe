@@ -2,7 +2,7 @@ import { memo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Trophy, Award, Medal, Target, AlertTriangle } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { EmployeeRanking } from '@/services/ranking.service'
+import { EmployeeRanking } from '@/services/report.service'
 
 
 interface RankingBadgeProps {
@@ -45,12 +45,12 @@ export const RankingBadge = memo(function RankingBadge({
           icon: <Target className="w-4 h-4" />,
           className: 'bg-orange-500 text-white border-orange-500 hover:bg-orange-600'
         }
-      case 'FAIL':
-        return {
-          label: 'KÉM',
-          icon: <AlertTriangle className="w-4 h-4" />,
-          className: 'bg-red-600 text-white border-red-600 hover:bg-red-700'
-        }
+      // case 'FAIL':
+      //   return {
+      //     label: 'KÉM',
+      //     icon: <AlertTriangle className="w-4 h-4" />,
+      //     className: 'bg-red-600 text-white border-red-600 hover:bg-red-700'
+      //   }
       default:
         return {
           label: 'N/A',

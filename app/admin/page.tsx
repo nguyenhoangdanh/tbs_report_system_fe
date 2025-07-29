@@ -16,7 +16,7 @@ export default function AdminPage() {
   if (!user) {
     return (
       <MainLayout>
-        <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+        <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
       </MainLayout>
     );
   }

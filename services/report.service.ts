@@ -16,6 +16,17 @@ export interface CreateWeeklyReportDto {
   tasks: CreateTaskDto[]
 }
 
+export type Ranking = 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'POOR'
+
+// Updated ranking interface với thang điểm mới
+export interface EmployeeRanking {
+  rank: Ranking;
+  label: string
+  color: string
+  bgColor: string
+  description: string
+}
+
 export interface CreateTaskDto {
   taskName: string
   monday?: boolean

@@ -43,14 +43,36 @@ export const ProfileForm = memo(({
     resolver: zodResolver(updateProfileSchema),
     mode: 'onChange',
     defaultValues,
+    // Add values prop to ensure form stays in sync with external data
+    values: defaultValues, // This will force form to use current user data
   })
 
-  // Reset form when user data changes
+  // Force form to reset when user data changes (fallback)
   useEffect(() => {
     if (user) {
-      form.reset(defaultValues)
+      const currentFormValues = form.getValues()
+      const hasChanges = currentFormValues.lastName !== user.lastName ||
+                        currentFormValues.firstName !== user.firstName ||
+                        currentFormValues.employeeCode !== user.employeeCode ||
+                        currentFormValues.email !== (user.email || '') ||
+                        currentFormValues.phone !== (user.phone || '') ||
+                        currentFormValues.jobPositionId !== (user.jobPosition?.id || '') ||
+                        currentFormValues.officeId !== (user.office?.id || '') ||
+                        currentFormValues.role !== (user.role || 'USER')
+      
+      if (hasChanges) {
+        
+        form.reset(defaultValues, {
+          keepErrors: false,
+          keepDirty: false,
+          keepIsSubmitted: false,
+          keepTouched: false,
+          keepIsValid: false,
+          keepSubmitCount: false,
+        })
+      }
     }
-  }, [user, defaultValues, form])
+  }, [user?.id, user?.updatedAt, user?.lastName, user?.firstName, user?.employeeCode, user?.email, user?.phone, user?.jobPosition?.id, user?.office?.id, user?.role, defaultValues, form])
 
   const watchedOfficeId = form.watch('officeId')
   

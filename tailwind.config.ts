@@ -96,10 +96,12 @@ const config = {
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
-        "float": "float 3s ease-in-out infinite",
-        "float-slow": "float-slow 6s ease-in-out infinite",
-        "pulse-soft": "pulse-soft 4s ease-in-out infinite",
-        "gradient-shift": "gradient-shift 8s ease infinite",
+        "float": "float 3s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+        "float-slow": "float-slow 6s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+        "pulse-soft": "pulse-soft 4s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+        "gradient-shift": "gradient-shift 8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+        "spin-smooth": "spin 1s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+        "bounce-smooth": "bounce 1s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
       },
       backdropBlur: {
         xs: '2px',

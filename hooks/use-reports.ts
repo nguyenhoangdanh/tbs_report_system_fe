@@ -176,14 +176,17 @@ export function useCreateWeeklyReport() {
     onMutate: async (newReport) => {
       if (!user?.id) return
       setSaving(true)
+      console.log('🔄 CREATE mutation started, keeping state until success')
     },
     onSuccess: (newReport, variables) => {
       if (!user?.id) return
       
-      // Update store and cache immediately
+      console.log('✅ CREATE mutation successful:', newReport.id)
+      
+      // ✅ ENHANCED: Update store with the ACTUAL response data
       const cacheKey = `${newReport.weekNumber}-${newReport.year}`
       setCachedReport(cacheKey, newReport)
-      syncReportToStore(newReport)
+      syncReportToStore(newReport) // Sync with actual server response
       
       // Update React Query cache
       queryClient.setQueryData(
@@ -219,6 +222,7 @@ export function useCreateWeeklyReport() {
     },
     onSettled: () => {
       setSaving(false)
+      console.log('🔄 CREATE mutation settled')
     },
     retry: 1,
   })
@@ -234,14 +238,17 @@ export function useUpdateReport() {
     onMutate: async (variables) => {
       if (!user?.id) return
       setSaving(true)
+      console.log('🔄 UPDATE mutation started, keeping state until success')
     },
     onSuccess: (updatedReport, variables) => {
       if (!user?.id) return
       
-      // Update store and cache immediately
+      console.log('✅ UPDATE mutation successful:', updatedReport.id)
+      
+      // ✅ ENHANCED: Update store with the ACTUAL response data
       const cacheKey = `${updatedReport.weekNumber}-${updatedReport.year}`
       setCachedReport(cacheKey, updatedReport)
-      syncReportToStore(updatedReport)
+      syncReportToStore(updatedReport) // Sync with actual server response
       
       // Update React Query cache
       queryClient.setQueryData(QUERY_KEYS.reportById(user.id, variables.id), updatedReport)
@@ -273,6 +280,7 @@ export function useUpdateReport() {
     },
     onSettled: () => {
       setSaving(false)
+      console.log('🔄 UPDATE mutation settled')
     },
     retry: 1,
   })
@@ -281,49 +289,106 @@ export function useUpdateReport() {
 export function useDeleteReport() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
-  const { removeCachedReport, syncReportToStore, clearTasks } = useReportStore()
+  const { removeCachedReport, syncReportToStore, clearTasks, clearCacheForWeek } = useReportStore()
 
   return useApiMutation<void, string, Error>({
     mutationFn: (id: string) => ReportService.deleteReport(id),
     onMutate: async (reportId) => {
       if (!user?.id) return
-    },
-    onSuccess: (result, deletedId) => {
-      if (!user?.id) return
       
-      // OPTIMIZED: Use store directly instead of hook
-      const { selectedReport } = useReportStore.getState()
-      if (selectedReport?.id === deletedId) {
-        syncReportToStore(null) // Ensure selectedReport is cleared
+      console.log('🗑️ Starting delete mutation for report:', reportId)
+      
+      // Get the report data before deletion for cleanup
+      const reportQuery = queryClient.getQueriesData({ 
+        queryKey: QUERY_KEYS.reports(user.id) 
+      })
+      
+      // Find the report to be deleted
+      let reportToDelete = null
+      for (const [queryKey, data] of reportQuery) {
+        if (Array.isArray(data)) {
+          reportToDelete = data.find((r: any) => r.id === reportId)
+        } else if (data && typeof data === 'object' && 'data' in data) {
+          const reports = (data as any).data
+          if (Array.isArray(reports)) {
+            reportToDelete = reports.find((r: any) => r.id === reportId)
+          }
+        }
+        if (reportToDelete) break
       }
       
-      // Clear store and cache immediately
-      removeCachedReport(deletedId)
-      syncReportToStore(null)
-      clearTasks()
+      // ENHANCED: Aggressive pre-cleanup of ALL related state
+      console.log('🧹 Enhanced pre-delete cleanup for report:', reportId)
       
-      // Remove from React Query cache
+      // Clear store state first
+      const { selectedReport } = useReportStore.getState()
+      if (selectedReport?.id === reportId) {
+        console.log('🧹 Clearing selected report from store')
+        syncReportToStore(null)
+        clearTasks()
+      }
+      
+      if (reportToDelete) {
+        console.log('🧹 Pre-delete cleanup for week:', reportToDelete.weekNumber, reportToDelete.year)
+        clearCacheForWeek(reportToDelete.weekNumber, reportToDelete.year)
+        removeCachedReport(reportId)
+        
+        // Clear React Query cache immediately
+        queryClient.removeQueries({ 
+          queryKey: QUERY_KEYS.reportByWeek(user.id, reportToDelete.weekNumber, reportToDelete.year) 
+        })
+        queryClient.removeQueries({ 
+          queryKey: QUERY_KEYS.reportById(user.id, reportId) 
+        })
+      }
+      
+      return { reportToDelete }
+    },
+    onSuccess: (result, deletedId, context) => {
+      if (!user?.id) return
+      
+      console.log('✅ Delete mutation successful for report:', deletedId)
+      
+      // ENHANCED: Ensure complete state cleanup after successful deletion
+      const { selectedReport } = useReportStore.getState()
+      if (selectedReport?.id === deletedId) {
+        console.log('✅ Post-delete: Clearing selected report from store')
+        syncReportToStore(null)
+        clearTasks()
+      }
+      
+      // Clear all caches related to this report
+      removeCachedReport(deletedId)
+      
+      // Remove from React Query cache completely
       queryClient.removeQueries({ queryKey: QUERY_KEYS.reportById(user.id, deletedId) })
       
-      // Invalidate related queries
-      setTimeout(() => {
-        queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.reports(user.id),
-          exact: false,
-          refetchType: 'active'
+      // If we have the report data, also clear week-specific cache
+      if (context?.reportToDelete) {
+        const { weekNumber, year } = context.reportToDelete
+        queryClient.removeQueries({ 
+          queryKey: QUERY_KEYS.reportByWeek(user.id, weekNumber, year) 
         })
-        
-        queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.currentWeek(user.id),
-          refetchType: 'active'
-        })
+        console.log('✅ Cleared week-specific cache for:', weekNumber, year)
+      }
+      
+      // Force immediate invalidation of related queries
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.reports(user.id),
+        exact: false,
+        refetchType: 'all' // Force active refetch
+      })
+      
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.currentWeek(user.id),
+        refetchType: 'all'
+      })
 
-        queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.statistics(user.id),
-          exact: false,
-          refetchType: 'active'
-        })
-      }, 100)
+      queryClient.invalidateQueries({ 
+        queryKey: QUERY_KEYS.statistics(user.id),
+        exact: false,
+        refetchType: 'all'
+      })
       
       toast.success('Xóa báo cáo thành công!')
     },

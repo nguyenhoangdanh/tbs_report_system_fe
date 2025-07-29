@@ -11,7 +11,6 @@ export class CacheUtils {
    */
   clearUserCaches(userId?: string) {
     if (userId) {
-      console.log('🧹 CacheUtils: Clearing caches for user:', userId)
       // Clear specific user caches with more comprehensive patterns
       this.queryClient.removeQueries({ queryKey: ['reports'], predicate: (query) => 
         query.queryKey.includes(userId)
@@ -32,7 +31,6 @@ export class CacheUtils {
         query.queryKey.includes(userId)
       })
     } else {
-      console.log('🧹 CacheUtils: Clearing ALL caches')
       // Clear all caches
       this.queryClient.clear()
     }
@@ -42,7 +40,6 @@ export class CacheUtils {
    * Force clear all caches - nuclear option
    */
   clearAllCaches() {
-    console.log('🧹 CacheUtils: NUCLEAR CLEAR - Clearing ALL caches')
     this.queryClient.clear()
   }
 

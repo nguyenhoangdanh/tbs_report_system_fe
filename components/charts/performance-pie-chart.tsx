@@ -58,13 +58,13 @@ export const PerformancePieChart = memo(({
             percentage: distribution.poor?.percentage || 0,
             color: PERFORMANCE_LEVELS[3].color,
         },
-        {
-            name: 'Kém',
-            fullName: 'Kém',
-            value: distribution.fail?.count || 0,
-            percentage: distribution.fail?.percentage || 0,
-            color: PERFORMANCE_LEVELS[4].color,
-        }
+        // {
+        //     name: 'Kém',
+        //     fullName: 'Kém',
+        //     value: distribution.fail?.count || 0,
+        //     percentage: distribution.fail?.percentage || 0,
+        //     color: PERFORMANCE_LEVELS[4].color,
+        // }
     ]
 
     // Filter data to only show segments with values > 0

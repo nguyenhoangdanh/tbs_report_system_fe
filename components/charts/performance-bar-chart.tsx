@@ -53,13 +53,13 @@ export const PerformanceBarChart = memo(({
             shortName: distribution.poor?.count || 0,
             hasValue: (distribution.poor?.count || 0) > 0
         },
-        {
-            name: 'Kém',
-            value: distribution.fail?.count || 0,
-            color: PERFORMANCE_LEVELS[4].color,
-            shortName: distribution.fail?.count || 0,
-            hasValue: (distribution.fail?.count || 0) > 0
-        }
+        // {
+        //     name: 'Kém',
+        //     value: distribution.fail?.count || 0,
+        //     color: PERFORMANCE_LEVELS[4].color,
+        //     shortName: distribution.fail?.count || 0,
+        //     hasValue: (distribution.fail?.count || 0) > 0
+        // }
     ]
 
     // Data for chart (filtered to show only non-zero values)

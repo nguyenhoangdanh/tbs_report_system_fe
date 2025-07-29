@@ -104,40 +104,40 @@ export const OverviewCard = memo(
         transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
         <Card
-          className={`border-border/50 dark:border-border/90 hover:shadow-green-glow transition-all duration-300 cursor-pointer group`}
-          // ${variant === "management"
-          //   ? "border-green-600 hover:border-green-300"
-          //   : "border-emerald-600 hover:border-emerald-300"
-          // }`}
+          className="border-border/50 dark:border-border/90 hover:shadow-green-glow transition-all duration-300 cursor-pointer group"
           onClick={onClick}
         >
-          <CardContent className="p-4 sm:p-6">
-            <div className="space-y-4">
-              {/* Header */}
+          <CardContent className="p-3 sm:p-4 lg:p-6">
+            <div className="space-y-3 sm:space-y-4">
+              {/* Header - Mobile optimized */}
               <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-3">
+                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
                   <div
-                    className={`p-3 rounded-xl shadow-lg 
+                    className={`p-2 sm:p-3 rounded-xl shadow-lg flex-shrink-0
                       ${variant === "management"
                         ? "bg-warm-gradient shadow-green-glow"
                         : "bg-green-gradient shadow-emerald-glow"}
                       `}
                   >
-                    <Icon className="w-5 h-5 text-white" />
+                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-base text-green-700 dark:text-green-300">{title}</h3>
-                    {description && <p className="text-xs text-muted-foreground">{description}</p>}
+                  <div className="min-w-0 flex-1">
+                    <h3 className="font-semibold text-sm sm:text-base text-green-700 dark:text-green-300 truncate">
+                      {title}
+                    </h3>
+                    {description && (
+                      <p className="text-xs text-muted-foreground hidden sm:block">{description}</p>
+                    )}
                   </div>
                 </div>
                 <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-green-600 transition-colors flex-shrink-0" />
               </div>
 
-              {/* Statistics */}
-              <div className="grid grid-cols-2 gap-4 text-sm">
-                <div className="space-y-2">
+              {/* Statistics - Mobile responsive grid */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
+                <div className="space-y-1 sm:space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Nhân viên:</span>
+                    <span className="text-muted-foreground">NV:</span>
                     <span className="font-medium">{stats.totalEmployees}</span>
                   </div>
                   <div className="flex justify-between">
@@ -145,9 +145,10 @@ export const OverviewCard = memo(
                     <span className="font-medium text-green-600">{stats.totalFilled}</span>
                   </div>
                 </div>
-                <div className="space-y-2">
+                <div className="space-y-1 sm:space-y-2">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Tỷ lệ hoàn thành:</span>
+                    <span className="text-muted-foreground hidden sm:inline">Tỷ lệ:</span>
+                    <span className="text-muted-foreground sm:hidden">TL:</span>
                     <span
                       className={`font-medium ${stats.submissionRate > 80
                         ? "text-green-600"
@@ -160,7 +161,8 @@ export const OverviewCard = memo(
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Chưa nộp:</span>
+                    <span className="text-muted-foreground hidden sm:inline">Chưa nộp:</span>
+                    <span className="text-muted-foreground sm:hidden">Chưa:</span>
                     <span className="font-medium text-red-600">{stats.totalPending}</span>
                   </div>
                 </div>
@@ -168,9 +170,9 @@ export const OverviewCard = memo(
 
               {/* Progress bar */}
               <div className="space-y-2">
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
+                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 sm:h-2">
                   <motion.div
-                    className={`h-2 rounded-full  ${stats.submissionRate > 80
+                    className={`h-1.5 sm:h-2 rounded-full ${stats.submissionRate > 80
                       ? "bg-green-500"
                       : stats.submissionRate > 50
                         ? "bg-yellow-500"
@@ -178,7 +180,6 @@ export const OverviewCard = memo(
                       }`}
                     initial={{ width: 0 }}
                     animate={{ width: `${stats.submissionRate}%` }}
-                  // transition={{ duration: 1, delay: 0.5 }}
                   />
                 </div>
               </div>
@@ -372,13 +373,16 @@ const HierarchyDashboard = memo(() => {
         initial={{ opacity: 0, scale: 0.9 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.5 }}
+        className="p-2 sm:p-4"
       >
         <Card className="glass-green border-green-500/20">
-          <CardContent className="p-8 text-center">
-            <AlertTriangle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-            <h3 className="text-lg font-semibold mb-2">Không có quyền truy cập</h3>
-            <p className="text-muted-foreground mb-4">Bạn không có quyền xem thống kê hierarchy</p>
-            <div className="text-sm text-muted-foreground">Cấp độ: {userLevelDisplay}</div>
+          <CardContent className="p-4 sm:p-8 text-center">
+            <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+            <h3 className="text-base sm:text-lg font-semibold mb-2">Không có quyền truy cập</h3>
+            <p className="text-sm sm:text-base text-muted-foreground mb-3 sm:mb-4">
+              Bạn không có quyền xem thống kê hierarchy
+            </p>
+            <div className="text-xs sm:text-sm text-muted-foreground">Cấp độ: {userLevelDisplay}</div>
           </CardContent>
         </Card>
       </motion.div>
@@ -387,7 +391,7 @@ const HierarchyDashboard = memo(() => {
 
   return (
     <motion.div
-      className="space-y-6"
+      className="space-y-4 sm:space-y-6 p-2 sm:p-0"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
@@ -402,19 +406,10 @@ const HierarchyDashboard = memo(() => {
       {summary && <HierarchySummaryCards summary={summary} />}
 
       <Card className="border-border/50 dark:border-border/90 shadow-green-glow/20">
-        <CardHeader>
+        <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
           {effectiveActiveTab !== "overview" && (
-            //   <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.3 }}>
-            //     <CardTitle className="text-lg font-semibold flex items-center gap-2">
-            //       <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
-            //         <BarChart3 className="w-5 h-5 text-white" />
-            //       </div>
-            //       <span className="text-green-gradient">Tổng quan</span>
-            //     </CardTitle>
-            //   </motion.div>
-            // ) : (
             <motion.div
-              className="flex flex-col sm:flex-row sm:items-center gap-3"
+              className="flex flex-col gap-3"
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
               transition={{ duration: 0.3 }}
@@ -424,49 +419,40 @@ const HierarchyDashboard = memo(() => {
                   variant="ghost"
                   size="sm"
                   onClick={handleBackToOverview}
-                  className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground"
+                  className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground w-fit text-sm"
                 >
                   <ArrowLeft className="w-4 h-4" />
-                  Quay lại tổng quan
+                  <span className="hidden xs:inline">Quay lại tổng quan</span>
+                  <span className="xs:hidden">Tổng quan</span>
                 </Button>
               </motion.div>
-              {/* <div className="flex items-center gap-2">
-                {currentTab && (
-                  <>
-                    <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
-                      <currentTab.icon className="w-5 h-5 text-white" />
-                    </div>
-                    <CardTitle className="text-lg font-semibold text-green-gradient">{currentTab.label}</CardTitle>
-                    <Badge variant="outline" className="glass-green border-green-500/30">
-                      {currentTab.isManagement ? "Cấp quản lý" : `${currentTab.positions?.length || 0} vị trí`}
-                    </Badge>
-                  </>
-                )}
-              </div> */}
             </motion.div>
           )}
         </CardHeader>
-        <CardContent>
+        
+        <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6">
           {effectiveActiveTab === "overview" ? (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="space-y-6"
+              className="space-y-4 sm:space-y-6"
             >
-              {/* Management positions cards */}
+              {/* Management positions cards - Mobile optimized */}
               {managementTabs.length > 0 && userPermissions.canViewPositions && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 rounded-lg bg-warm-gradient shadow-green-glow">
-                      <Crown className="w-5 h-5 text-white" />
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                    <div className="p-1.5 sm:p-2 rounded-lg bg-warm-gradient shadow-green-glow">
+                      <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <h3 className="text-lg font-semibold text-green-gradient">Cấp quản lý</h3>
-                    <Badge variant="outline" className="glass-green border-green-500/30">
-                      {managementPositions.length} vị trí
+                    <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Cấp quản lý</h3>
+                    <Badge variant="outline" className="glass-green border-green-500/30 text-xs">
+                      {managementPositions.length}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  
+                  {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                     {managementTabs.map((tab) => (
                       <OverviewCard
                         key={tab.id}
@@ -484,19 +470,21 @@ const HierarchyDashboard = memo(() => {
                 </div>
               )}
 
-              {/* Employee job positions card */}
+              {/* Employee job positions card - Mobile optimized */}
               {employeeJobPositions.length > 0 && userPermissions.canViewJobPositions && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
-                      <Users className="w-5 h-5 text-white" />
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                    <div className="p-1.5 sm:p-2 rounded-lg bg-green-gradient shadow-green-glow">
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <h3 className="text-lg font-semibold text-green-gradient">Vị trí công việc</h3>
-                    <Badge variant="outline" className="glass-green border-green-500/30">
-                      {employeeJobPositions.length} vị trí
+                    <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Vị trí công việc</h3>
+                    <Badge variant="outline" className="glass-green border-green-500/30 text-xs">
+                      {employeeJobPositions.length}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  
+                  {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                     {employeeJobPositions.map((pos, index) => (
                       <OverviewCard
                         key={pos.position?.id || `job-${index}`}
@@ -514,17 +502,19 @@ const HierarchyDashboard = memo(() => {
                 </div>
               )}
 
-              {/* Fallback if no data */}
+              {/* Fallback if no data - Mobile optimized */}
               {managementTabs.length === 0 && employeeJobPositions.length === 0 && (
                 <motion.div
-                  className="text-center py-12"
+                  className="text-center py-8 sm:py-12 px-4"
                   initial={{ opacity: 0, scale: 0.9 }}
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ duration: 0.5 }}
                 >
-                  <AlertTriangle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">Không có dữ liệu</h3>
-                  <p className="text-muted-foreground">Không tìm thấy dữ liệu hierarchy với bộ lọc hiện tại</p>
+                  <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold mb-2">Không có dữ liệu</h3>
+                  <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
+                    Không tìm thấy dữ liệu hierarchy với bộ lọc hiện tại
+                  </p>
                 </motion.div>
               )}
             </motion.div>
@@ -533,7 +523,7 @@ const HierarchyDashboard = memo(() => {
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3 }}
-              className="space-y-4"
+              className="space-y-3 sm:space-y-4"
             >
               {/* Detail view for management positions */}
               {(currentTab?.isManagement && hierarchyData) && (

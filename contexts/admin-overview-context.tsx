@@ -49,28 +49,19 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
   // CRITICAL: Reduce debounce time to allow more frequent updates
   const ensureUserIsolation = useCallback(async () => {
     if (!currentUser?.id) {
-      console.log('🔒 No current user, skipping isolation')
       return
     }
     
     const now = Date.now()
     // REDUCED: Shorter debounce time to allow AdminOverview updates
     if (now - lastClearTime.current < 1000) { // Changed from 2000 to 1000
-      console.log('🔒 Cache clearing too frequent, skipping (debounced)')
       return
     }
     
     // CRITICAL: Prevent concurrent isolation
     if (isHandlingUserChange.current) {
-      console.log('🔒 User change in progress, skipping isolation')
       return
     }
-    
-    console.log('🔒 CRITICAL: Ensuring user isolation for:', {
-      userId: currentUser.id,
-      userName: `${currentUser.firstName} ${currentUser.lastName}`,
-      timestamp: new Date().toISOString()
-    })
     
     try {
       // STEP 1: Force cancel all ongoing queries
@@ -91,12 +82,10 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
       currentUserIdRef.current = currentUser.id
       setLastUserId(currentUser.id)
       
-      console.log('✅ User isolation completed for:', currentUser.id)
     } catch (error) {
       console.error('❌ User isolation failed:', error)
       // Nuclear option: force page reload
       if (typeof window !== 'undefined') {
-        console.log('🔥 NUCLEAR: Forcing page reload due to isolation failure')
         window.location.reload()
       }
     }
@@ -114,12 +103,10 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
       return
     }
     
-    console.log('🧹 Invalidating user data for:', userId)
     await cacheUtils.invalidateUserData(userId)
   }, [cacheUtils, currentUser?.id, ensureUserIsolation])
   
   const clearAllCaches = useCallback(async () => {
-    console.log('🧹 AdminOverview: NUCLEAR CLEAR - Clearing ALL caches')
     await queryClient.cancelQueries()
     queryClient.clear()
     resetAllStates()
@@ -129,7 +116,6 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
   const forceRefetchManagerReports = useCallback(async () => {
     if (!currentUser?.id) return
     
-    console.log('🔄 AdminOverview: Force refetching manager reports for user:', currentUser.id)
     setIsRefetching(true)
     try {
       // CRITICAL: Clear cache first to ensure fresh data
@@ -150,7 +136,6 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
   const handleUserChange = useCallback(async (newUserId: string) => {
     // Prevent concurrent user change handling
     if (isHandlingUserChange.current) {
-      console.log('🚫 User change already in progress, skipping...')
       return
     }
     
@@ -158,15 +143,8 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
     
     // Check if user actually changed
     if (previousUserId === newUserId) {
-      console.log('👤 Same user, no change needed:', newUserId)
       return
     }
-    
-    console.log('🚨 CRITICAL: User change detected - SECURITY ALERT:', { 
-      previousUserId,
-      newUserId,
-      timestamp: new Date().toISOString()
-    })
     
     try {
       isHandlingUserChange.current = true
@@ -175,7 +153,6 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
       await queryClient.cancelQueries()
       
       // STEP 2: NUCLEAR CACHE CLEAR - Remove ALL data
-      console.log('🧹 STEP 2: Nuclear cache clear for user change...')
       queryClient.clear()
       
       // STEP 3: Reset all local states
@@ -189,12 +166,10 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
       setLastUserId(newUserId)
       lastClearTime.current = Date.now()
       
-      console.log('✅ User change completed successfully for:', newUserId)
     } catch (error) {
       console.error('❌ CRITICAL: Failed to handle user change:', error)
       
       // NUCLEAR option - force page reload
-      console.log('🔥 NUCLEAR: Forcing page reload due to critical user change failure')
       if (typeof window !== 'undefined') {
         window.location.reload()
       }
@@ -216,7 +191,6 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
     if (!currentUser?.id) {
       if (currentUserIdRef.current) {
         // User logged out
-        console.log('👤 User logged out, clearing all references')
         currentUserIdRef.current = null
         hasRunInitialCleanup.current = false
         isInitialized.current = false
@@ -229,14 +203,6 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
     const previousUserId = currentUserIdRef.current
     
     // CRITICAL: Only log once to avoid spam
-    if (!isInitialized.current) {
-      console.log('👤 User effect - FIRST initialization:', {
-        currentUserId,
-        previousUserId,
-        isHandling: isHandlingUserChange.current,
-        hasRunInitialCleanup: hasRunInitialCleanup.current
-      })
-    }
     
     // CRITICAL: First time initialization - ONLY ONCE
     if (!isInitialized.current) {
@@ -247,7 +213,6 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
       // CRITICAL: Only run initial cleanup ONCE
       if (!hasRunInitialCleanup.current) {
         hasRunInitialCleanup.current = true
-        console.log('🔒 Running INITIAL cleanup for:', currentUserId)
         
         // Use setTimeout to avoid blocking the render
         setTimeout(() => {
@@ -263,11 +228,9 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
     if (previousUserId && 
         previousUserId !== currentUserId && 
         !isHandlingUserChange.current) {
-      console.log('🚨 DETECTED USER MISMATCH - Triggering isolation')
       handleUserChange(currentUserId)
     } else if (!previousUserId && currentUserId !== lastUserId) {
       // Set user for first time after initialization
-      console.log('👤 Setting user for first time after init:', currentUserId)
       currentUserIdRef.current = currentUserId
       setLastUserId(currentUserId)
     }
@@ -276,7 +239,6 @@ export function AdminOverviewProvider({ children }: { children: React.ReactNode 
   // CRITICAL: Cleanup effect - separate from user effect
   useEffect(() => {
     return () => {
-      console.log('🧹 AdminOverviewProvider unmounting - cleaning up')
       isHandlingUserChange.current = false
       currentUserIdRef.current = null
       isInitialized.current = false

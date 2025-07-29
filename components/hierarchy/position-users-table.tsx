@@ -70,7 +70,10 @@ const UserDetail = memo(({ user }: UserDetailProps) => {
       ) : (
         <div className="text-center py-4">
           <div className="text-destructive font-medium">Chưa nộp báo cáo</div>
-          <div className="text-xs text-muted-foreground">Nhân viên này chưa nộp báo cáo tuần</div>
+          {/* <div className="text-xs text-muted-foreground">Nhân viên này chưa nộp báo cáo tuần</div> */}
+            <div className="text-xs text-muted-foreground">
+              {user.firstName} {user.lastName} chưa nộp báo cáo tuần
+          </div>
         </div>
       )}
     </div>

@@ -38,8 +38,8 @@ export function PerformanceBadge({
         return '👌' // OK sign
       case 'POOR':
         return '⚠️' // Warning
-      case 'FAIL':
-        return '❌' // Cross mark
+      // case 'FAIL':
+      //   return '❌' // Cross mark
       default:
         return ''
     }

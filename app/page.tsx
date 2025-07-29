@@ -247,7 +247,7 @@ export default function HomePage() {
 
   return (
     <Suspense fallback={
-      <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+      <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
     }>
       <MainLayout title={undefined} subtitle={undefined} showBreadcrumb={false}>
         {/* Hero Section */}

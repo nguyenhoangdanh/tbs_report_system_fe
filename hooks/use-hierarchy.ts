@@ -11,7 +11,7 @@ import type {
 import { useApiQuery } from './use-api-query'
 import { QUERY_KEYS } from './query-key'
 import { useAuth } from "@/components/providers/auth-provider"
-import { useMemo } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 
 export function useMyHierarchyView(filters?: {
   weekNumber?: number
@@ -49,7 +49,7 @@ export function useUserDetails(userId: string, filters?: {
     queryKey: QUERY_KEYS.hierarchy.userDetails(user?.id || 'anonymous', userId, filters),
     queryFn: () => HierarchyService.getUserDetails(userId, filters),
     enabled: !!userId && !!user?.id,
-    cacheStrategy: 'fresh',
+    cacheStrategy: 'realtime',
     throwOnError: false,
   })
 }
@@ -62,46 +62,67 @@ export function useManagerReports(filters?: {
   year?: number
   userId?: string
 }) {
-  const { user } = useAuth()
+  // const { user } = useAuth()
   
   // STABLE queryKey - Use useMemo for filters to prevent unnecessary re-computation
-  const stableQueryKey = useMemo(() => [
-    'hierarchy', 
-    'managerReports', 
-    user?.id || 'anonymous',
-    filters?.weekNumber || 0,
-    filters?.year || 0,
-    user?.employeeCode, // Stable identifier
-    'realtime' // Add version to force fresh when needed
-  ], [user?.id, user?.employeeCode, filters?.weekNumber, filters?.year])
+  // const stableQueryKey = useMemo(() => [
+  //   'hierarchy',
+  //   'managerReports',
+  //   user?.id || 'anonymous',
+  //   filters?.weekNumber || 0,
+  //   filters?.year || 0,
+  //   user?.employeeCode, // Stable identifier
+  //   'realtime' // Add version to force fresh when needed
+  // ], [user?.id, user?.employeeCode, filters?.weekNumber, filters?.year])
+  
+  // const stableQueryKey = useMemo(() => {
+  //   // CRITICAL: Don't create query if no authenticated user
+  //   if (!user?.id) {
+  //     return ['hierarchy', 'disabled'] as const
+  //   }
+    
+  //   return [
+  //     'hierarchy',
+  //     'managerReports',
+  //     user.id,
+  //     filters
+  //   ] as const
+  // }, [user?.id, user?.employeeCode, filters?.weekNumber, filters?.year])
+  
   
   return useApiQuery({
-    queryKey: stableQueryKey,
+    // queryKey: stableQueryKey,
+      queryKey: ['hierarchy', 'managerReports', filters],
     queryFn: async () => {
       // CRITICAL: Validate user context before making request
-      if (!user?.id) {
-        throw new Error('No authenticated user found')
-      }
+      // if (!user?.id) {
+      //   throw new Error('No authenticated user found')
+      // }
       
       const enhancedFilters = {
         ...filters,
-        userId: user.id
       }
       
       
       try {
         const result = await HierarchyService.getManagerReports(enhancedFilters)
-        
+
         return result
       } catch (error) {
         console.error('❌ useManagerReports: Fetch failed:', error)
         throw error
       }
     },
-    enabled: !!user?.id,
-    cacheStrategy: 'realtime', // NO CACHE - Always fresh data
+    // FIXED: Only enable query if user exists and query key is valid
+    enabled: !!filters?.weekNumber && !!filters?.year && !!filters?.userId,
+    cacheStrategy: 'realtime-stable', // NEW strategy
     throwOnError: true,
-    notifyOnChangeProps: ['data', 'error', 'isLoading'], // Limit what causes rerender
+    notifyOnChangeProps: ['data', 'error', 'isLoading'],
+
+    // enabled: !!user?.id,
+    // cacheStrategy: 'realtime', // NO CACHE - Always fresh data
+    // throwOnError: true,
+    // notifyOnChangeProps: ['data', 'error', 'isLoading'], // Limit what causes rerender
   })
 }
 
@@ -150,6 +171,61 @@ export function useCurrentWeekFilters() {
   return {
     weekNumber: currentWeek.weekNumber,
     year: currentWeek.year
+  }
+}
+
+// Add new hook for admin overview filters - similar to hierarchy filters
+export function useAdminOverviewFilters() {
+  const currentWeekInfo = useMemo(() => getCurrentWeek(), [])
+  
+  const [filters, setFilters] = useState<{
+    period: 'week' | 'month' | 'year'
+    weekNumber?: number
+    month?: number
+    year: number
+    periodWeeks?: number
+  }>({
+    period: 'week',
+    weekNumber: currentWeekInfo.weekNumber,
+    year: currentWeekInfo.year,
+    periodWeeks: 4
+  })
+
+  const apiFilters = useMemo(() => {
+    const baseFilters: any = {
+      year: filters.year,
+    }
+
+    if (filters.period === 'week' && filters.weekNumber) {
+      baseFilters.weekNumber = filters.weekNumber
+    } else if (filters.period === 'month' && filters.month) {
+      baseFilters.month = filters.month
+    }
+
+    return baseFilters
+  }, [filters])
+
+  const filterDisplayText = useMemo(() => {
+    const { period, weekNumber, month, year } = filters
+
+    if (period === 'week' && weekNumber) {
+      return `Tuần ${weekNumber}/${year}`
+    } else if (period === 'month' && month) {
+      return `Tháng ${month}/${year}`
+    } else {
+      return `Năm ${year}`
+    }
+  }, [filters])
+
+  const handleFiltersChange = useCallback((newFilters: typeof filters) => {
+    setFilters(newFilters)
+  }, [])
+
+  return {
+    filters,
+    apiFilters,
+    filterDisplayText,
+    handleFiltersChange
   }
 }
 

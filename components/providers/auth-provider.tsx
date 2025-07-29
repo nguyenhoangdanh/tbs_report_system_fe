@@ -7,7 +7,6 @@ import { useQueryClient } from "@tanstack/react-query"
 import { AuthService } from "@/services/auth.service"
 import { toast } from "react-toast-kit"
 import type { User, LoginDto } from "@/types"
-import { clearUserCaches } from "@/lib/cache-utils"
 
 interface AuthContextType {
   user: User | null
@@ -38,8 +37,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const isAuthenticated = !!user
 
-  // STABLE user object to prevent unnecessary rerenders
-  const stableUser = useMemo(() => user, [user?.id, user?.employeeCode])
+  // STABLE user object to prevent unnecessary rerenders - UPDATED to be more sensitive to changes
+  const stableUser = useMemo(() => user, [
+    user?.id, 
+    user?.employeeCode, 
+    user?.firstName, 
+    user?.lastName, 
+    user?.email, 
+    user?.phone,
+    user?.jobPosition?.id,
+    user?.office?.id,
+    user?.role,
+    user?.updatedAt // Include updatedAt to trigger updates
+  ])
 
   const clearError = useCallback(() => {
     setError(null)
@@ -67,20 +77,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const result = await AuthService.getProfile()
 
       if (result.success && result.data) {
-        // Simple user update - clear cache only if user changes
         setUser((prevUser) => {
-          const newUser = result.data!
-          
-          // Only clear cache if different user
-          if (prevUser?.id && prevUser.id !== newUser.id) {
-            console.log('🔄 User changed, clearing cache:', { 
-              from: prevUser.id, 
-              to: newUser.id 
-            })
-            queryClient.clear()
+          const newUser = { 
+            ...result.data!, 
+            // Force new timestamp to trigger form updates
+            updatedAt: new Date().toISOString() 
           }
-
-          return newUser
+          
+          // Always update if ANY user data has changed
+          const hasUserDataChanged = !prevUser || 
+            JSON.stringify(prevUser) !== JSON.stringify(newUser)
+          
+          if (hasUserDataChanged) {
+            // Update React Query cache
+            const profileKey = ['auth', 'profile']
+            queryClient.setQueryData(profileKey, newUser)
+            
+            return newUser
+          }
+          
+          return prevUser
         })
         setError(null)
         retryCount.current = 0
@@ -134,8 +150,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (result.success && result.data?.user) {
           const newUser = result.data.user
           
-          // Always clear cache on login for fresh state
+          // CRITICAL: Clear all cache and store state for new user
           queryClient.clear()
+          
+          // Clear zustand store state for user switch
+          if (typeof window !== 'undefined') {
+            // Clear report store state
+            const { clearAllState } = await import('@/store/report-store')
+            clearAllState()
+          }
+          
           setUser(newUser)
           retryCount.current = 0
           
@@ -171,6 +195,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser(null)
       queryClient.clear()
       retryCount.current = 0
+
+      // Clear zustand store state
+      if (typeof window !== 'undefined') {
+        const { clearAllState } = await import('@/store/report-store')
+        clearAllState()
+      }
 
       // Try to logout from server (but don't block UI)
       await AuthService.logout()

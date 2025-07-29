@@ -8,9 +8,9 @@ import { IncompleteReason, IncompleteReasonsDialog } from './incomplete-reasons-
 import { ExternalLink, AlertTriangle, TrendingUp, TrendingDown, Minus } from 'lucide-react'
 import Link from 'next/link'
 import { RankingBadge } from '@/components/ranking/ranking-badge'
-import { EmployeeRanking, Ranking, calculateRankingFromRate } from '@/services/ranking.service'
-import { getPerformanceBadge, getPerformanceColor, classifyPerformance } from '@/utils/performance-classification'
+import { classifyPerformance } from '@/utils/performance-classification'
 import { SimplePieChart } from '@/components/charts/simple-pie-chart'
+import { EmployeeRanking, Ranking } from '@/services/report.service'
 
 // Updated interface to match API response structure
 interface WeeklyIncompleteReason {

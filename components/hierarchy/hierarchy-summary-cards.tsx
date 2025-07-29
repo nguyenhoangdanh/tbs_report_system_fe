@@ -21,7 +21,7 @@ interface HierarchySummaryCardsProps {
       good: { count: number; percentage: number }
       average: { count: number; percentage: number }
       poor: { count: number; percentage: number }
-      fail: { count: number; percentage: number }
+      // fail: { count: number; percentage: number }
     }
   }
 }

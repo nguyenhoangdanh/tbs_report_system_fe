@@ -1,7 +1,7 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-
+@import '../components/loading/loading-animations.css';
 body {
   font-family: "Times New Roman", Times, serif;
 }

@@ -3,32 +3,7 @@
 import { memo } from "react"
 import { LoadingSpinner } from "./loading-spinner"
 import { cn } from "@/lib/utils"
-
-interface ScreenLoadingProps {
-    text?: string
-    size?: "xs" | "sm" | "md" | "lg" | "xl"
-    variant?:
-    | "spin"
-    | "dots"
-    | "pulse"
-    | "bars"
-    | "wave"
-    | "bounce"
-    | "ring"
-    | "dual-ring"
-    | "ripple"
-    | "grid"
-    | "fade"
-    | "flip"
-    | "orbit"
-    | "elastic"
-    | "heart"
-    | "hourglass"
-    className?: string
-    fullScreen?: boolean
-    backdrop?: boolean
-    color?: "primary" | "secondary" | "success" | "warning" | "destructive"
-}
+import type { ScreenLoadingProps } from "./types"
 
 export const ScreenLoading = memo(
     ({
@@ -39,11 +14,56 @@ export const ScreenLoading = memo(
         fullScreen = true,
         backdrop = true,
         color = "primary",
+        hollow = false,
+        children,
+        progress,
+        showPercentage = false,
     }: ScreenLoadingProps) => {
         const content = (
-            <div className="flex flex-col items-center justify-center space-y-4 p-8">
-                <LoadingSpinner size={size} variant={variant} color={color} />
-                {text && <p className="text-sm text-muted-foreground text-center max-w-xs">{text}</p>}
+            <div className="flex flex-col items-center justify-center space-y-6 p-8">
+                <div className="relative">
+                    <LoadingSpinner
+                        size={size}
+                        variant={variant}
+                        color={color}
+                        hollow={hollow}
+                    >
+                        {hollow && (children || (showPercentage && progress !== undefined) || text) && (
+                            <div className="text-center">
+                                {children ? (
+                                    children
+                                ) : showPercentage && progress !== undefined ? (
+                                    <div className="flex flex-col items-center">
+                                        <span className="text-lg font-bold">{Math.round(progress)}%</span>
+                                        {text && <span className="text-xs opacity-75 mt-1">{text}</span>}
+                                    </div>
+                                ) : (
+                                    <span className="text-xs font-semibold">
+                                        {variant === 'tsb-text' || variant === 'company-logo' ? 'TBS' : 'Loading'}
+                                    </span>
+                                )}
+                            </div>
+                        )}
+                    </LoadingSpinner>
+                </div>
+
+                {!hollow && text && (
+                    <div className="text-center space-y-2">
+                        <p className="text-sm text-muted-foreground max-w-xs">{text}</p>
+                        {showPercentage && progress !== undefined && (
+                            <p className="text-xs text-muted-foreground/80">{Math.round(progress)}%</p>
+                        )}
+                    </div>
+                )}
+
+                {progress !== undefined && !showPercentage && (
+                    <div className="w-48 bg-muted rounded-full h-2">
+                        <div
+                            className="bg-primary h-2 rounded-full transition-all duration-300 ease-out"
+                            style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
+                        />
+                    </div>
+                )}
             </div>
         )
 

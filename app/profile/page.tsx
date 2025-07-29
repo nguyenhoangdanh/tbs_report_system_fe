@@ -103,9 +103,9 @@ function ProfileContent() {
       }
 
       await updateProfile(updateData)
-      await checkAuth()
-
-      if (updateData.officeId || updateData.role) {
+      
+      // Force reload organizational data if office changed
+      if (updateData.officeId) {
         loadedRef.current = false
         await loadEditData()
       }
@@ -113,7 +113,7 @@ function ProfileContent() {
       console.error('Profile update error:', error)
       toast.error(error.message || 'Cập nhật thất bại')
     }
-  }, [user, updateProfile, checkAuth, loadEditData])
+  }, [user, updateProfile, loadEditData])
 
   const handleChangePassword = useCallback(async (data: ChangePasswordFormData) => {
     try {
@@ -130,7 +130,7 @@ function ProfileContent() {
   }, [changePassword])
 
   if (isLoading) {
-    return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+    return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
   }
 
   if (!user) {
@@ -233,7 +233,7 @@ function ProfileContent() {
 export default function ProfilePage() {
   return (
     <Suspense fallback={
-      <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+      <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
     }>
       <ProfileContent />
     </Suspense>

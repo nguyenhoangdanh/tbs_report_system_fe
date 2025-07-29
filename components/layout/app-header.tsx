@@ -13,7 +13,7 @@ interface AppHeaderProps {
   subtitle?: string
 }
 
-export function AppHeader({ title = "Dashboard", subtitle }: AppHeaderProps) {
+export function AppHeader({ title = "Weekly Report", subtitle }: AppHeaderProps) {
   const { user } = useAuth()
 
   const getHomeLink = () => {
@@ -35,75 +35,112 @@ export function AppHeader({ title = "Dashboard", subtitle }: AppHeaderProps) {
       animate={{ y: 0 }}
       transition={{ duration: 0.5, ease: "easeOut" }}
     >
-      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4">
-        <div className="flex items-center justify-between gap-2 sm:gap-4">
-          {/* Logo + Title */}
-          <div className="flex items-center gap-2 sm:gap-4 min-w-0 flex-1">
-            <Link href={getHomeLink()} className="flex-shrink-0 flex items-center gap-1 sm:gap-2 group">
+      <div className="container mx-auto px-3 sm:px-6 lg:px-8 py-2 sm:py-3">
+        <div className="flex items-center justify-between">
+          {/* Logo + Brand Name */}
+          <div className="flex items-center gap-2 min-w-0 flex-1">
+            <Link 
+              href={getHomeLink()} 
+              className="flex items-center gap-2 group min-w-0"
+            >
               <motion.div
                 whileHover={{ scale: 1.05, rotate: 5 }}
                 whileTap={{ scale: 0.95 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
+                className="flex-shrink-0"
               >
                 <Image
                   src="/images/logo.png"
                   alt="TBS Group Logo"
-                  width={48}
-                  height={48}
-                  className="w-12 h-12 sm:w-12 sm:h-12 object-contain drop-shadow-lg"
+                  width={40}
+                  height={40}
+                  className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 object-contain drop-shadow-lg"
                 />
               </motion.div>
-              <motion.span
-                className="text-lg sm:text-xl font-bold text-green-gradient hidden xs:block"
+              
+              {/* Brand name - always visible but responsive */}
+              <motion.div
+                className="flex flex-col min-w-0"
                 whileHover={{ scale: 1.02 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
               >
-                WeeklyReport
-              </motion.span>
+                <span className="text-sm sm:text-lg font-bold text-green-gradient truncate">
+                  WeeklyReport
+                </span>
+                {/* Page title on mobile - smaller and under brand */}
+                {title && title !== "Weekly Report" && (
+                  <span className="text-xs text-muted-foreground truncate sm:hidden">
+                    {title}
+                  </span>
+                )}
+              </motion.div>
             </Link>
 
-            {title && (
+            {/* Page title on desktop */}
+            {title && title !== "Weekly Report" && (
               <motion.div
-                className="ml-2 sm:ml-4 min-w-0 hidden sm:block"
+                className="ml-2 sm:ml-4 min-w-0 hidden sm:block flex-1"
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.2 }}
               >
-                <h1 className="text-lg sm:text-xl font-semibold text-foreground truncate">{title}</h1>
-                {subtitle && <p className="text-xs sm:text-sm text-muted-foreground truncate">{subtitle}</p>}
+                <h1 className="text-lg sm:text-xl font-semibold text-foreground truncate">
+                  {title}
+                </h1>
+                {subtitle && (
+                  <p className="text-xs sm:text-sm text-muted-foreground truncate">
+                    {subtitle}
+                  </p>
+                )}
               </motion.div>
             )}
           </div>
 
-          {/* Right side - User Navigation or Auth Buttons */}
+          {/* Right side controls */}
           <motion.div
-            className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0"
+            className="flex items-center gap-1 sm:gap-2 flex-shrink-0"
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
           >
-            <ThemeToggle />
+            {/* Theme toggle - smaller on mobile */}
+            <div className="hidden sm:block">
+              <ThemeToggle />
+            </div>
+            
+            {/* Login button for guests */}
             {!user && (
-              <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                <Button asChild className="bg-green-gradient hover:shadow-green-glow transition-all duration-300">
-                  <Link href="/login">Đăng nhập</Link>
+              <motion.div 
+                whileHover={{ scale: 1.02 }} 
+                whileTap={{ scale: 0.98 }}
+              >
+                <Button 
+                  asChild 
+                  size="sm"
+                  className="bg-green-gradient hover:shadow-green-glow transition-all duration-300 text-xs sm:text-sm px-2 sm:px-4"
+                >
+                  <Link href="/login">
+                    <span className="hidden sm:inline">Đăng nhập</span>
+                    <span className="sm:hidden">Login</span>
+                  </Link>
                 </Button>
               </motion.div>
             )}
+            
+            {/* User navigation */}
             <UserNav />
           </motion.div>
         </div>
 
-        {/* Mobile Title */}
-        {title && (
+        {/* Desktop subtitle */}
+        {subtitle && (
           <motion.div
-            className="mt-2 sm:hidden"
+            className="mt-1 hidden sm:block"
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.4 }}
           >
-            <h1 className="text-lg font-semibold text-foreground truncate">{title}</h1>
-            {subtitle && <p className="text-sm text-muted-foreground truncate">{subtitle}</p>}
+            <p className="text-sm text-muted-foreground truncate">{subtitle}</p>
           </motion.div>
         )}
       </div>

@@ -18,8 +18,22 @@ export interface LoadingSpinnerProps {
     | "elastic"
     | "heart"
     | "hourglass"
+    | "square-split"
+    | "triangle-spin"
+    | "diamond-dance"
+    | "hexagon-morph"
+    | "line-wave"
+    | "circle-chase"
+    | "square-pulse"
+    | "infinity"
+    | "corner-squares"
+    | "conic-loader"
+    | "tsb-text"
+    | "company-logo"
   className?: string
   color?: "primary" | "secondary" | "success" | "warning" | "destructive"
+  hollow?: boolean
+  children?: React.ReactNode
 }
 
 export interface LoadingSkeletonProps {
@@ -49,10 +63,26 @@ export interface ScreenLoadingProps {
     | "elastic"
     | "heart"
     | "hourglass"
+    | "square-split"
+    | "triangle-spin"
+    | "diamond-dance"
+    | "hexagon-morph"
+    | "line-wave"
+    | "circle-chase"
+    | "square-pulse"
+    | "infinity"
+    | "corner-squares"
+    | "conic-loader"
+    | "tsb-text"
+    | "company-logo"
   className?: string
   fullScreen?: boolean
   backdrop?: boolean
   color?: "primary" | "secondary" | "success" | "warning" | "destructive"
+  hollow?: boolean
+  children?: React.ReactNode
+  progress?: number
+  showPercentage?: boolean
 }
 
 export interface LoadingButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {

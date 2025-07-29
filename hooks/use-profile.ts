@@ -7,17 +7,36 @@ import { ChangePasswordDto, UpdateProfileDto } from '@/types'
 import { QUERY_KEYS } from './query-key'
 import { useApiMutation, useApiQuery } from './use-api-query'
 import { useQueryClient } from '@tanstack/react-query'
+import { useAuth } from '@/components/providers/auth-provider'
 
 /**
- * Get current user profile
+ * Get current user profile - with React Query but sync with AuthProvider
  */
 export function useProfile() {
-  return useApiQuery({
-    queryKey: QUERY_KEYS.auth.profile(),
+  const { user: authUser, isLoading: authLoading } = useAuth()
+  
+  // Use consistent query key - without userId to match invalidation
+  const profileKey = QUERY_KEYS.auth.profile()
+  
+  // Create React Query for DevTools and cache management
+  const query = useApiQuery({
+    queryKey: profileKey,
     queryFn: AuthService.getProfile,
+    enabled: !!authUser?.id, // Only fetch if authenticated
     cacheStrategy: 'normal',
     throwOnError: false,
+    // Sync with AuthProvider data
+    initialData: authUser,
+    placeholderData: authUser,
   })
+  
+  // Use AuthProvider data as source of truth, React Query for cache management
+  return {
+    data: authUser || query.data,
+    isLoading: authLoading || query.isLoading,
+    error: query.error,
+    refetch: query.refetch
+  }
 }
 
 /**
@@ -25,15 +44,24 @@ export function useProfile() {
  */
 export function useUpdateProfile() {
   const queryClient = useQueryClient()
+  const { checkAuth, user } = useAuth()
   
   return useApiMutation({
     mutationFn: (data: UpdateProfileDto) => UserService.updateProfile(data),
-    onSuccess: (updatedUser) => {
-      // Update profile cache immediately using queryClient directly
-      queryClient.setQueryData(QUERY_KEYS.auth.profile(), updatedUser)
-      // Invalidate all user-related queries
-      queryClient.invalidateQueries({ queryKey: ['users'] })
-      queryClient.invalidateQueries({ queryKey: ['auth'] })
+    onSuccess: async (updatedUser) => {
+      
+      // 1. Update React Query cache immediately
+      const profileKey = QUERY_KEYS.auth.profile()
+      queryClient.setQueryData(profileKey, updatedUser)
+      
+      // 2. Force AuthProvider to refetch (this will trigger form update via user prop change)
+      await checkAuth()
+      
+      // 3. Add small delay to ensure React has time to process state updates
+      await new Promise(resolve => setTimeout(resolve, 100))
+      
+      // 4. Final invalidation to ensure UI consistency
+      await queryClient.invalidateQueries({ queryKey: ['auth'] })
       
       toast.success('Cập nhật thông tin cá nhân thành công!')
     },

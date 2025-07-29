@@ -185,7 +185,7 @@ function createQueryKeysFactory() {
     // ===== AUTH QUERIES =====
     auth: {
       ...base.auth,
-      profile: (userId?: string) => ['auth', 'profile', userId] as const,
+      profile: (userId?: string) => userId ? ['auth', 'profile', userId] as const : ['auth', 'profile'] as const,
       check: (userId?: string) => ['auth', 'check', userId] as const,
       permissions: (userId?: string) => ['auth', 'permissions', userId] as const,
     },

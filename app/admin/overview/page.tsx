@@ -1,8 +1,8 @@
 "use client"
 
-import { useState, useMemo, useEffect, useCallback } from "react"
+import { useState, useMemo,  useCallback } from "react"
 import { useManagerReports } from "@/hooks/use-hierarchy"
-import { useCurrentWeekFilters } from "@/hooks/use-hierarchy"
+import { useAdminOverviewFilters } from '@/hooks/use-hierarchy'
 import { useAuth } from "@/components/providers/auth-provider"
 import { useAdminOverviewStore } from "@/store/admin-overview-store"
 import { useEvaluationForm } from "@/hooks/use-evaluation-form"
@@ -26,15 +26,14 @@ import {
   Crown,
   BarChart3,
 } from "lucide-react"
-import { type TaskEvaluation, EvaluationType, type Task, type WeeklyReport } from "@/types"
+import {  EvaluationType} from "@/types"
 import { Suspense } from "react"
-import type { UserDetailsResponse, ManagerReportsEmployee } from "@/types/hierarchy"
-import { toast } from "react-toast-kit"
-import { useQueryClient } from "@tanstack/react-query"
 import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField as ReactHookFormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
+import { AdminOverviewHeader } from "@/components/hierarchy/admin-overview-header"
+import { toast } from "react-toast-kit"
 
 // REWRITE: Transform ManagerReports data để tương thích với PositionCard
 function transformManagerReportsToPositionCardFormat(overview: any) {
@@ -63,16 +62,20 @@ function transformManagerReportsToPositionCardFormat(overview: any) {
         good: { count: 0, percentage: 0 },
         average: { count: 0, percentage: 0 },
         poor: { count: 0, percentage: 0 },
-        fail: { count: 0, percentage: 0 },
+        // fail: { count: 0, percentage: 0 },
       }
 
       employees.forEach(emp => {
         const rate = emp.stats.taskCompletionRate
-        if (rate === 100) rankingDistribution.excellent.count++
-        else if (rate >= 95) rankingDistribution.good.count++
-        else if (rate >= 90) rankingDistribution.average.count++
-        else if (rate >= 85) rankingDistribution.poor.count++
-        else rankingDistribution.fail.count++
+        // if (rate === 100) rankingDistribution.excellent.count++
+        // else if (rate >= 95) rankingDistribution.good.count++
+        // else if (rate >= 90) rankingDistribution.average.count++
+        // else if (rate >= 85) rankingDistribution.poor.count++
+        // else rankingDistribution.fail.count++
+        if (rate > 90) rankingDistribution.excellent.count++
+        else if (rate >= 80) rankingDistribution.good.count++
+        else if (rate >= 70) rankingDistribution.average.count++
+        else rankingDistribution.poor.count++
       })
 
       // Convert to percentages
@@ -321,8 +324,9 @@ function transformManagerReportsSummaryForCards(summary: any): any {
 
 function AdminOverview() {
   const { user: currentUser } = useAuth()
-  const filters = useCurrentWeekFilters()
-  const queryClient = useQueryClient()
+  
+  // Replace useCurrentWeekFilters with useAdminOverviewFilters
+  const { filters, apiFilters, filterDisplayText, handleFiltersChange } = useAdminOverviewFilters()
 
   // Local state for view mode - Similar to HierarchyDashboard
   const [activeTab, setActiveTab] = useState<string>("overview")
@@ -333,19 +337,34 @@ function AdminOverview() {
     setSearch,
     openEvalModal,
     setEvaluationModal,
-    resetAllStates,
-    lastUserId,
-    setLastUserId,
   } = useAdminOverviewStore()
 
-  // STABLE filters để tránh rerender
+  // STABLE filters với enhanced filters
   const stableFilters = useMemo(() => ({
-    ...filters, 
+    ...apiFilters,
     userId: currentUser?.id
-  }), [filters.weekNumber, filters.year, currentUser?.id])
+  }), [apiFilters.weekNumber, apiFilters.month, apiFilters.year, currentUser?.id])
+  
+  // STABLE query với memoized filters
+  const { data: overview, isLoading, error, refetch } = useManagerReports(stableFilters)
 
-  // STABLE query với memoized filters - GIỮ NGUYÊN LOGIC CŨ
-  const { data: overview, isLoading, error } = useManagerReports(stableFilters)
+  // Enhanced refetch with filters
+  const handleFiltersChangeWithRefetch = useCallback(
+    (newFilters: any) => {
+      handleFiltersChange(newFilters)
+      setTimeout(() => {
+        refetch()
+      }, 100)
+    },
+    [handleFiltersChange, refetch],
+  )
+
+  const handleRefresh = useCallback(() => {
+    refetch()
+    setTimeout(() => {
+      toast.success("Đã làm mới dữ liệu!")
+    }, 1000)
+  }, [refetch])
 
   // Evaluation form hook với react-hook-form + zod
   const {
@@ -363,8 +382,6 @@ function AdminOverview() {
     if (!overview) return []
     return transformManagerReportsToPositionCardFormat(overview)
   }, [overview])
-
-console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
 
   // Group positions for overview display
   const { managementTabs, jobPositionTabs } = useMemo(() => {
@@ -449,19 +466,9 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
     )
   }, [jobPositionTabs, search])
 
-  // Reset state & cache when user changes (logout/login) - OPTIMIZED
-  useEffect(() => {
-    if (currentUser?.id !== lastUserId) {
-      resetAllStates()
-      setLastUserId(currentUser?.id || null)
-      setActiveTab("overview")
-      // TARGETED cache clearing - only clear specific queries
-      queryClient.removeQueries({ queryKey: ["hierarchy"] })
-    }
-  }, [currentUser?.id, lastUserId, setLastUserId, queryClient, resetAllStates])
-
   if (isLoading) {
-    return <ScreenLoading size="md" variant="dual-ring" text="Đang tải tổng quan quản lý..." fullScreen />
+    // return <ScreenLoading size="md" variant="dual-ring" text="Đang tải tổng quan quản lý..." fullScreen />
+    return <ScreenLoading size="md" variant="bars" text="Đang tải tổng quan quản lý..." fullScreen />
   }
 
   if (error) {
@@ -474,99 +481,128 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
   }
 
   if (!overview) {
-    return <ScreenLoading size="md" variant="dual-ring" text="Đang xử lý dữ liệu..." fullScreen />
+    return <ScreenLoading size="md" variant="corner-squares" text="Đang xử lý dữ liệu..." fullScreen />
   }
 
   return (
-    <div className="space-y-6 p-4 sm:p-6">
-      {/* Manager Info Card */}
+    <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
+      {/* Add Header with filters */}
+      <AdminOverviewHeader
+        filterDisplayText={filterDisplayText}
+        filters={filters}
+        onFiltersChange={handleFiltersChangeWithRefetch}
+        onRefresh={handleRefresh}
+      />
+
+      {/* Manager Info Card - Mobile optimized */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800">
-        <CardHeader className="pb-4">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center">
-                <Users className="w-6 h-6 text-blue-600 dark:text-blue-400" />
-              </div>
-              <div>
-                <CardTitle className="text-lg sm:text-xl flex flex-col sm:flex-row sm:items-center gap-2">
-                  <span className="text-gray-900 dark:text-gray-100">Quản lý:</span>
-                  <span className="font-bold text-blue-600 dark:text-blue-400">
-                    {`${overview?.manager?.firstName || "N/A"} ${overview?.manager?.lastName || ""}`}
-                  </span>
-                </CardTitle>
-                <div className="flex flex-col sm:flex-row sm:items-center gap-2 mt-2">
-                  <Badge variant="outline" className="w-fit">
-                    {overview?.manager?.office?.name || "No Office"}
-                  </Badge>
-                  <span className="text-sm text-muted-foreground">
-                    {overview?.manager?.jobPosition?.position?.name || "No Position"}
-                  </span>
+        <CardHeader className="pb-3 sm:pb-4 px-3 sm:px-6">
+          <div className="flex flex-col gap-3 sm:gap-4">
+            {/* Mobile: Stack vertically, Desktop: Side by side */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
+              <div className="flex items-start sm:items-center gap-3 min-w-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <CardTitle className="text-base sm:text-lg lg:text-xl">
+                    <div className="flex flex-col gap-1">
+                      <span className="text-gray-900 dark:text-gray-100 text-sm sm:text-base">
+                        {overview?.manager?.jobPosition?.position?.description || "No Position"}:
+                      </span>
+                      <span className="font-bold text-blue-600 dark:text-blue-400 truncate">
+                        {`${overview?.manager?.firstName || "N/A"} ${overview?.manager?.lastName || ""}`}
+                      </span>
+                    </div>
+                  </CardTitle>
+                  <div className="flex flex-col gap-2 mt-2">
+                    <Badge variant="outline" className="w-fit text-xs">
+                      {overview?.manager?.office?.name || "No Office"}
+                    </Badge>
+                    <span className="text-xs sm:text-sm text-muted-foreground truncate">
+                      {overview?.manager?.jobPosition?.department?.name || "No Department"}
+                    </span>
+                  </div>
                 </div>
               </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <Badge variant="secondary" className="flex items-center gap-1">
-                <Calendar className="w-3 h-3" />
-                Tuần {filters.weekNumber}/{filters.year}
-              </Badge>
+              
+              {/* Week badge - mobile friendly */}
+              <div className="flex justify-end sm:justify-start">
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-1">
+                  <Calendar className="w-3 h-3" />
+                  <span className="whitespace-nowrap">{filterDisplayText}</span>
+                </Badge>
+              </div>
             </div>
           </div>
         </CardHeader>
       </Card>
 
-      {/* Summary Cards */}
-      <HierarchySummaryCards summary={transformManagerReportsSummaryForCards(overview?.summary)} />
+      {/* Summary Cards - Mobile optimized grid */}
+      <div className="px-1 sm:px-0">
+        <HierarchySummaryCards summary={transformManagerReportsSummaryForCards(overview?.summary)} />
+      </div>
 
-      {/* Main Content Card */}
+      {/* Main Content Card - Mobile optimized */}
       <Card className="border-border/50 dark:border-border/90 shadow-green-glow/20">
-        <CardHeader>
+        <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
           {effectiveActiveTab !== "overview" && (
-            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+            <div className="flex flex-col gap-3">
               <Button
                 variant="ghost"
                 size="sm"
                 onClick={handleBackToOverview}
-                className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground w-fit"
+                className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground w-fit text-sm"
               >
                 <ArrowLeft className="w-4 h-4" />
-                Quay lại tổng quan
+                <span className="hidden xs:inline">Quay lại tổng quan</span>
+                <span className="xs:hidden">Tổng quan</span>
               </Button>
             </div>
           )}
           
           {effectiveActiveTab === "overview" && (
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <CardTitle className="flex items-center gap-2">
-                <BarChart3 className="w-5 h-5" />
-                Tổng quan theo vị trí
-              </CardTitle>
-              <Input
-                type="text"
-                placeholder="Tìm kiếm theo vị trí..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full max-w-xs"
-              />
+            <div className="flex flex-col gap-3 sm:gap-4">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <CardTitle className="flex items-center gap-2 text-lg sm:text-xl">
+                  <BarChart3 className="w-4 h-4 sm:w-5 sm:h-5" />
+                  <span className="hidden sm:inline">Tổng quan theo vị trí</span>
+                  <span className="sm:hidden">Tổng quan</span>
+                </CardTitle>
+                
+                {/* Mobile: Full width search */}
+                <div className="w-full sm:w-auto sm:max-w-xs">
+                  <Input
+                    type="text"
+                    placeholder="Tìm kiếm..."
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="w-full text-sm"
+                  />
+                </div>
+              </div>
             </div>
           )}
         </CardHeader>
         
-        <CardContent>
+        <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6">
           {effectiveActiveTab === "overview" ? (
-            <div className="space-y-6">
-              {/* Management positions cards */}
+            <div className="space-y-4 sm:space-y-6">
+              {/* Management positions - Mobile optimized */}
               {filteredManagementTabs.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 rounded-lg bg-warm-gradient shadow-green-glow">
-                      <Crown className="w-5 h-5 text-white" />
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                    <div className="p-1.5 sm:p-2 rounded-lg bg-warm-gradient shadow-green-glow">
+                      <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <h3 className="text-lg font-semibold text-green-gradient">Cấp quản lý</h3>
-                    <Badge variant="outline" className="glass-green border-green-500/30">
-                      {managementTabs.length} nhóm
+                    <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Cấp quản lý</h3>
+                    <Badge variant="outline" className="glass-green border-green-500/30 text-xs">
+                      {managementTabs.length}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  
+                  {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                     {filteredManagementTabs.map((tab) => (
                       <OverviewCard
                         key={tab.id}
@@ -584,19 +620,21 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
                 </div>
               )}
 
-              {/* Job positions cards */}
+              {/* Job positions - Mobile optimized */}
               {filteredJobPositionTabs.length > 0 && (
-                <div className="space-y-4">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
-                      <Users className="w-5 h-5 text-white" />
+                <div className="space-y-3 sm:space-y-4">
+                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                    <div className="p-1.5 sm:p-2 rounded-lg bg-green-gradient shadow-green-glow">
+                      <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
                     </div>
-                    <h3 className="text-lg font-semibold text-green-gradient">Vị trí công việc</h3>
-                    <Badge variant="outline" className="glass-green border-green-500/30">
-                      {jobPositionTabs.length} nhóm
+                    <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Vị trí công việc</h3>
+                    <Badge variant="outline" className="glass-green border-green-500/30 text-xs">
+                      {jobPositionTabs.length}
                     </Badge>
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  
+                  {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                     {filteredJobPositionTabs.map((tab) => (
                       <OverviewCard
                         key={tab.id}
@@ -614,30 +652,30 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
                 </div>
               )}
 
-              {/* Fallback if no data */}
+              {/* Empty state - Mobile optimized */}
               {filteredManagementTabs.length === 0 && filteredJobPositionTabs.length === 0 && (
-                <div className="text-center py-12">
-                  <Building2 className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">
-                    {search ? "Không tìm thấy kết quả" : "Không có dữ liệu"}
+                <div className="text-center py-8 sm:py-12 px-4">
+                  <Building2 className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                  <h3 className="text-base sm:text-lg font-semibold mb-2">
+                    {search ? "Không tìm thấy" : "Không có dữ liệu"}
                   </h3>
-                  <p className="text-muted-foreground">
+                  <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
                     {search 
-                      ? `Không tìm thấy vị trí nào phù hợp với "${search}"`
-                      : "Không tìm thấy dữ liệu với bộ lọc hiện tại"
+                      ? `Không tìm thấy vị trí phù hợp với "${search}"`
+                      : "Không có dữ liệu với bộ lọc hiện tại"
                     }
                   </p>
                 </div>
               )}
             </div>
           ) : (
-            <div className="space-y-4">
-              {/* THAY ĐỔI: Sử dụng PositionCard để hiển thị chi tiết */}
+            // Detail view - Mobile optimized spacing
+            <div className="space-y-3 sm:space-y-4">
               {currentTab?.positions?.map((position, index) => (
                 <PositionCard
                   key={position._uniqueKey || position.position?.id || position.jobPosition?.id || index}
                   position={position}
-                  weekNumber={filters.weekNumber}
+                  weekNumber={apiFilters.weekNumber || filters.weekNumber}
                   year={filters.year}
                   canEvaluation={currentUser?.isManager}
                 />
@@ -647,58 +685,67 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
         </CardContent>
       </Card>
 
-      {/* Evaluation Modal - GIỮ NGUYÊN */}
+      {/* Evaluation Modal - Mobile optimized */}
       <Dialog open={openEvalModal} onOpenChange={(open) => setEvaluationModal(open)}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Star className="w-5 h-5" />
-              {editEvaluation ? "Chỉnh sửa đánh giá" : "Đánh giá công việc"}
+        <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto mx-auto">
+          <DialogHeader className="pb-3">
+            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
+              <Star className="w-4 h-4 sm:w-5 sm:h-5" />
+              <span className="hidden sm:inline">
+                {editEvaluation ? "Chỉnh sửa đánh giá" : "Đánh giá công việc"}
+              </span>
+              <span className="sm:hidden">
+                {editEvaluation ? "Sửa đánh giá" : "Đánh giá"}
+              </span>
             </DialogTitle>
-            <div className="text-sm text-muted-foreground">
-              <div>
-                <span className="font-medium">Nhân viên:</span>{" "}
+            <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
+              <div className="truncate">
+                <span className="font-medium">NV:</span>{" "}
                 {`${selectedEmployee?.user?.firstName || ""} ${selectedEmployee?.user?.lastName || ""}`}
               </div>
-              <div>
-                <span className="font-medium">Công việc:</span> {selectedTask?.taskName || "N/A"}
+              <div className="line-clamp-2 sm:line-clamp-1">
+                <span className="font-medium">CV:</span> {selectedTask?.taskName || "N/A"}
               </div>
             </div>
           </DialogHeader>
 
           <Form {...evaluationForm}>
-            <form onSubmit={handleSubmitEvaluation} className="space-y-4">
+            <form onSubmit={handleSubmitEvaluation} className="space-y-3 sm:space-y-4">
               {editEvaluation && (
-                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-3">
-                  <div className="text-sm font-medium text-orange-800 dark:text-orange-300 mb-2">Đánh giá hiện tại:</div>
-                  <div className="space-y-1 text-sm">
+                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-2 sm:p-3">
+                  <div className="text-xs sm:text-sm font-medium text-orange-800 dark:text-orange-300 mb-2">Đánh giá hiện tại:</div>
+                  <div className="space-y-1 text-xs sm:text-sm">
                     <div>
                       Trạng thái:{" "}
                       <span className={editEvaluation.evaluatedIsCompleted ? "text-green-600" : "text-red-600"}>
                         {editEvaluation.evaluatedIsCompleted ? "Hoàn thành" : "Chưa hoàn thành"}
                       </span>
                     </div>
-                    {editEvaluation.evaluatorComment && <div>Nhận xét: {editEvaluation.evaluatorComment}</div>}
+                    {editEvaluation.evaluatorComment && (
+                      <div className="line-clamp-2">Nhận xét: {editEvaluation.evaluatorComment}</div>
+                    )}
                   </div>
                 </div>
               )}
 
-              <div className="space-y-4">
+              <div className="space-y-3 sm:space-y-4">
                 <ReactHookFormField
                   control={evaluationForm.control}
                   name="evaluatedIsCompleted"
                   render={({ field }: { field: any }) => (
-                    <FormItem>
-                      <FormLabel>
-                        Trạng thái hoàn thành <span className="text-red-500">*</span>
+                    <FormItem className="space-y-2">
+                      <FormLabel className="text-sm font-medium">
+                        Trạng thái <span className="text-red-500">*</span>
                       </FormLabel>
                       <FormControl>
-                        <div className="flex items-center space-x-2">
+                        <div className="flex items-center space-x-3 py-2">
                           <Switch
                             checked={field.value}
                             onCheckedChange={field.onChange}
                           />
-                          <span>{field.value ? "✅ Hoàn thành" : "❌ Chưa hoàn thành"}</span>
+                          <span className="text-sm font-medium">
+                            {field.value ? "✅ Hoàn thành" : "❌ Chưa hoàn thành"}
+                          </span>
                         </div>
                       </FormControl>
                       <FormMessage />
@@ -710,16 +757,16 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
                   control={evaluationForm.control}
                   name="evaluatedReasonNotDone"
                   render={({ field }: { field: any }) => (
-                    <FormItem>
-                      <FormLabel>Nguyên nhân/Giải pháp</FormLabel>
+                    <FormItem className="space-y-2">
+                      <FormLabel className="text-sm font-medium">Nguyên nhân/Giải pháp</FormLabel>
                       <FormControl>
                         <FormField
                           id="evaluatedReasonNotDone"
                           type="text"
-                          placeholder="Nhập nguyên nhân nếu chưa hoàn thành..."
+                          placeholder="Nhập nguyên nhân..."
                           {...field}
                           showPasswordToggle={false}
-                          className="w-full min-h-[80px] resize-y"
+                          className="w-full min-h-[60px] sm:min-h-[80px] resize-y text-sm"
                         />
                       </FormControl>
                       <FormMessage />
@@ -731,16 +778,16 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
                   control={evaluationForm.control}
                   name="evaluatorComment"
                   render={({ field }: { field: any }) => (
-                    <FormItem>
-                      <FormLabel>Nhận xét của bạn</FormLabel>
+                    <FormItem className="space-y-2">
+                      <FormLabel className="text-sm font-medium">Nhận xét</FormLabel>
                       <FormControl>
                         <FormField
                           id="evaluatorComment"
                           type="text"
-                          placeholder="Nhập nhận xét, góp ý..."
+                          placeholder="Nhập nhận xét..."
                           {...field}
                           showPasswordToggle={false}
-                          className="w-full min-h-[80px] resize-y"
+                          className="w-full min-h-[60px] sm:min-h-[80px] resize-y text-sm"
                         />
                       </FormControl>
                       <FormMessage />
@@ -752,19 +799,19 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
                   control={evaluationForm.control}
                   name="evaluationType"
                   render={({ field }: { field: any }) => (
-                    <FormItem>
-                      <FormLabel>
+                    <FormItem className="space-y-2">
+                      <FormLabel className="text-sm font-medium">
                         Loại đánh giá <span className="text-red-500">*</span>
                       </FormLabel>
                       <Select onValueChange={field.onChange} defaultValue={field.value}>
                         <FormControl>
-                          <SelectTrigger>
-                            <SelectValue placeholder="Chọn loại đánh giá" />
+                          <SelectTrigger className="text-sm">
+                            <SelectValue placeholder="Chọn loại" />
                           </SelectTrigger>
                         </FormControl>
                         <SelectContent>
                           {Object.values(EvaluationType).map((type) => (
-                            <SelectItem key={type} value={type}>
+                            <SelectItem key={type} value={type} className="text-sm">
                               {type}
                             </SelectItem>
                           ))}
@@ -776,8 +823,14 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
                 />
               </div>
 
-              <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <Button variant="outline" type="button" onClick={() => setEvaluationModal(false)}>
+              {/* Mobile optimized button layout */}
+              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
+                <Button 
+                  variant="outline" 
+                  type="button" 
+                  onClick={() => setEvaluationModal(false)}
+                  className="order-3 sm:order-1 text-sm py-2"
+                >
                   Hủy
                 </Button>
                 {editEvaluation && (
@@ -786,16 +839,17 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
                     type="button"
                     onClick={handleDeleteEvaluation} 
                     disabled={isSubmittingEvaluation}
+                    className="order-2 text-sm py-2"
                   >
-                    Xóa đánh giá
+                    Xóa
                   </Button>
                 )}
                 <AnimatedButton
                   type="submit"
                   loading={isSubmittingEvaluation}
-                  className="bg-blue-600 hover:bg-blue-700"
+                  className="bg-blue-600 hover:bg-blue-700 order-1 sm:order-3 text-sm py-2"
                 >
-                  {editEvaluation ? "Cập nhật" : "Gửi đánh giá"}
+                  {editEvaluation ? "Cập nhật" : "Gửi"}
                 </AnimatedButton>
               </div>
             </form>
@@ -809,12 +863,22 @@ console.log('🔄 AdminOverview: positionCards transformed:', positionCards)
 export default function AdminOverviewPage() {
   return (
     <MainLayout
-      showBreadcrumb
-      breadcrumbItems={[{ label: "Trang chủ", href: "/dashboard" }, { label: "Quản lý người dùng" }]}
+      // showBreadcrumb
+      // breadcrumbItems={[{ label: "Trang chủ", href: "/dashboard" }, { label: "Quản lý người dùng" }]}
     >
-      <Suspense fallback={<ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />}>
+      <Suspense
+        fallback={
+          <ScreenLoading
+            size="lg"
+            variant="corner-squares"
+            fullScreen
+            backdrop
+          />
+        }
+      >
         <AdminOverview />
       </Suspense>
     </MainLayout>
   )
 }
+       

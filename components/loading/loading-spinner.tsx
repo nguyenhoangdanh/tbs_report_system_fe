@@ -22,8 +22,22 @@ interface LoadingSpinnerProps {
     | "elastic"
     | "heart"
     | "hourglass"
+    | "square-split"
+    | "triangle-spin"
+    | "diamond-dance"
+    | "hexagon-morph"
+    | "line-wave"
+    | "circle-chase"
+    | "square-pulse"
+    | "infinity"
+    | "corner-squares"
+    | "conic-loader"
+    | "tsb-text"
+    | "company-logo"
     className?: string
     color?: "primary" | "secondary" | "success" | "warning" | "destructive"
+    hollow?: boolean
+    children?: React.ReactNode
 }
 
 const sizeMap = {
@@ -43,7 +57,7 @@ const colorMap = {
 }
 
 export const LoadingSpinner = memo(
-    ({ size = "md", variant = "spin", className, color = "primary" }: LoadingSpinnerProps) => {
+    ({ size = "md", variant = "spin", className, color = "primary", hollow = false, children }: LoadingSpinnerProps) => {
         const sizes = sizeMap[size]
         const colorClass = colorMap[color]
 
@@ -51,13 +65,24 @@ export const LoadingSpinner = memo(
             switch (variant) {
                 case "spin":
                     return (
-                        <div
-                            className={cn(
-                                "animate-spin rounded-full border-2 border-current border-t-transparent",
-                                sizes.container,
-                                colorClass,
+                        <div className={cn("relative", sizes.container)}>
+                            <div
+                                className={cn(
+                                    "animate-spin rounded-full border-2 border-current border-t-transparent",
+                                    hollow ? "loading-hollow" : "",
+                                    sizes.container,
+                                    colorClass,
+                                )}
+                                style={hollow ? {
+                                    borderWidth: size === "xs" ? "2px" : size === "sm" ? "3px" : size === "md" ? "4px" : size === "lg" ? "6px" : "8px"
+                                } : {}}
+                            />
+                            {hollow && children && (
+                                <div className="loading-hollow-content">
+                                    {children}
+                                </div>
                             )}
-                        />
+                        </div>
                     )
 
                 case "dots":
@@ -139,9 +164,15 @@ export const LoadingSpinner = memo(
                             <div
                                 className={cn(
                                     "absolute inset-0 rounded-full border-2 border-transparent border-t-current animate-spin",
+                                    hollow ? "loading-hollow" : "",
                                     colorClass,
                                 )}
                             />
+                            {hollow && children && (
+                                <div className="loading-hollow-content">
+                                    {children}
+                                </div>
+                            )}
                         </div>
                     )
 
@@ -157,10 +188,16 @@ export const LoadingSpinner = memo(
                             <div
                                 className={cn(
                                     "absolute inset-1 rounded-full border-2 border-current border-b-transparent animate-spin",
+                                    hollow ? "loading-hollow" : "",
                                     colorClass,
                                 )}
                                 style={{ animationDirection: "reverse", animationDuration: "0.8s" }}
                             />
+                            {hollow && children && (
+                                <div className="loading-hollow-content">
+                                    {children}
+                                </div>
+                            )}
                         </div>
                     )
 
@@ -272,15 +309,257 @@ export const LoadingSpinner = memo(
                         </div>
                     )
 
+                case "corner-squares":
+                    const cornerSize = size === "xs" ? 20 : size === "sm" ? 28 : size === "md" ? 36 : size === "lg" ? 52 : 68;
+                    const squareSize = Math.floor(cornerSize * 0.4);
+                    
+                    return (
+                        <div className={cn("relative loading-optimized flex items-center justify-center")}>
+                            <div
+                                className="corner-squares-individual"
+                                style={{
+                                    width: `${cornerSize}px`,
+                                    height: `${cornerSize}px`,
+                                }}
+                            >
+                                {/* Top-left square */}
+                                <div
+                                    className={cn("corner-square", colorClass)}
+                                    style={{
+                                        width: `${squareSize}px`,
+                                        height: `${squareSize}px`,
+                                        top: 0,
+                                        left: 0,
+                                        animation: "corner-square-1 1.5s ease-in-out infinite",
+                                    }}
+                                />
+                                {/* Top-right square */}
+                                <div
+                                    className={cn("corner-square", colorClass)}
+                                    style={{
+                                        width: `${squareSize}px`,
+                                        height: `${squareSize}px`,
+                                        top: 0,
+                                        right: 0,
+                                        animation: "corner-square-2 1.5s ease-in-out infinite",
+                                    }}
+                                />
+                                {/* Bottom-right square */}
+                                <div
+                                    className={cn("corner-square", colorClass)}
+                                    style={{
+                                        width: `${squareSize}px`,
+                                        height: `${squareSize}px`,
+                                        bottom: 0,
+                                        right: 0,
+                                        animation: "corner-square-3 1.5s ease-in-out infinite",
+                                    }}
+                                />
+                                {/* Bottom-left square */}
+                                <div
+                                    className={cn("corner-square", colorClass)}
+                                    style={{
+                                        width: `${squareSize}px`,
+                                        height: `${squareSize}px`,
+                                        bottom: 0,
+                                        left: 0,
+                                        animation: "corner-square-4 1.5s ease-in-out infinite",
+                                    }}
+                                />
+                            </div>
+                            {hollow && children && (
+                                <div className="loading-hollow-content">
+                                    {children}
+                                </div>
+                            )}
+                        </div>
+                    )
+
+                case "square-split":
+                    return (
+                        <div className={cn("relative loading-optimized", sizes.container)}>
+                            <div className="absolute inset-0 grid grid-cols-2 grid-rows-2 gap-0.5">
+                                <div
+                                    className={cn("bg-current loading-gpu-accelerated loading-smooth", colorClass)}
+                                    style={{ 
+                                        animation: "square-quarter-1 2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+                                        animationFillMode: "both"
+                                    }}
+                                />
+                                <div
+                                    className={cn("bg-current loading-gpu-accelerated loading-smooth", colorClass)}
+                                    style={{ 
+                                        animation: "square-quarter-2 2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+                                        animationFillMode: "both"
+                                    }}
+                                />
+                                <div
+                                    className={cn("bg-current loading-gpu-accelerated loading-smooth", colorClass)}
+                                    style={{ 
+                                        animation: "square-quarter-3 2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+                                        animationFillMode: "both"
+                                    }}
+                                />
+                                <div
+                                    className={cn("bg-current loading-gpu-accelerated loading-smooth", colorClass)}
+                                    style={{ 
+                                        animation: "square-quarter-4 2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+                                        animationFillMode: "both"
+                                    }}
+                                />
+                            </div>
+                        </div>
+                    )
+
+                case "triangle-spin":
+                    return (
+                        <div className={cn("loading-optimized", sizes.container, colorClass)}>
+                            <div
+                                className="w-full h-full bg-current loading-gpu-accelerated loading-smooth"
+                                style={{
+                                    clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)",
+                                    animation: "triangle-spin 1.5s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+                                }}
+                            />
+                        </div>
+                    )
+
+                case "diamond-dance":
+                    return (
+                        <div className={cn("loading-optimized", sizes.container, colorClass)}>
+                            <div
+                                className="w-full h-full bg-current loading-gpu-accelerated loading-smooth"
+                                style={{
+                                    clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+                                    animation: "diamond-dance 2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+                                }}
+                            />
+                        </div>
+                    )
+
+                case "conic-loader":
+                    return (
+                        <div className={cn("relative loading-optimized", sizes.container, colorClass)}>
+                            <div
+                                className="w-full aspect-square relative loading-smooth"
+                                style={{
+                                    background: `
+                                        conic-gradient(from 134deg at top, currentColor 92deg, transparent 0) top,
+                                        conic-gradient(from -46deg at bottom, currentColor 92deg, transparent 0) bottom
+                                    `,
+                                    backgroundSize: "100% 50%",
+                                    backgroundRepeat: "no-repeat",
+                                }}
+                            >
+                                <div
+                                    className="absolute inset-0 loading-gpu-accelerated"
+                                    style={{
+                                        background: `
+                                            linear-gradient(45deg, currentColor 14.5px, transparent 0 calc(100% - 14.5px), currentColor 0),
+                                            linear-gradient(-45deg, currentColor 14.5px, transparent 0 calc(100% - 14.5px), currentColor 0)
+                                        `,
+                                        animation: "conic-rotate 1.8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+                                    }}
+                                />
+                            </div>
+                            {hollow && children && (
+                                <div className="loading-hollow-content">
+                                    {children}
+                                </div>
+                            )}
+                        </div>
+                    )
+
+                case "tsb-text":
+                    return (
+                        <div className={cn("loading-optimized flex items-center justify-center", colorClass)}>
+                            <div className="flex space-x-1">
+                                <span 
+                                    className={cn("loading-gpu-accelerated loading-smooth", {
+                                        "tsb-text-xs": size === "xs",
+                                        "tsb-text-sm": size === "sm", 
+                                        "tsb-text-md": size === "md",
+                                        "tsb-text-lg": size === "lg",
+                                        "tsb-text-xl": size === "xl"
+                                    })}
+                                    style={{ 
+                                        animation: "tsb-letter-1 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+                                        animationFillMode: "both"
+                                    }}
+                                >
+                                    T
+                                </span>
+                                <span 
+                                    className={cn("loading-gpu-accelerated loading-smooth", {
+                                        "tsb-text-xs": size === "xs",
+                                        "tsb-text-sm": size === "sm",
+                                        "tsb-text-md": size === "md", 
+                                        "tsb-text-lg": size === "lg",
+                                        "tsb-text-xl": size === "xl"
+                                    })}
+                                    style={{ 
+                                        animation: "tsb-letter-2 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) 0.2s infinite",
+                                        animationFillMode: "both"
+                                    }}
+                                >
+                                    S
+                                </span>
+                                <span 
+                                    className={cn("loading-gpu-accelerated loading-smooth", {
+                                        "tsb-text-xs": size === "xs",
+                                        "tsb-text-sm": size === "sm",
+                                        "tsb-text-md": size === "md",
+                                        "tsb-text-lg": size === "lg", 
+                                        "tsb-text-xl": size === "xl"
+                                    })}
+                                    style={{ 
+                                        animation: "tsb-letter-3 2.2s cubic-bezier(0.4, 0.0, 0.2, 1) 0.4s infinite",
+                                        animationFillMode: "both"
+                                    }}
+                                >
+                                    B
+                                </span>
+                            </div>
+                        </div>
+                    )
+
+                case "company-logo":
+                    return (
+                        <div className={cn("relative loading-optimized", sizes.container, colorClass)}>
+                            <div
+                                className="w-full h-full loading-gpu-accelerated flex items-center justify-center"
+                                style={{ animation: "company-logo 3s ease-in-out infinite" }}
+                            >
+                                <div className="font-bold text-center">
+                                    <div className="text-lg">TBS</div>
+                                    <div className="text-xs opacity-75">GROUP</div>
+                                </div>
+                            </div>
+                            {hollow && children && (
+                                <div className="loading-hollow-content">
+                                    {children}
+                                </div>
+                            )}
+                        </div>
+                    )
+
                 default:
                     return (
-                        <div
-                            className={cn(
-                                "animate-spin rounded-full border-2 border-current border-t-transparent",
-                                sizes.container,
-                                colorClass,
+                        <div className={cn("relative", sizes.container)}>
+                            <div
+                                className={cn(
+                                    "animate-spin rounded-full border-2 border-current border-t-transparent loading-optimized",
+                                    hollow ? "loading-hollow" : "",
+                                    sizes.container,
+                                    colorClass,
+                                )}
+                            />
+                            {hollow && children && (
+                                <div className="loading-hollow-content">
+                                    {children}
+                                </div>
                             )}
-                        />
+                        </div>
                     )
             }
         }

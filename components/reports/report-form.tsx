@@ -128,6 +128,9 @@ export const ReportForm = memo(function ReportForm({
   // Local UI state
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
 
+  // Add local loading state for form operations
+  const [isFormOperationLoading, setIsFormOperationLoading] = useState(false)
+
   // Get available weeks for display
   const availableWeeks = useMemo(() => getAvailableWeeksForReporting(), [])
   const defaultWeek = useMemo(() => getCurrentWeek(), [])
@@ -136,22 +139,37 @@ export const ReportForm = memo(function ReportForm({
   const weekNumber = propWeekNumber || currentWeekNumber || defaultWeek.weekNumber
   const year = propYear || currentYear || defaultWeek.year
 
-  // Sync props to store when they change
+  // Enhanced sync with better cleanup
   useEffect(() => {
     if (propWeekNumber !== undefined && propYear !== undefined) {
+      console.log('📅 ReportForm: Syncing week props:', propWeekNumber, propYear)
       navigateToWeek(propWeekNumber, propYear, false)
     }
   }, [propWeekNumber, propYear, navigateToWeek])
 
-  // Sync report to store when it changes
+  // Enhanced report sync
   useEffect(() => {
-    syncReportToStore(report || null)
-  }, [report, syncReportToStore])
+    console.log('📄 ReportForm: Syncing report:', report?.id || 'null')
+    if (report) {
+      syncReportToStore(report)
+    } else {
+      // Only clear if we're not loading
+      if (!isLoading && !isFormOperationLoading) {
+        syncReportToStore(null)
+      }
+    }
+  }, [report, syncReportToStore, isLoading, isFormOperationLoading])
 
-  // Force clear when no report and week changes
+  // Force clear when no report and week changes - Enhanced
   useEffect(() => {
     if (!report && (propWeekNumber !== undefined || propYear !== undefined)) {
-      syncReportToStore(null)
+      console.log('🧹 ReportForm: Force clearing for new week without report')
+      setIsFormOperationLoading(true)
+      
+      setTimeout(() => {
+        syncReportToStore(null)
+        setIsFormOperationLoading(false)
+      }, 100)
     }
   }, [report, propWeekNumber, propYear, syncReportToStore])
 
@@ -200,11 +218,16 @@ export const ReportForm = memo(function ReportForm({
       newYear = year - 1
     }
 
+    setIsFormOperationLoading(true)
     syncReportToStore(null)
     clearTasks()
     navigateToWeek(newWeekNumber, newYear, true)
-    onWeekChange?.(newWeekNumber, newYear)
-  }, [weekNumber, year, navigateToWeek, onWeekChange])
+    
+    setTimeout(() => {
+      onWeekChange?.(newWeekNumber, newYear)
+      setIsFormOperationLoading(false)
+    }, 100)
+  }, [weekNumber, year, navigateToWeek, onWeekChange, syncReportToStore, clearTasks])
 
   const handleNextWeek = useCallback(() => {
     let newWeekNumber = weekNumber + 1
@@ -215,19 +238,29 @@ export const ReportForm = memo(function ReportForm({
       newYear = year + 1
     }
 
+    setIsFormOperationLoading(true)
     syncReportToStore(null)
     clearTasks()
     navigateToWeek(newWeekNumber, newYear, true)
-    onWeekChange?.(newWeekNumber, newYear)
-  }, [weekNumber, year, navigateToWeek, onWeekChange])
+    
+    setTimeout(() => {
+      onWeekChange?.(newWeekNumber, newYear)
+      setIsFormOperationLoading(false)
+    }, 100)
+  }, [weekNumber, year, navigateToWeek, onWeekChange, syncReportToStore, clearTasks])
 
   const handleCurrentWeek = useCallback(() => {
     const current = getCurrentWeek()
+    setIsFormOperationLoading(true)
     syncReportToStore(null)
     clearTasks()
     navigateToWeek(current.weekNumber, current.year, true)
-    onWeekChange?.(current.weekNumber, current.year)
-  }, [navigateToWeek, onWeekChange])
+    
+    setTimeout(() => {
+      onWeekChange?.(current.weekNumber, current.year)
+      setIsFormOperationLoading(false)
+    }, 100)
+  }, [navigateToWeek, onWeekChange, syncReportToStore, clearTasks])
 
   // Check if navigation is available
   const navigationAvailable = useMemo(() => {
@@ -286,13 +319,21 @@ export const ReportForm = memo(function ReportForm({
       return
     }
 
-    if (!selectedReport) {
+    // CRITICAL: State verification before save
+    const currentStoreState = useReportStore.getState()
+
+    // Determine if this is an update or create operation
+    const isUpdateOperation = selectedReport && selectedReport.id && !selectedReport.id.startsWith('temp-')
+    
+    if (!isUpdateOperation) {
+      // This is a CREATE operation - verify week validity
       const validationResult = isValidWeekForCreation(weekNumber, year)
       if (!validationResult.isValid) {
         toast.error(validationResult.reason!)
         return
       }
     } else {
+      // This is an UPDATE operation - verify edit permissions
       const editValidation = isValidWeekForEdit(weekNumber, year)
       if (!editValidation.isValid) {
         toast.error(editValidation.reason!)
@@ -304,7 +345,8 @@ export const ReportForm = memo(function ReportForm({
     try {
       let reportData: any
 
-      if (selectedReport) {
+      if (isUpdateOperation) {
+        // UPDATE existing report
         reportData = {
           tasks: currentTasks.map(task => ({
             taskName: task.taskName.trim(),
@@ -322,6 +364,7 @@ export const ReportForm = memo(function ReportForm({
           year,
         }
       } else {
+        // CREATE new report
         reportData = {
           weekNumber: Number(weekNumber),
           year: Number(year),
@@ -339,14 +382,15 @@ export const ReportForm = memo(function ReportForm({
         }
       }
 
-       await onSave(reportData)
+      await onSave(reportData)
 
     } catch (error: any) {
       console.error('❌ ReportForm: Save failed:', error)
+      // Don't clear state on error - let user retry
     } finally {
       setSaving(false)
     }
-  }, [validateTasks, selectedReport, weekNumber, year, currentTasks, onSave, setSaving])
+  }, [validateTasks, selectedReport, weekNumber, year, currentTasks, onSave, setSaving, report?.id])
 
   const handleDelete = useCallback(async () => {
     if (!selectedReport || !onDelete) return
@@ -359,6 +403,9 @@ export const ReportForm = memo(function ReportForm({
     }
   }, [selectedReport, onDelete])
   
+
+  // Enhanced loading check
+  const isAnyLoading = isLoading || isFormOperationLoading || isSaving
 
   return (
     <div className="space-y-6">
@@ -489,14 +536,17 @@ export const ReportForm = memo(function ReportForm({
       </Card>
 
       {/* Loading indicator */}
-      {!selectedReport && isLoading && (
+      {(!selectedReport && isAnyLoading) && (
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-center py-8">
               <div className="text-center">
                 <div className="w-6 h-6 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-2"></div>
                 <p className="text-sm text-muted-foreground">
-                  Đang kiểm tra báo cáo tuần {weekNumber}/{year}...
+                  {isFormOperationLoading 
+                    ? 'Đang chuyển đổi tuần...' 
+                    : 'Đang kiểm tra báo cáo tuần {weekNumber}/{year}...'
+                  }
                 </p>
               </div>
             </div>
@@ -504,33 +554,14 @@ export const ReportForm = memo(function ReportForm({
         </Card>
       )}
 
-      {/* Validation Warning */}
-      {/* {!canEdit && !isLoading && (
-        <Card className="border-orange-200 bg-orange-50 dark:bg-orange-950/20">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-2 text-orange-700 dark:text-orange-300">
-              <AlertCircle className="w-5 h-5 flex-shrink-0" />
-              <div>
-                <p className="font-medium">
-                  {selectedReport ? 'Không thể chỉnh sửa báo cáo này' : 'Không thể tạo báo cáo cho tuần này'}
-                </p>
-                <p className="text-sm">
-                  {validation.reason}
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      )} */}
-
       {/* Main Content */}
-      {((!isLoading || selectedReport)) && (
+      {(!isAnyLoading || selectedReport) && (
         <div className="space-y-6">
           <TaskTable
             weekNumber={weekNumber}
             year={year}
-            isEditable={canEditCurrentWeek}
-            onSave={canEditCurrentWeek && currentTasks.length > 0 ? handleSave : undefined}
+            isEditable={canEditCurrentWeek && !isAnyLoading}
+            onSave={canEditCurrentWeek && currentTasks.length > 0 && !isAnyLoading ? handleSave : undefined}
           />
           <div className="flex justify-end items-center gap-2">
             {/* Save button */}

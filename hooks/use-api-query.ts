@@ -31,7 +31,7 @@ export function useApiQuery<TData, TError = Error>(
     queryFn: () => Promise<ApiResult<TData>>
     // Enhanced options
     invalidateOnSuccess?: boolean
-    cacheStrategy?: 'aggressive' | 'normal' | 'fresh' | 'realtime'
+    cacheStrategy?: 'aggressive' | 'normal' | 'fresh' | 'realtime' | 'realtime-stable'
   }
 ) {
   // Smart cache configuration based on strategy
@@ -61,6 +61,15 @@ export function useApiQuery<TData, TError = Error>(
           refetchOnWindowFocus: false,
           refetchOnReconnect: false,
           retry: false // No retry for real-time data
+        }
+       case 'realtime-stable': // NEW STRATEGY
+        return {
+          staleTime: 0, // Always stale - always fetch fresh
+          gcTime: 2000, // Keep for 2 seconds to handle user switching
+          refetchOnMount: 'always' as const,
+          refetchOnWindowFocus: false,
+          refetchOnReconnect: false,
+          retry: false
         }
       default:
         return { 

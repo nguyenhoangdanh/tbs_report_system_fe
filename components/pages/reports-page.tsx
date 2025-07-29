@@ -15,6 +15,8 @@ import { useMyReports, useCurrentWeekReport, useCreateWeeklyReport, useUpdateRep
 import {  Task, UpdateTaskDto, WeeklyReport } from '@/types'
 import { ScreenLoading } from '../loading/screen-loading'
 import { UpdateReportDto } from '@/services/report.service'
+import useReportStore from '@/store/report-store'
+import { Card, CardContent } from '../ui/card'
 
 type FilterTab = 'week' | 'month' | 'year'
 type ViewMode = 'list' | 'form' | 'template'
@@ -56,6 +58,40 @@ function ReportsPage() {
   const [selectedReport, setSelectedReport] = useState<WeeklyReport | null>(null)
   const [currentWeekNumber, setCurrentWeekNumber] = useState<number>(getCurrentWeek().weekNumber)
   const [currentYear, setCurrentYear] = useState<number>(getCurrentWeek().year)
+
+  // Zustand store with user sync
+  const {
+    currentTasks,
+    selectedReport: storeSelectedReport,
+    currentWeekNumber: storeWeekNumber,
+    currentYear: storeYear,
+    isSaving,
+    setCurrentUser,
+    navigateToWeek,
+    syncReportToStore,
+    clearUserSpecificState,
+    clearCacheForWeek,
+    clearTasks
+  } = useReportStore()
+
+  // Sync user to store when user changes
+  useEffect(() => {
+    if (user?.id) {
+      console.log('👤 Setting current user in store:', user.id)
+      setCurrentUser(user.id)
+    } else {
+      console.log('👤 Clearing user from store')
+      setCurrentUser(null)
+    }
+  }, [user?.id, setCurrentUser])
+
+  // Clear store state when user logs out
+  useEffect(() => {
+    if (!isAuthenticated && !authLoading) {
+      console.log('🚪 User logged out, clearing store state')
+      clearUserSpecificState()
+    }
+  }, [isAuthenticated, authLoading, clearUserSpecificState])
 
   // Query hooks - NEVER pass filter parameters to API
   const { data: reportsData, isLoading: reportsLoading, refetch: refetchReports } = useMyReports(1, 50)
@@ -142,16 +178,24 @@ function ReportsPage() {
     return allYears.length > 0 ? allYears : [new Date().getFullYear()]
   }, [reports])
 
-  // Effect to sync selected report with week report
+  // Effect to sync selected report with week report - Enhanced with user validation
   useEffect(() => {
+    // Only sync if we have a valid user
+    if (!user?.id) {
+      setSelectedReport(null)
+      return
+    }
+
     if (viewMode === 'form') {
       if (weekReport?.id) {
+        console.log('📄 Setting selected report from week data:', weekReport.id)
         setSelectedReport(weekReport)
       } else {
+        console.log('📄 No week report found, clearing selected report')
         setSelectedReport(null)
       }
     }
-  }, [weekReport, viewMode])
+  }, [weekReport, viewMode, user?.id])
 
   // CRITICAL: Use shallow routing to prevent API calls - FIXED with stable dependencies
   const updateURLParams = useCallback((tab: FilterTab, month?: number, year?: number) => {
@@ -174,13 +218,42 @@ function ReportsPage() {
 
   // Event handlers with stable references
   const handleWeekChange = useCallback((newWeekNumber: number, newYear: number) => {
-    setSelectedReport(null) // reset report ngay lập tức
+    if (!user?.id) {
+      console.warn('⚠️ No user logged in, skipping week change')
+      return
+    }
+    
+    setIsOperationLoading(true)
+    console.log('🗓️ Week changed by user:', user.id, `${newWeekNumber}/${newYear}`)
+    
+    // STEP 1: Complete state cleanup
+    console.log('🗓️ Step 1: Complete state cleanup for week change')
+    setSelectedReport(null)
+    syncReportToStore(null)
+    clearTasks()
     setCurrentWeekNumber(newWeekNumber)
     setCurrentYear(newYear)
+    
+    // STEP 2: Clear cache for new week
+    console.log('🗓️ Step 2: Clear cache for new week')
+    clearCacheForWeek(newWeekNumber, newYear)
+    navigateToWeek(newWeekNumber, newYear, true)
+    
+    // STEP 3: Force refetch and verify state
     setTimeout(() => {
+      console.log('🗓️ Step 3: Force refetch and verify state')
+      const storeState = useReportStore.getState()
+      console.log('Week change - Current store state:', {
+        selectedReport: storeState.selectedReport?.id,
+        tasksCount: storeState.currentTasks.length,
+        weekNumber: storeState.currentWeekNumber,
+        year: storeState.currentYear
+      })
+      
       refetchReports()
-    }, 100)
-  }, [refetchReports])
+      setIsOperationLoading(false)
+    }, 300)
+  }, [user?.id, navigateToWeek, refetchReports, syncReportToStore, clearCacheForWeek, clearTasks])
 
   const handleFilterTabChange = useCallback((tab: FilterTab) => {
     setFilterTab(tab)
@@ -197,11 +270,74 @@ function ReportsPage() {
     updateURLParams(filterTab, selectedMonth, year)
   }, [filterTab, selectedMonth, updateURLParams])
 
+  // Calculate week availability - FIX: Type safety for reports
+  const weekAvailability = useMemo(() => {
+    const current = getCurrentWeek()
+
+    // Calculate previous week
+    let prevWeek = current.weekNumber - 1
+    let prevYear = current.year
+    if (prevWeek < 1) {
+      prevWeek = 52
+      prevYear = current.year - 1
+    }
+
+    // Calculate next week
+    let nextWeekNum = current.weekNumber + 1
+    let nextYear = current.year
+    if (nextWeekNum > 52) {
+      nextWeekNum = 1
+      nextYear = current.year + 1
+    }
+
+    // Check which weeks have existing reports - FIX: Type safety
+    const hasPreviousWeekReport = Array.isArray(reports) && reports.some((report: any) =>
+      report?.weekNumber === prevWeek && report?.year === prevYear
+    )
+    const hasCurrentWeekReport = Array.isArray(reports) && reports.some((report: any) =>
+      report?.weekNumber === current.weekNumber && report?.year === current.year
+    )
+    const hasNextWeekReport = Array.isArray(reports) && reports.some((report: any) =>
+      report?.weekNumber === nextWeekNum && report?.year === nextYear
+    )
+
+    // Check if weeks are still creatable
+    const isPreviousWeekCreatable = isValidWeekForCreation(prevWeek, prevYear).isValid
+    const isCurrentWeekCreatable = isValidWeekForCreation(current.weekNumber, current.year).isValid
+    const isNextWeekCreatable = isValidWeekForCreation(nextWeekNum, nextYear).isValid
+
+    return {
+      previous: {
+        weekNumber: prevWeek,
+        year: prevYear,
+        hasReport: hasPreviousWeekReport,
+        isCreatable: isPreviousWeekCreatable,
+        shouldShow: !hasPreviousWeekReport && isPreviousWeekCreatable
+      },
+      current: {
+        weekNumber: current.weekNumber,
+        year: current.year,
+        hasReport: hasCurrentWeekReport,
+        isCreatable: isCurrentWeekCreatable,
+        shouldShow: !hasCurrentWeekReport && isCurrentWeekCreatable
+      },
+      next: {
+        weekNumber: nextWeekNum,
+        year: nextYear,
+        hasReport: hasNextWeekReport,
+        isCreatable: isNextWeekCreatable,
+        shouldShow: !hasNextWeekReport && isNextWeekCreatable
+      }
+    }
+  }, [reports])
+
   // FIXED: Remove handleBackToList dependency to prevent infinite loops
   const handleCreateOrUpdateReport = useCallback(async (reportData: ReportData): Promise<WeeklyReport> => {
-    if (!user) {
+    if (!user?.id) {
       throw new Error('Vui lòng đăng nhập để tạo báo cáo');
     }
+
+    console.log('💾 Creating/updating report for user:', user.id)
 
     // CRITICAL: Validate week for creation
     if (!selectedReport) {
@@ -276,7 +412,9 @@ function ReportsPage() {
         result = await createReportMutation.mutateAsync(createData);
       }
 
-
+      // ✅ FIXED: Only clear state AFTER successful API response
+      console.log('✅ Save successful, now clearing state and navigating')
+      
       // Wait for mutations to complete and caches to update
       await new Promise(resolve => setTimeout(resolve, 300))
 
@@ -286,20 +424,22 @@ function ReportsPage() {
         refetchCurrentWeek()
       ])
 
-      // Navigate back to list
+      // ✅ NOW clear state and navigate back to list - AFTER API success
       setSelectedReport(null);
+      syncReportToStore(null); // Clear store state
       setViewMode('list');
       updateURLParams(filterTab, selectedMonth, selectedYear);
 
       return result;
     } catch (error: any) {
-      console.error('❌ Save report error:', error);
+      console.error('❌ Save report error for user:', user.id, error);
       const message = error.message || 'Không thể lưu báo cáo. Vui lòng thử lại.';
       toast.error(message);
       throw error;
     }
-  }, [user, selectedReport, updateReportMutation, createReportMutation, refetchReports, refetchCurrentWeek, filterTab, selectedMonth, selectedYear, updateURLParams])
+  }, [user?.id, selectedReport, updateReportMutation, createReportMutation, refetchReports, refetchCurrentWeek, filterTab, selectedMonth, selectedYear, updateURLParams, syncReportToStore])
 
+  // Add missing handlers
   const handleViewReport = useCallback((report: WeeklyReport) => {
     setSelectedReport(report)
     setCurrentWeekNumber(report.weekNumber)
@@ -314,36 +454,70 @@ function ReportsPage() {
     setViewMode('form')
   }, [])
 
-  const handleCreateNew = useCallback(() => {
-    setSelectedReport(null)
-    const current = getCurrentWeek()
-    setCurrentWeekNumber(current.weekNumber)
-    setCurrentYear(current.year)
-    setViewMode('form')
-  }, [])
-
   const handleBackToList = useCallback(() => {
     setSelectedReport(null)
     setViewMode('list')
     updateURLParams(filterTab, selectedMonth, selectedYear)
   }, [filterTab, selectedMonth, selectedYear, updateURLParams])
 
+  // Add loading state for operations
+  const [isOperationLoading, setIsOperationLoading] = useState(false)
+
+  // Enhanced delete handler with complete state cleanup
   const handleDeleteReport = useCallback(async (reportId: string): Promise<void> => {
+    setIsOperationLoading(true)
     try {
+      // Get report info BEFORE deletion
+      const reportToDelete = reports.find(r => r.id === reportId)
+      
+      // STEP 1: Clear ALL state immediately BEFORE deletion
+      console.log('🗑️ Step 1: Pre-delete state cleanup for report:', reportId)
+      setSelectedReport(null)
+      syncReportToStore(null)
+      clearTasks()
+      
+      if (reportToDelete) {
+        clearCacheForWeek(reportToDelete.weekNumber, reportToDelete.year)
+        
+        // If we're currently viewing this week, clear week navigation too
+        if (currentWeekNumber === reportToDelete.weekNumber && currentYear === reportToDelete.year) {
+          const currentWeek = getCurrentWeek()
+          setCurrentWeekNumber(currentWeek.weekNumber)
+          setCurrentYear(currentWeek.year)
+          navigateToWeek(currentWeek.weekNumber, currentWeek.year, true)
+        }
+      }
+
+      // STEP 2: Perform deletion
+      console.log('🗑️ Step 2: Performing deletion')
       await deleteReportMutation.mutateAsync(reportId)
+      
+      // STEP 3: Additional cleanup after deletion
+      console.log('🗑️ Step 3: Post-delete cleanup')
       if (selectedReport?.id === reportId) {
         setSelectedReport(null)
         setViewMode('list')
       }
-      // Wait for deletion to complete
-      await new Promise(resolve => setTimeout(resolve, 300))
-      // Force refetch to ensure UI updates
+      
+      // STEP 4: Force clear Zustand store state
+      console.log('🗑️ Step 4: Force clearing Zustand state')
+      syncReportToStore(null)
+      clearTasks()
+      
+      // STEP 5: Wait for state to settle
+      await new Promise(resolve => setTimeout(resolve, 500))
+      
+      // STEP 6: Force refetch to ensure fresh data
+      console.log('🗑️ Step 6: Force refetching data')
       await Promise.all([
         refetchReports(),
         refetchCurrentWeek()
       ])
-      // Sau khi refetch, nếu tuần hiện tại không còn báo cáo thì setSelectedReport(null)
-      // (đã xử lý ở useEffect phía trên)
+      
+      // STEP 7: Navigate back to list view safely
+      setViewMode('list')
+      updateURLParams(filterTab, selectedMonth, selectedYear)
+      
     } catch (error: any) {
       console.error('❌ Delete report error:', error)
       if (error.message.includes('tuần hiện tại') || error.message.includes('tuần tiếp theo')) {
@@ -352,93 +526,107 @@ function ReportsPage() {
         toast.error(error.message || 'Không thể xóa báo cáo. Vui lòng thử lại.')
       }
       throw error
+    } finally {
+      setIsOperationLoading(false)
     }
-  }, [selectedReport, deleteReportMutation, refetchReports, refetchCurrentWeek])
+  }, [selectedReport, deleteReportMutation, refetchReports, refetchCurrentWeek, reports, clearCacheForWeek, syncReportToStore, clearTasks, currentWeekNumber, currentYear, navigateToWeek, filterTab, selectedMonth, selectedYear, updateURLParams])
 
-  // Calculate week availability - FIX: Type safety for reports
-  const weekAvailability = useMemo(() => {
+  // Enhanced create handlers with complete state reset
+  const handleCreateNew = useCallback(() => {
+    if (!user?.id) {
+      console.warn('⚠️ No user logged in, cannot create new report')
+      toast.error('Vui lòng đăng nhập để tạo báo cáo')
+      return
+    }
+    
+    setIsOperationLoading(true)
+    console.log('➕ Creating new report for user:', user.id)
+    
+    // STEP 1: Complete state reset
+    console.log('➕ Step 1: Complete state reset')
+    setSelectedReport(null)
+    syncReportToStore(null)
+    clearTasks()
+    
     const current = getCurrentWeek()
-
-    // Calculate previous week
-    let prevWeek = current.weekNumber - 1
-    let prevYear = current.year
-    if (prevWeek < 1) {
-      prevWeek = 52
-      prevYear = current.year - 1
-    }
-
-    // Calculate next week
-    let nextWeekNum = current.weekNumber + 1
-    let nextYear = current.year
-    if (nextWeekNum > 52) {
-      nextWeekNum = 1
-      nextYear = current.year + 1
-    }
-
-    // Check which weeks have existing reports - FIX: Type safety
-    const hasPreviousWeekReport = Array.isArray(reports) && reports.some((report: any) =>
-      report?.weekNumber === prevWeek && report?.year === prevYear
-    )
-    const hasCurrentWeekReport = Array.isArray(reports) && reports.some((report: any) =>
-      report?.weekNumber === current.weekNumber && report?.year === current.year
-    )
-    const hasNextWeekReport = Array.isArray(reports) && reports.some((report: any) =>
-      report?.weekNumber === nextWeekNum && report?.year === nextYear
-    )
-
-    // Check if weeks are still creatable
-    const isPreviousWeekCreatable = isValidWeekForCreation(prevWeek, prevYear).isValid
-    const isCurrentWeekCreatable = isValidWeekForCreation(current.weekNumber, current.year).isValid
-    const isNextWeekCreatable = isValidWeekForCreation(nextWeekNum, nextYear).isValid
-
-    return {
-      previous: {
-        weekNumber: prevWeek,
-        year: prevYear,
-        hasReport: hasPreviousWeekReport,
-        isCreatable: isPreviousWeekCreatable,
-        shouldShow: !hasPreviousWeekReport && isPreviousWeekCreatable
-      },
-      current: {
-        weekNumber: current.weekNumber,
-        year: current.year,
-        hasReport: hasCurrentWeekReport,
-        isCreatable: isCurrentWeekCreatable,
-        shouldShow: !hasCurrentWeekReport && isCurrentWeekCreatable
-      },
-      next: {
-        weekNumber: nextWeekNum,
-        year: nextYear,
-        hasReport: hasNextWeekReport,
-        isCreatable: isNextWeekCreatable,
-        shouldShow: !hasNextWeekReport && isNextWeekCreatable
-      }
-    }
-  }, [reports])
+    setCurrentWeekNumber(current.weekNumber)
+    setCurrentYear(current.year)
+    
+    // STEP 2: Clear cache for target week
+    console.log('➕ Step 2: Clear cache for week:', current.weekNumber, current.year)
+    clearCacheForWeek(current.weekNumber, current.year)
+    navigateToWeek(current.weekNumber, current.year, true)
+    
+    // STEP 3: Ensure state is completely clean
+    setTimeout(() => {
+      console.log('➕ Step 3: Final state verification')
+      const storeState = useReportStore.getState()
+      console.log('Current store state:', {
+        selectedReport: storeState.selectedReport?.id,
+        tasksCount: storeState.currentTasks.length
+      })
+      
+      setViewMode('form')
+      setIsOperationLoading(false)
+    }, 200)
+  }, [user?.id, navigateToWeek, syncReportToStore, clearCacheForWeek, clearTasks])
 
   const handleCreateForWeek = useCallback((weekNumber: number, year: number, weekType: 'previous' | 'current' | 'next') => {
+    if (!user?.id) {
+      console.warn('⚠️ No user logged in, cannot create report for week')
+      toast.error('Vui lòng đăng nhập để tạo báo cáo')
+      return
+    }
+    
+    setIsOperationLoading(true)
+    console.log(`➕ Creating ${weekType} week report for user:`, user.id, `${weekNumber}/${year}`)
+    
+    // STEP 1: Complete state reset
+    console.log('➕ Step 1: Complete state reset for week creation')
     setSelectedReport(null)
+    syncReportToStore(null)
+    clearTasks()
     setCurrentWeekNumber(weekNumber)
     setCurrentYear(year)
-    setViewMode('form')
+    
+    // STEP 2: Clear cache for target week
+    console.log('➕ Step 2: Clear cache for week:', weekNumber, year)
+    clearCacheForWeek(weekNumber, year)
+    navigateToWeek(weekNumber, year, true)
+    
+    // STEP 3: Ensure state is completely clean
+    setTimeout(() => {
+      console.log('➕ Step 3: Final state verification for week creation')
+      const storeState = useReportStore.getState()
+      console.log('Current store state:', {
+        selectedReport: storeState.selectedReport?.id,
+        tasksCount: storeState.currentTasks.length,
+        weekNumber: storeState.currentWeekNumber,
+        year: storeState.currentYear
+      })
+      
+      setViewMode('form')
+      setIsOperationLoading(false)
+    }, 200)
+  }, [user?.id, navigateToWeek, syncReportToStore, clearCacheForWeek, clearTasks])
 
-  }, [])
+  const isFormLoading = useMemo(() => {
+    return isOperationLoading || isSaving || weekReportLoading || reportsLoading
+  }, [isOperationLoading, isSaving, weekReportLoading, reportsLoading])
 
   // Loading states
   if (authLoading) {
-    return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+    return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
   }
 
   if (!isAuthenticated || !user) {
     return null
   }
 
-  const isFormLoading = createReportMutation.isPending || updateReportMutation.isPending || weekReportLoading
-
   // Add a resetKey to force remount ReportForm when week changes
   const resetKey = useMemo(
-    () => `${currentWeekNumber}-${currentYear}-${selectedReport?.id ?? 'no-report'}`,
-    [currentWeekNumber, currentYear, selectedReport?.id]
+    () => `${user?.id}-${currentWeekNumber}-${currentYear}-${selectedReport?.id ?? 'no-report'}`,
+    [user?.id, currentWeekNumber, currentYear, selectedReport?.id]
   )
 
   return (
@@ -450,6 +638,18 @@ function ReportsPage() {
       ]}
     >
       <div className="max-w-8xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
+        {/* Add operation loading overlay */}
+        {isOperationLoading && (
+          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl">
+              <div className="flex items-center gap-3">
+                <div className="w-5 h-5 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin"></div>
+                <span>Đang xử lý...</span>
+              </div>
+            </div>
+          </div>
+        )}
+
         {viewMode === 'list' ? (
           <div className="space-y-4 sm:space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -642,6 +842,7 @@ function ReportsPage() {
                 variant="outline"
                 size="sm"
                 className="flex items-center gap-1 sm:gap-2 w-fit"
+                disabled={isOperationLoading}
               >
                 <ArrowLeft className="w-3 h-3 sm:w-4 sm:h-4" />
                 <span className="text-xs sm:text-sm">Trở về danh sách</span>
@@ -659,18 +860,33 @@ function ReportsPage() {
               </div>
             </div>
 
-            <ReportForm
-              key={resetKey}
-              report={selectedReport} // sẽ là null nếu không còn báo cáo tuần này
-              onSave={handleCreateOrUpdateReport}
-              onDelete={handleDeleteReport}
-              onWeekChange={handleWeekChange}
-              weekNumber={currentWeekNumber}
-              year={currentYear}
-              isLoading={isFormLoading}
-              // truyền thêm prop tasks để TaskTable nhận đúng data
-              tasks={selectedReport?.tasks ?? weekReport?.tasks}
-            />
+            {/* Add loading state for form initialization */}
+            {isOperationLoading ? (
+              <Card>
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-center py-8">
+                    <div className="text-center">
+                      <div className="w-6 h-6 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin mx-auto mb-2"></div>
+                      <p className="text-sm text-muted-foreground">
+                        Đang khởi tạo form báo cáo...
+                      </p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            ) : (
+              <ReportForm
+                key={resetKey}
+                report={selectedReport}
+                onSave={handleCreateOrUpdateReport}
+                onDelete={handleDeleteReport}
+                onWeekChange={handleWeekChange}
+                weekNumber={currentWeekNumber}
+                year={currentYear}
+                isLoading={isFormLoading}
+                tasks={selectedReport?.tasks ?? weekReport?.tasks}
+              />
+            )}
           </div>
         )}
       </div>

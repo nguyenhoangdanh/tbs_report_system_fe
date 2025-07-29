@@ -1,3 +1,4 @@
+import { Ranking } from "@/services/report.service"
 import { Task } from "."
 import { User, WeeklyReport} from "./index"
 
@@ -335,7 +336,7 @@ export interface RankingDistribution {
   good: { count: number; percentage: number }
   average: { count: number; percentage: number }
   poor: { count: number; percentage: number }
-  fail: { count: number; percentage: number }
+  // fail: { count: number; percentage: number }
 }
 
 // Management hierarchy response (Group by Position)
@@ -361,7 +362,7 @@ export interface ManagementHierarchyResponse {
       totalTasks: number
       completedTasks: number
       averageCompletionRate: number
-      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
+      positionRanking: Ranking
       rankingDistribution: RankingDistribution
     }
     userCount: number
@@ -418,7 +419,7 @@ export interface StaffHierarchyResponse {
       totalTasks: number
       completedTasks: number
       averageCompletionRate: number
-      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
+      positionRanking: Ranking
       rankingDistribution: RankingDistribution
     }
     userCount: number
@@ -458,7 +459,7 @@ export interface MixedHierarchyResponse {
       totalTasks: number
       completedTasks: number
       averageCompletionRate: number
-      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
+      positionRanking: Ranking
       rankingDistribution: RankingDistribution
     }
     userCount: number
@@ -498,7 +499,7 @@ export interface MixedHierarchyResponse {
       totalTasks: number
       completedTasks: number
       averageCompletionRate: number
-      positionRanking: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
+      positionRanking: Ranking
       rankingDistribution: RankingDistribution
     }
     userCount: number
@@ -559,7 +560,7 @@ export type HierarchyResponse =
 
 // User ranking interface với thang điểm mới
 export interface UserRanking {
-  rank: 'EXCELLENT' | 'GOOD' | 'AVERAGE' | 'FAIL' | 'POOR'
+  rank: Ranking
   label: string
   color: string
   bgColor: string
@@ -739,44 +740,45 @@ export interface UserDetailsResponse {
 }
 
 // Helper function để tính ranking từ completion rate
-export function calculateUserRanking(completionRate: number): UserRanking {
-  if (completionRate >= 100) {
-    return {
-      rank: 'EXCELLENT',
-      label: 'Xuất sắc',
-      color: '#22c55e',
-      bgColor: '#f0fdf4'
-    }
-  } else if (completionRate >= 95) {
-    return {
-      rank: 'GOOD',
-      label: 'Tốt',
-      color: '#3b82f6',
-      bgColor: '#eff6ff'
-    }
-  } else if (completionRate >= 90) {
-    return {
-      rank: 'AVERAGE',
-      label: 'Trung bình',
-      color: '#f59e0b',
-      bgColor: '#fffbeb'
-    }
-  } else if (completionRate >= 85) {
-    return {
-      rank: 'POOR',
-      label: 'Yếu',
-      color: '#f97316',
-      bgColor: '#fff7ed'
-    }
-  } else {
-    return {
-      rank: 'FAIL',
-      label: 'Kém',
-      color: '#ef4444',
-      bgColor: '#fef2f2'
-    }
-  }
-}
+// export function calculateUserRanking(completionRate: number): UserRanking {
+//   if (completionRate >= 100) {
+//     return {
+//       rank: 'EXCELLENT',
+//       label: 'Xuất sắc',
+//       color: '#22c55e',
+//       bgColor: '#f0fdf4'
+//     }
+//   } else if (completionRate >= 95) {
+//     return {
+//       rank: 'GOOD',
+//       label: 'Tốt',
+//       color: '#3b82f6',
+//       bgColor: '#eff6ff'
+//     }
+//   } else if (completionRate >= 90) {
+//     return {
+//       rank: 'AVERAGE',
+//       label: 'Trung bình',
+//       color: '#f59e0b',
+//       bgColor: '#fffbeb'
+//     }
+//   } else if (completionRate >= 85) {
+//     return {
+//       rank: 'POOR',
+//       label: 'Yếu',
+//       color: '#f97316',
+//       bgColor: '#fff7ed'
+//     }
+//   }
+//   // else {
+//   //   return {
+//   //     rank: 'FAIL',
+//   //     label: 'Kém',
+//   //     color: '#ef4444',
+//   //     bgColor: '#fef2f2'
+//   //   }
+//   // }
+// }
 
 // Normalize ranking distribution để đảm bảo có đầy đủ properties
 export function normalizeRankingDistribution(
@@ -789,7 +791,7 @@ export function normalizeRankingDistribution(
     good: distribution?.good || defaultRankItem,
     average: distribution?.average || defaultRankItem,
     poor: distribution?.poor || defaultRankItem,
-    fail: distribution?.fail || defaultRankItem,
+    // fail: distribution?.fail || defaultRankItem,
   }
 }
 

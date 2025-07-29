@@ -34,13 +34,13 @@ interface PositionCardProps {
       completedTasks: number
       averageCompletionRate: number
       needsImprovementCount?: number
-      positionRanking?: "EXCELLENT" | "GOOD" | "AVERAGE" | "FAIL" | "POOR"
+      positionRanking?: "EXCELLENT" | "GOOD" | "AVERAGE" | "POOR"
       rankingDistribution?: {
         excellent: { count: number; percentage: number }
         good: { count: number; percentage: number }
         average: { count: number; percentage: number }
         poor: { count: number; percentage: number }
-        fail: { count: number; percentage: number }
+        // fail: { count: number; percentage: number }
       }
       users?: any[]
     }
@@ -59,7 +59,11 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
     name: position.position?.name || position.jobPosition?.jobName || "Vị trí không xác định",
     description: position.position?.description || position.jobPosition?.department?.name || "",
     isManagement: position.position?.isManagement || false,
+    departmentName: position.jobPosition?.department?.name || "",
+    jobName: position.jobPosition?.jobName || "",
   }
+
+  console.log('position:', position)
 
   const completionRate = position.stats.averageCompletionRate || 0
   const submissionRate = position.stats.submissionRate || 0
@@ -71,7 +75,7 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
     good: { count: 0, percentage: 0 },
     average: { count: 0, percentage: 0 },
     poor: { count: 0, percentage: 0 },
-    fail: { count: 0, percentage: 0 },
+    // fail: { count: 0, percentage: 0 },
   }
 
   const getRankingStats = () => {
@@ -80,7 +84,7 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
       good: rankingDistribution.good?.count || 0,
       average: rankingDistribution.average?.count || 0,
       poor: rankingDistribution.poor?.count || 0,
-      fail: rankingDistribution.fail?.count || 0,
+      // fail: rankingDistribution.fail?.count || 0,
     }
   }
 
@@ -141,7 +145,13 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="font-semibold text-lg text-green-700 dark:text-green-300 truncate">
-                    {positionInfo.name}
+                    {/* {positionInfo.name} */}
+                    {positionInfo?.description || positionInfo.name} - {positionInfo.jobName}
+                    {positionInfo.departmentName && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Phòng ban: {positionInfo.departmentName}
+                      </p>
+                    )}
                   </h3>
                   {positionInfo.isManagement && (
                     <Badge variant="secondary" className="text-xs glass-green border-green-500/30">
@@ -149,9 +159,17 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
                     </Badge>
                   )}
                 </div>
-                {positionInfo.description && (
+                {/* {positionInfo.description && (
                   <p className="text-sm text-muted-foreground mt-1 truncate">{positionInfo.description}</p>
-                )}
+                )} */}
+                {/* <p className="text-xs text-muted-foreground mt-1">
+                  {positionInfo.departmentName}
+                </p> */}
+                {/* {positionInfo.departmentName && (
+                  <p className="text-xs text-muted-foreground mt-1">
+                    Phòng ban: {positionInfo.departmentName}
+                  </p>  
+                )} */}
               </div>
             </div>
 
@@ -189,7 +207,7 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
             <div className="mb-3">
               <div className="flex items-center gap-2 mb-1">
                 <h3 className="font-semibold text-lg text-green-700 dark:text-green-300 truncate flex-1">
-                  {positionInfo.name}
+                  {positionInfo?.description || positionInfo.name} - {positionInfo.jobName}
                 </h3>
                 {positionInfo.isManagement && (
                   <Badge variant="secondary" className="text-xs glass-green border-green-500/30">
@@ -197,8 +215,13 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
                   </Badge>
                 )}
               </div>
-              {positionInfo.description && (
+              {/* {positionInfo.description && (
                 <p className="text-xs text-muted-foreground truncate">{positionInfo.description}</p>
+              )} */}
+              {positionInfo.departmentName && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Phòng ban: {positionInfo.departmentName}
+                </p>
               )}
             </div>
 
@@ -277,7 +300,8 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
               {/* Full Ranking Distribution */}
               <div className="p-3 glass-green rounded-lg border border-green-500/20">
                 <p className="text-sm font-medium text-green-700 dark:text-green-300 mb-2">
-                  Phân loại xếp hạng chi tiết (Giỏi =100%, Khá ≥95%, TB ≥90%, Yếu ≥85%, Kém &lt;85%):
+                  {/* Phân loại xếp hạng chi tiết (Giỏi =100%, Khá ≥95%, TB ≥90%, Yếu ≥85%, Kém &lt;85%): */}
+                  {` Phân loại xếp hạng chi tiết: (Giỏi > 90%, Khá ≥80%, TB ≥70%, Yếu <70%)`}
                 </p>
                 <div className="flex flex-wrap gap-2">
                   {rankingStats.excellent > 0 && (
@@ -324,7 +348,7 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
                       Yếu: {rankingStats.poor}
                     </Badge>
                   )}
-                  {rankingStats.fail > 0 && (
+                  {/* {rankingStats.fail > 0 && (
                     <Badge
                       style={{
                         backgroundColor: "#dc2626",
@@ -334,7 +358,7 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
                     >
                       Kém: {rankingStats.fail}
                     </Badge>
-                  )}
+                  )} */}
                 </div>
               </div>
 

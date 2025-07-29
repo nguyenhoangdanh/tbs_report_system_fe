@@ -121,7 +121,7 @@ function UserDetailsContent() {
     return `/admin/hierarchy?weekNumber=${selectedWeek}&year=${selectedYear}`
   }
 
-  if (!user || isLoading) return <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+  if (!user || isLoading) return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
 
   const allowedRoles = [Role.ADMIN, Role.SUPERADMIN, Role.USER]
   if (!allowedRoles.includes(user.role)) {
@@ -349,7 +349,7 @@ export default function UserDetailsPage() {
   return (
     <Suspense
       fallback={
-        <ScreenLoading size="lg" variant="dual-ring" fullScreen backdrop />
+        <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
       }
     >
       <UserDetailsContent />
