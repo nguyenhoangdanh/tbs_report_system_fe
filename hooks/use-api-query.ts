@@ -34,7 +34,7 @@ export function useApiQuery<TData, TError = Error>(
     cacheStrategy?: 'aggressive' | 'normal' | 'fresh' | 'realtime' | 'realtime-stable'
   }
 ) {
-  // Smart cache configuration based on strategy
+  // ✅ FIXED: Better cache configuration without conflicts
   const getCacheConfig = (strategy: string = 'normal') => {
     switch (strategy) {
       case 'aggressive':
@@ -47,25 +47,25 @@ export function useApiQuery<TData, TError = Error>(
         }
       case 'fresh':
         return { 
-          staleTime: 30 * 1000, // 30 seconds - allow frequent updates
-          gcTime: 5 * 60 * 1000, // 5 minutes - reasonable cache time
-          refetchOnMount: true, // ENABLE to allow AdminOverview updates
-          refetchOnWindowFocus: false, // Keep disabled to prevent spam
-          refetchOnReconnect: false // Keep disabled
+          staleTime: 0, // ✅ CRITICAL: Always stale for AdminOverview
+          gcTime: 1000, // ✅ Very short cache time
+          refetchOnMount: true,
+          refetchOnWindowFocus: false,
+          refetchOnReconnect: false
         }
       case 'realtime':
         return {
-          staleTime: 0, // NEVER stale - always fetch fresh
-          gcTime: 0, // No cache - immediate garbage collection
-          refetchOnMount: 'always' as const, // ALWAYS refetch on mount - properly typed
+          staleTime: 0,
+          gcTime: 0,
+          refetchOnMount: 'always' as const,
           refetchOnWindowFocus: false,
           refetchOnReconnect: false,
-          retry: false // No retry for real-time data
+          retry: false
         }
-       case 'realtime-stable': // NEW STRATEGY
+       case 'realtime-stable':
         return {
-          staleTime: 0, // Always stale - always fetch fresh
-          gcTime: 2000, // Keep for 2 seconds to handle user switching
+          staleTime: 0,
+          gcTime: 2000,
           refetchOnMount: 'always' as const,
           refetchOnWindowFocus: false,
           refetchOnReconnect: false,
@@ -73,8 +73,8 @@ export function useApiQuery<TData, TError = Error>(
         }
       default:
         return { 
-          staleTime: 2 * 60 * 1000, // 2 minutes
-          gcTime: 10 * 60 * 1000, // 10 minutes
+          staleTime: 2 * 60 * 1000,
+          gcTime: 10 * 60 * 1000,
           refetchOnMount: false,
           refetchOnWindowFocus: false,
           refetchOnReconnect: false
@@ -84,16 +84,13 @@ export function useApiQuery<TData, TError = Error>(
 
   const cacheConfig = getCacheConfig(options.cacheStrategy)
   
-  // Remove custom properties to avoid conflicts with useQuery types
+  // ✅ CRITICAL: Don't spread cacheConfig if options override them
   const { cacheStrategy, invalidateOnSuccess, ...cleanOptions } = options
-
-  return useQuery<TData, TError>({
-    ...cleanOptions,
-    ...cacheConfig, // Apply cache strategy - this will override any conflicting options
-    // ADD: Limit what triggers rerender for realtime strategy
-    notifyOnChangeProps: cacheConfig.staleTime === 0 
-      ? ['data', 'error', 'isLoading'] 
-      : cleanOptions.notifyOnChangeProps,
+  
+  // ✅ FIXED: Properly merge cache config with user options, user options take precedence
+  const finalOptions = {
+    ...cacheConfig,
+    ...cleanOptions, // User options override cache config
     queryFn: async () => {
       const result = await options.queryFn()
       if (!result.success) {
@@ -105,14 +102,15 @@ export function useApiQuery<TData, TError = Error>(
       }
       return result.data!
     },
-    retry: cacheConfig.retry !== undefined ? cacheConfig.retry : (failureCount, error: any) => {
-      // Smart retry logic - only if not overridden by cache strategy
+    retry: cleanOptions.retry !== undefined ? cleanOptions.retry : (cacheConfig.retry !== undefined ? cacheConfig.retry : (failureCount: number, error: any) => {
       if (error?.status === 404 || error?.statusCode === 404) return false
       if (error?.status === 401 || error?.statusCode === 401) return false
       if (error?.message?.includes('SECURITY')) return false
-      return failureCount < 1 // REDUCED: Only retry once
-    },
-  })
+      return failureCount < 1
+    }),
+  }
+
+  return useQuery<TData, TError>(finalOptions)
 }
 
 /**

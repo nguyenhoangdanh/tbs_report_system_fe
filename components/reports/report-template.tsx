@@ -240,6 +240,11 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
         isUpdate: !!editEvaluation
       })
 
+      // ✅ STEP 1: Preemptively remove admin-overview cache
+      await Promise.all([
+        queryClient.removeQueries({ queryKey: ["admin-overview", "manager-reports"] }),
+      ])
+
       if (editEvaluation) {
         console.log('🔄 ReportTemplate: Updating evaluation:', editEvaluation.id)
         await updateEval.mutateAsync({
@@ -270,11 +275,22 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
 
       console.log('✅ ReportTemplate: All operations completed successfully')
       setOpenEvalModal(false)
+      
+      // ✅ STEP 2: Force invalidation after success (backup)
+      setTimeout(async () => {
+        await Promise.all([
+          queryClient.invalidateQueries({
+            queryKey: ['admin-overview', 'manager-reports'],
+            refetchType: 'all'
+          }),
+        ])
+      }, 100)
+      
     } catch (error) {
       console.error("❌ ReportTemplate: Error submitting evaluation:", error)
       toast.error("Có lỗi xảy ra khi gửi đánh giá. Vui lòng thử lại!")
     }
-  }, [selectedTask, editEvaluation, updateEval, createEval, currentUser?.isManager, approveTask, rejectTask])
+  }, [selectedTask, editEvaluation, updateEval, createEval, currentUser?.isManager, approveTask, rejectTask, queryClient])
 
   const handleDeleteEval = useCallback(async () => {
     if (!editEvaluation) return

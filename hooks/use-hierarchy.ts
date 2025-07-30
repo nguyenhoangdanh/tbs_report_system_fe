@@ -422,28 +422,17 @@ export function useAdminOverview(filters?: {
         throw error
       }
     },
-    // ✅ CRITICAL FIX: Make enabled depend on shouldRefetchData like useMyHierarchyView
     enabled: !!user?.id && shouldRefetchData,
-    cacheStrategy: 'realtime',
+    cacheStrategy: 'realtime', // ✅ CRITICAL: Use fresh strategy for immediate updates
     throwOnError: false,
-    refetchOnMount: false,
-    refetchOnWindowFocus: false,
-    refetchOnReconnect: true,
+    // ✅ OVERRIDE: Force fresh fetch behavior
     staleTime: 0,
     gcTime: 0,
+    refetchOnMount: true,
   })
-
-  // ✅ REMOVE: No longer need manual useEffect refetch since enabled handles it
-  // React.useEffect(() => {
-  //   if (shouldRefetchData && queryResult.refetch) {
-  //     console.log('🔄 useAdminOverview: shouldRefetchData is true, forcing refetch')
-  //     queryResult.refetch()
-  //   }
-  // }, [shouldRefetchData, queryResult.refetch])
 
   const finalData = queryResult.data
 
-  // ✅ SAME: Return structure as useMyHierarchyView
   return {
     data: finalData,
     isLoading: queryResult.isLoading || isRefetching,

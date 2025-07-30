@@ -53,18 +53,18 @@ export function useCreateTaskEvaluation() {
       broadcastEvaluationChange()
       
       // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses
-      queryClient.invalidateQueries({
-        queryKey: ['admin-overview', 'manager-reports'],
-        exact: false,
-        refetchType: 'all'
-      })
+      // queryClient.invalidateQueries({
+      //   queryKey: ['admin-overview', 'manager-reports'],
+      //   exact: false,
+      //   refetchType: 'all'
+      // })
       
-      // ✅ Also invalidate hierarchy queries for HierarchyDashboard
-      queryClient.invalidateQueries({
-        queryKey: ['hierarchy'],
-        exact: false,
-        refetchType: 'all'
-      })
+      // // ✅ Also invalidate hierarchy queries for HierarchyDashboard
+      // queryClient.invalidateQueries({
+      //   queryKey: ['hierarchy'],
+      //   exact: false,
+      //   refetchType: 'all'
+      // })
       
       toast.success("Đánh giá nhiệm vụ thành công!")
     },
@@ -88,18 +88,18 @@ export function useUpdateTaskEvaluation() {
       broadcastEvaluationChange()
       
       // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses
-      queryClient.invalidateQueries({
-        queryKey: ['admin-overview', 'manager-reports'],
-        exact: false,
-        refetchType: 'all'
-      })
+      // queryClient.invalidateQueries({
+      //   queryKey: ['admin-overview', 'manager-reports'],
+      //   exact: false,
+      //   refetchType: 'all'
+      // })
       
-      // ✅ Also invalidate hierarchy queries for HierarchyDashboard  
-      queryClient.invalidateQueries({
-        queryKey: ['hierarchy'],
-        exact: false,
-        refetchType: 'all'
-      })
+      // // ✅ Also invalidate hierarchy queries for HierarchyDashboard  
+      // queryClient.invalidateQueries({
+      //   queryKey: ['hierarchy'],
+      //   exact: false,
+      //   refetchType: 'all'
+      // })
       
       toast.success("Cập nhật đánh giá thành công!")
     },
@@ -122,18 +122,18 @@ export function useDeleteTaskEvaluation() {
       broadcastEvaluationChange()
       
       // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses
-      queryClient.invalidateQueries({
-        queryKey: ['admin-overview', 'manager-reports'],
-        exact: false,
-        refetchType: 'all'
-      })
+      // queryClient.invalidateQueries({
+      //   queryKey: ['admin-overview', 'manager-reports'],
+      //   exact: false,
+      //   refetchType: 'all'
+      // })
       
-      // ✅ Also invalidate hierarchy queries for HierarchyDashboard
-      queryClient.invalidateQueries({
-        queryKey: ['hierarchy'],
-        exact: false,
-        refetchType: 'all'
-      })
+      // // ✅ Also invalidate hierarchy queries for HierarchyDashboard
+      // queryClient.invalidateQueries({
+      //   queryKey: ['hierarchy'],
+      //   exact: false,
+      //   refetchType: 'all'
+      // })
       
       toast.success("Xóa đánh giá thành công!")
     },

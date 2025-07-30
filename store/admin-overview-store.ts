@@ -152,19 +152,19 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
           return true
         }
         
-        // ✅ Refetch if filters changed - IMPROVED: More thorough comparison
+        // ✅ ENHANCED: Refetch if forceRefresh was called recently (within 10 seconds instead of 5)
+        const timeSinceRefresh = Date.now() - state.lastRefreshTimestamp
+        if (state.lastRefreshTimestamp > 0 && timeSinceRefresh < 10000) {
+          console.log('✅ shouldRefetch: Recent forceRefresh detected, MUST refetch')
+          return true
+        }
+        
+        // ✅ Refetch if filters changed - More thorough comparison
         if (!state.currentFilters || 
             state.currentFilters.weekNumber !== filters?.weekNumber ||
             state.currentFilters.year !== filters?.year ||
             state.currentFilters.userId !== filters?.userId) {
           console.log('✅ shouldRefetch: Filters changed, MUST refetch')
-          return true
-        }
-        
-        // ✅ ENHANCED: Refetch if forceRefresh was called recently (within 5 seconds)
-        const timeSinceRefresh = Date.now() - state.lastRefreshTimestamp
-        if (state.lastRefreshTimestamp > 0 && timeSinceRefresh < 5000) {
-          console.log('✅ shouldRefetch: Recent forceRefresh detected, MUST refetch')
           return true
         }
         

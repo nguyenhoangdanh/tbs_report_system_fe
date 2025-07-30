@@ -364,23 +364,32 @@ function AdminOverview() {
   }, [refetchAdminOverview, setIsRefreshing])
 
   // ✅ EXACT COPY: Same evaluation handler as HierarchyDashboard
-  const handleEvaluationChange = () => {
-    console.log('🔄 AdminOverview: Evaluation change detected, invalidating all hierarchy queries')
+  const handleEvaluationChange = useCallback(() => {
+    console.log('🔄 AdminOverview: Evaluation change detected, performing aggressive refresh')
     
-    // ✅ ENHANCED: Also invalidate the EXACT query that AdminOverview uses
-    queryClient.invalidateQueries({ 
-      queryKey: ['admin-overview', 'manager-reports'], 
-      exact: false,
-      refetchType: 'all' 
+    // ✅ STEP 1: Clear all admin-overview related cache immediately
+    queryClient.removeQueries({ 
+      queryKey: ['admin-overview'], 
+      exact: false 
     })
     
-    // ✅ Also invalidate other hierarchy-related queries
-    queryClient.invalidateQueries({ 
-      queryKey: ['hierarchy'], 
-      exact: false,
-      refetchType: 'all' 
-    })
-  }
+    // ✅ STEP 2: Force store refresh
+    useAdminOverviewStore.getState().forceRefresh()
+    
+    // ✅ STEP 3: Manual refetch after short delay
+    setTimeout(() => {
+      refetchAdminOverview()
+    }, 200)
+    
+    // ✅ STEP 4: Invalidate for good measure
+    setTimeout(() => {
+      queryClient.invalidateQueries({ 
+        queryKey: ['admin-overview'], 
+        exact: false,
+        refetchType: 'all' 
+      })
+    }, 500)
+  }, [queryClient, refetchAdminOverview])
 
   // ✅ SAME: Transform and group logic (unchanged)
   const positionCards = useMemo(() => {
