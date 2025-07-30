@@ -1,42 +1,31 @@
 "use client"
 
 import React, { useState, useMemo, useCallback } from "react"
-import { useManagerReports } from "@/hooks/use-hierarchy"
-import { useAdminOverviewFilters } from '@/hooks/use-hierarchy'
+import { useAdminOverview, useAdminOverviewFilters } from "@/hooks/use-hierarchy"
 import { useAuth } from "@/components/providers/auth-provider"
-import { useAdminOverviewStore } from "@/store/admin-overview-store"
-import { useEvaluationForm } from "@/hooks/use-evaluation-form"
+import { adminOverviewStoreActions, useAdminOverviewStore } from "@/store/admin-overview-store"
 import { HierarchySummaryCards } from "@/components/hierarchy/hierarchy-summary-cards"
 import { ScreenLoading } from "@/components/loading/screen-loading"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { AnimatedButton } from "@/components/ui/animated-button"
 import { MainLayout } from "@/components/layout/main-layout"
-import { PositionCard } from "@/components/hierarchy/position-card"
 import { OverviewCard } from "@/components/hierarchy/hierarchy-dashboard"
-import { FormField } from "@/components/ui/form-field"
 import {
   Users,
   Building2,
   Calendar,
-  Star,
   ArrowLeft,
   Crown,
   BarChart3,
 } from "lucide-react"
-import { EvaluationType } from "@/types"
 import { Suspense } from "react"
 import { Input } from "@/components/ui/input"
-import { Form, FormControl, FormField as ReactHookFormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
 import { AdminOverviewHeader } from "@/components/hierarchy/admin-overview-header"
 import { toast } from "react-toast-kit"
-import { QUERY_KEYS } from "@/hooks/query-key"
 import { useQueryClient } from "@tanstack/react-query"
-import { hierarchyStoreActions } from "@/store/hierarchy-store"
+import { PositionGroupsList } from "@/components/hierarchy/position-groups-list"
+import { getCurrentWeek } from "@/utils/week-utils"
 
 // REWRITE: Transform ManagerReports data để tương thích với PositionCard
 function transformManagerReportsToPositionCardFormat(overview: any) {
@@ -313,6 +302,20 @@ function groupPositionsForOverview(positionCards: any[]) {
 
 // Transform backend summary to UI summary for HierarchySummaryCards
 function transformManagerReportsSummaryForCards(summary: any): any {
+  // ✅ FIXED: Add null check for summary
+  if (!summary) {
+    return {
+      totalPositions: 0,
+      totalJobPositions: 0,
+      totalUsers: 0,
+      totalUsersWithReports: 0,
+      totalUsersWithCompletedReports: 0,
+      totalUsersWithoutReports: 0,
+      averageSubmissionRate: 0,
+      averageCompletionRate: 0,
+    }
+  }
+
   return {
     totalPositions: summary.totalPositions ?? 0,
     totalJobPositions: summary.totalJobPositions ?? 0,
@@ -327,117 +330,64 @@ function transformManagerReportsSummaryForCards(summary: any): any {
 
 function AdminOverview() {
   const { user: currentUser } = useAuth()
+  const { filters, apiFilters, filterDisplayText, handleFiltersChange } = useAdminOverviewFilters()
+  const [activeTab, setActiveTab] = useState<string>("overview")
+  const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
+  const { search, setSearch } = useAdminOverviewStore()
   const queryClient = useQueryClient()
 
-  // Replace useCurrentWeekFilters with useAdminOverviewFilters
-  const { filters, apiFilters, filterDisplayText, handleFiltersChange } = useAdminOverviewFilters()
-
-  // Local state for view mode - Similar to HierarchyDashboard
-  const [activeTab, setActiveTab] = useState<string>("overview")
-
-  // ZUSTAND store for evaluation modal only
+  // ✅ EXACT COPY: Same as HierarchyDashboard
   const {
-    search,
-    setSearch,
-    openEvalModal,
-    closeEvaluationModal,
-  } = useAdminOverviewStore()
+    data: overview,
+    isLoading: hierarchyLoading,
+    error: hierarchyError,
+    refetch: refetchAdminOverview, // ✅ NOW: This will work with the fixed hook
+  } = useAdminOverview(apiFilters)
 
-  // STABLE filters với enhanced filters
-  const stableFilters = useMemo(() => ({
-    ...apiFilters,
-    userId: currentUser?.id
-  }), [apiFilters.weekNumber, apiFilters.month, apiFilters.year, currentUser?.id])
-
-  // STABLE query với memoized filters và ENHANCED dependency tracking
-  const { data: overview, isLoading, error, refetch } = useManagerReports(stableFilters)
-
-  // ✅ DEBUG: Add logging to track data changes và broadcast effects
-  React.useEffect(() => {
-    console.log('📊 AdminOverview: Data changed', {
-      hasData: !!overview,
-      dataTimestamp: Date.now(),
-      groupedReportsCount: overview?.groupedReports?.length || 0,
-      filters: stableFilters
-    })
-  }, [overview, stableFilters])
-
-  // ✅ REMOVE manual broadcast listener - let hook handle it
-  // React.useEffect(() => {
-  //   const handleEvaluationBroadcast = (e: StorageEvent) => {
-  //     if (e.key === 'evaluation-broadcast' && e.newValue) {
-  //       try {
-  //         const broadcastData = JSON.parse(e.newValue)
-  //         if (broadcastData.type === 'evaluation-change') {
-  //           console.log('🔄 AdminOverview: Received evaluation broadcast, manual refetch')
-  //           setTimeout(() => {
-  //             refetch()
-  //           }, 800)
-  //         }
-  //       } catch (e) {
-  //         console.warn('Invalid evaluation broadcast data:', e)
-  //       }
-  //     }
-  //   }
-    
-  //   window.addEventListener('storage', handleEvaluationBroadcast)
-  //   return () => window.removeEventListener('storage', handleEvaluationBroadcast)
-  // }, [refetch])
-
-  // ✅ ENHANCED: Enhanced refetch with comprehensive cache invalidation
+  // ✅ EXACT COPY: Same handlers as HierarchyDashboard
   const handleFiltersChangeWithRefetch = useCallback(
     (newFilters: any) => {
       handleFiltersChange(newFilters)
-
-      // ✅ ENHANCED: Force immediate invalidation before refetch
       setTimeout(() => {
-        console.log('🔄 AdminOverview: Manual refetch triggered')
-        queryClient.invalidateQueries({
-          queryKey: ['hierarchy'],
-          exact: false,
-          refetchType: 'all'
-        })
-        refetch()
+        refetchAdminOverview()
       }, 100)
     },
-    [handleFiltersChange, refetch, queryClient],
+    [handleFiltersChange, refetchAdminOverview],
   )
 
   const handleRefresh = useCallback(() => {
-    // ✅ ENHANCED: Force comprehensive refresh
-    console.log('🔄 AdminOverview: Manual refresh triggered')
-    hierarchyStoreActions.forceRefresh()
-
-    queryClient.invalidateQueries({
-      queryKey: ['hierarchy'],
-      exact: false,
-      refetchType: 'all'
-    })
-
-    refetch()
+    refetchAdminOverview()
+    setIsRefreshing(true)
     setTimeout(() => {
-      toast.success("Đã làm mới dữ liệu!")
+      setIsRefreshing(false)
     }, 1000)
-  }, [refetch, queryClient])
+  }, [refetchAdminOverview, setIsRefreshing])
 
-  // Evaluation form hook với react-hook-form + zod
-  const {
-    form: evaluationForm,
-    isSubmitting: isSubmittingEvaluation,
-    handleSubmitEvaluation,
-    handleDeleteEvaluation,
-    selectedTask,
-    selectedEmployee,
-    editEvaluation,
-  } = useEvaluationForm()
+  // ✅ EXACT COPY: Same evaluation handler as HierarchyDashboard
+  const handleEvaluationChange = () => {
+    console.log('🔄 AdminOverview: Evaluation change detected, invalidating all hierarchy queries')
+    
+    // ✅ ENHANCED: Also invalidate the EXACT query that AdminOverview uses
+    queryClient.invalidateQueries({ 
+      queryKey: ['admin-overview', 'manager-reports'], 
+      exact: false,
+      refetchType: 'all' 
+    })
+    
+    // ✅ Also invalidate other hierarchy-related queries
+    queryClient.invalidateQueries({ 
+      queryKey: ['hierarchy'], 
+      exact: false,
+      refetchType: 'all' 
+    })
+  }
 
-  // THAY ĐỔI: Transform data để tương thích với PositionCard
+  // ✅ SAME: Transform and group logic (unchanged)
   const positionCards = useMemo(() => {
     if (!overview) return []
     return transformManagerReportsToPositionCardFormat(overview)
   }, [overview])
 
-  // Group positions for overview display
   const { managementTabs, jobPositionTabs } = useMemo(() => {
     return groupPositionsForOverview(positionCards)
   }, [positionCards])
@@ -520,16 +470,17 @@ function AdminOverview() {
     )
   }, [jobPositionTabs, search])
 
-  if (isLoading) {
-    // return <ScreenLoading size="md" variant="dual-ring" text="Đang tải tổng quan quản lý..." fullScreen />
+  // ✅ EXACT COPY: Same loading/error handling as HierarchyDashboard
+  if (hierarchyLoading || isRefreshing) {
     return <ScreenLoading size="md" variant="bars" text="Đang tải tổng quan quản lý..." fullScreen />
   }
 
-  if (error) {
+  if (hierarchyError) {
     return (
       <div className="max-w-xl mx-auto mt-12 text-center py-8 bg-destructive/10 rounded-lg border border-destructive/20">
         <div className="text-destructive font-bold mb-2">Lỗi tải dữ liệu</div>
-        <div className="text-muted-foreground">{String(error)}</div>
+        <div className="text-muted-foreground">{String(hierarchyError)}</div>
+        <Button onClick={handleRefresh} className="mt-4">Thử lại</Button>
       </div>
     )
   }
@@ -540,7 +491,8 @@ function AdminOverview() {
 
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
-      {/* Add Header with filters */}
+      {/* Remove all test buttons and debug panels */}
+      
       <AdminOverviewHeader
         filterDisplayText={filterDisplayText}
         filters={filters}
@@ -548,7 +500,6 @@ function AdminOverview() {
         onRefresh={handleRefresh}
       />
 
-      {/* Manager Info Card - Mobile optimized */}
       <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800">
         <CardHeader className="pb-3 sm:pb-4 px-3 sm:px-6">
           <div className="flex flex-col gap-3 sm:gap-4">
@@ -624,7 +575,6 @@ function AdminOverview() {
                   <span className="sm:hidden">Tổng quan</span>
                 </CardTitle>
 
-                {/* Mobile: Full width search */}
                 <div className="w-full sm:w-auto sm:max-w-xs">
                   <Input
                     type="text"
@@ -725,192 +675,19 @@ function AdminOverview() {
           ) : (
             // Detail view - Mobile optimized spacing
             <div className="space-y-3 sm:space-y-4">
-              {currentTab?.positions?.map((position, index) => (
-                <PositionCard
-                  key={position._uniqueKey || position.position?.id || position.jobPosition?.id || index}
-                  position={position}
-                  weekNumber={apiFilters.weekNumber || filters.weekNumber}
-                  year={filters.year}
-                  canEvaluation={currentUser?.isManager}
-                />
-              ))}
+              <PositionGroupsList
+                positions={currentTab?.positions || []}
+                filterDisplayText={filterDisplayText}
+                isManagement={true}
+                weekNumber={apiFilters.weekNumber || filters.weekNumber}
+                year={filters.year || new Date().getFullYear()}
+                canEvaluation={currentUser?.isManager}
+                onEvaluationChange={handleEvaluationChange}
+              />
             </div>
           )}
         </CardContent>
       </Card>
-
-      {/* Evaluation Modal - Mobile optimized */}
-      <Dialog open={openEvalModal} onOpenChange={closeEvaluationModal}>
-        <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto mx-auto">
-          <DialogHeader className="pb-3">
-            <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
-              <Star className="w-4 h-4 sm:w-5 sm:h-5" />
-              <span className="hidden sm:inline">
-                {editEvaluation ? "Chỉnh sửa đánh giá" : "Đánh giá công việc"}
-              </span>
-              <span className="sm:hidden">
-                {editEvaluation ? "Sửa đánh giá" : "Đánh giá"}
-              </span>
-            </DialogTitle>
-            <div className="text-xs sm:text-sm text-muted-foreground space-y-1">
-              <div className="truncate">
-                <span className="font-medium">NV:</span>{" "}
-                {`${selectedEmployee?.user?.firstName || ""} ${selectedEmployee?.user?.lastName || ""}`}
-              </div>
-              <div className="line-clamp-2 sm:line-clamp-1">
-                <span className="font-medium">CV:</span> {selectedTask?.taskName || "N/A"}
-              </div>
-            </div>
-          </DialogHeader>
-
-          <Form {...evaluationForm}>
-            <form onSubmit={handleSubmitEvaluation} className="space-y-3 sm:space-y-4">
-              {editEvaluation && (
-                <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-700 rounded-lg p-2 sm:p-3">
-                  <div className="text-xs sm:text-sm font-medium text-orange-800 dark:text-orange-300 mb-2">Đánh giá hiện tại:</div>
-                  <div className="space-y-1 text-xs sm:text-sm">
-                    <div>
-                      Trạng thái:{" "}
-                      <span className={editEvaluation.evaluatedIsCompleted ? "text-green-600" : "text-red-600"}>
-                        {editEvaluation.evaluatedIsCompleted ? "Hoàn thành" : "Chưa hoàn thành"}
-                      </span>
-                    </div>
-                    {editEvaluation.evaluatorComment && (
-                      <div className="line-clamp-2">Nhận xét: {editEvaluation.evaluatorComment}</div>
-                    )}
-                  </div>
-                </div>
-              )}
-
-              <div className="space-y-3 sm:space-y-4">
-                <ReactHookFormField
-                  control={evaluationForm.control}
-                  name="evaluatedIsCompleted"
-                  render={({ field }: { field: any }) => (
-                    <FormItem className="space-y-2">
-                      <FormLabel className="text-sm font-medium">
-                        Trạng thái <span className="text-red-500">*</span>
-                      </FormLabel>
-                      <FormControl>
-                        <div className="flex items-center space-x-3 py-2">
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
-                          />
-                          <span className="text-sm font-medium">
-                            {field.value ? "✅ Hoàn thành" : "❌ Chưa hoàn thành"}
-                          </span>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <ReactHookFormField
-                  control={evaluationForm.control}
-                  name="evaluatedReasonNotDone"
-                  render={({ field }: { field: any }) => (
-                    <FormItem className="space-y-2">
-                      <FormLabel className="text-sm font-medium">Nguyên nhân/Giải pháp</FormLabel>
-                      <FormControl>
-                        <FormField
-                          id="evaluatedReasonNotDone"
-                          type="text"
-                          placeholder="Nhập nguyên nhân..."
-                          {...field}
-                          showPasswordToggle={false}
-                          className="w-full min-h-[60px] sm:min-h-[80px] resize-y text-sm"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <ReactHookFormField
-                  control={evaluationForm.control}
-                  name="evaluatorComment"
-                  render={({ field }: { field: any }) => (
-                    <FormItem className="space-y-2">
-                      <FormLabel className="text-sm font-medium">Nhận xét</FormLabel>
-                      <FormControl>
-                        <FormField
-                          id="evaluatorComment"
-                          type="text"
-                          placeholder="Nhập nhận xét..."
-                          {...field}
-                          showPasswordToggle={false}
-                          className="w-full min-h-[60px] sm:min-h-[80px] resize-y text-sm"
-                        />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <ReactHookFormField
-                  control={evaluationForm.control}
-                  name="evaluationType"
-                  render={({ field }: { field: any }) => (
-                    <FormItem className="space-y-2">
-                      <FormLabel className="text-sm font-medium">
-                        Loại đánh giá <span className="text-red-500">*</span>
-                      </FormLabel>
-                      <Select onValueChange={field.onChange} defaultValue={field.value}>
-                        <FormControl>
-                          <SelectTrigger className="text-sm">
-                            <SelectValue placeholder="Chọn loại" />
-                          </SelectTrigger>
-                        </FormControl>
-                        <SelectContent>
-                          {Object.values(EvaluationType).map((type) => (
-                            <SelectItem key={type} value={type} className="text-sm">
-                              {type}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-              </div>
-
-              {/* Mobile optimized button layout */}
-              <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
-                <Button
-                  variant="outline"
-                  type="button"
-                  // onClick={() => setEvaluationModal(false)}
-                  onClick={closeEvaluationModal}
-                  className="order-3 sm:order-1 text-sm py-2"
-                >
-                  Hủy
-                </Button>
-                {editEvaluation && (
-                  <Button
-                    variant="destructive"
-                    type="button"
-                    onClick={handleDeleteEvaluation}
-                    disabled={isSubmittingEvaluation}
-                    className="order-2 text-sm py-2"
-                  >
-                    Xóa
-                  </Button>
-                )}
-                <AnimatedButton
-                  type="submit"
-                  loading={isSubmittingEvaluation}
-                  className="bg-blue-600 hover:bg-blue-700 order-1 sm:order-3 text-sm py-2"
-                >
-                  {editEvaluation ? "Cập nhật" : "Gửi"}
-                </AnimatedButton>
-              </div>
-            </form>
-          </Form>
-        </DialogContent>
-      </Dialog>
     </div>
   )
 }

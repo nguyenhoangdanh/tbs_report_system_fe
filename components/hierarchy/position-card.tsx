@@ -6,7 +6,7 @@ import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PositionUsersTable } from "./position-users-table"
 import { PerformancePieChart } from "@/components/charts"
-import { getPerformanceBadge, classifyPerformance } from "@/utils/performance-classification"
+import { classifyPerformance } from "@/utils/performance-classification"
 
 interface PositionCardProps {
   position: {
@@ -40,7 +40,6 @@ interface PositionCardProps {
         good: { count: number; percentage: number }
         average: { count: number; percentage: number }
         poor: { count: number; percentage: number }
-        // fail: { count: number; percentage: number }
       }
       users?: any[]
     }
@@ -63,12 +62,8 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
     jobName: position.jobPosition?.jobName || "",
   }
 
-  console.log('position:', position)
-
   const completionRate = position.stats.averageCompletionRate || 0
-  const submissionRate = position.stats.submissionRate || 0
   const positionClassification = classifyPerformance(completionRate)
-  const positionBadge = getPerformanceBadge(completionRate)
 
   const rankingDistribution = position.stats.rankingDistribution || {
     excellent: { count: 0, percentage: 0 },

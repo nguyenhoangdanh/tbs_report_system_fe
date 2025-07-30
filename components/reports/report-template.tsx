@@ -12,6 +12,7 @@ import {
   useCreateTaskEvaluation,
   useUpdateTaskEvaluation,
   useDeleteTaskEvaluation,
+  broadcastEvaluationChange, // ✅ Use simplified version
 } from "@/hooks/use-task-evaluation"
 import { AnimatedButton } from "../ui/animated-button"
 import { useAuth } from "@/components/providers/auth-provider"
@@ -26,7 +27,6 @@ import { useForm } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 import { z } from "zod"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
-import { QUERY_KEYS } from "@/hooks/query-key"
 
 // Validation schema
 const evaluationSchema = z.object({
@@ -174,7 +174,6 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
   const deleteEval = useDeleteTaskEvaluation()
   const approveTask = useApproveTask()
   const rejectTask = useRejectTask()
-
   // Form setup
   const form = useForm<EvaluationFormData>({
     resolver: zodResolver(evaluationSchema),
@@ -226,7 +225,8 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
       evaluationType: myEval?.evaluationType ?? EvaluationType.REVIEW,
     })
     setOpenEvalModal(true)
-  }, [currentUser?.id, form])
+  }, [currentUser?.id, form]
+  )
 
   const handleSubmitEval = useCallback(async (data: EvaluationFormData) => {
     if (!selectedTask) return
@@ -234,80 +234,63 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
     try {
       const originalIsCompleted = selectedTask.isCompleted
 
+      console.log('🔄 ReportTemplate: Starting evaluation submission...', {
+        taskId: selectedTask.id,
+        data,
+        isUpdate: !!editEvaluation
+      })
+
       if (editEvaluation) {
+        console.log('🔄 ReportTemplate: Updating evaluation:', editEvaluation.id)
         await updateEval.mutateAsync({
           evaluationId: editEvaluation.id,
           data,
         })
+        console.log('✅ ReportTemplate: Update evaluation completed')
       } else {
+        console.log('🔄 ReportTemplate: Creating new evaluation')
         await createEval.mutateAsync({
           ...data,
           taskId: selectedTask.id,
         })
+        console.log('✅ ReportTemplate: Create evaluation completed')
       }
 
-      // Update task status if manager and status changed
+      // ✅ Handle task approval/rejection if manager
       if (currentUser?.isManager && data.evaluatedIsCompleted !== originalIsCompleted) {
+        console.log('🔄 ReportTemplate: Manager handling task status change')
         if (data.evaluatedIsCompleted) {
           await approveTask.mutateAsync(selectedTask.id)
+          console.log('✅ ReportTemplate: Task approved')
         } else {
           await rejectTask.mutateAsync(selectedTask.id)
+          console.log('✅ ReportTemplate: Task rejected')
         }
       }
 
-      // Wait for mutations to complete and caches to update
-      await new Promise(resolve => setTimeout(resolve, 300))
-
-      // Force refetch to ensure UI updates
-      await Promise.all([
-        queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.reports.all(user?.id || ''),
-          exact: false,
-          refetchType: 'all'
-        }),
-        queryClient.invalidateQueries({ 
-          queryKey: ['hierarchy'],
-          exact: false,
-          refetchType: 'all'
-        })
-      ])
-
+      console.log('✅ ReportTemplate: All operations completed successfully')
       setOpenEvalModal(false)
-      toast.success(editEvaluation ? "Đánh giá đã được cập nhật thành công!" : "Đánh giá đã được tạo thành công!")
     } catch (error) {
-      console.error("Error submitting evaluation:", error)
+      console.error("❌ ReportTemplate: Error submitting evaluation:", error)
       toast.error("Có lỗi xảy ra khi gửi đánh giá. Vui lòng thử lại!")
     }
-  }, [selectedTask, editEvaluation, updateEval, createEval, currentUser?.isManager, approveTask, rejectTask, queryClient, user])
+  }, [selectedTask, editEvaluation, updateEval, createEval, currentUser?.isManager, approveTask, rejectTask])
 
   const handleDeleteEval = useCallback(async () => {
     if (!editEvaluation) return
 
     try {
+      console.log('🔄 ReportTemplate: Starting evaluation deletion...', editEvaluation.id)
+      
       await deleteEval.mutateAsync(editEvaluation.id)
       
-      await new Promise(resolve => setTimeout(resolve, 300))
-      
-      await Promise.all([
-        queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.reports.all(user?.id || ''),
-          exact: false,
-          refetchType: 'all'
-        }),
-        queryClient.invalidateQueries({ 
-          queryKey: ['hierarchy'],
-          exact: false,
-          refetchType: 'all'
-        })
-      ])
-      
+      console.log('✅ ReportTemplate: Delete evaluation completed')
       setOpenEvalModal(false)
-      toast.success("Đánh giá đã được xóa thành công!")
     } catch (error) {
-      console.error("Error deleting evaluation:", error)
+      console.error("❌ ReportTemplate: Error deleting evaluation:", error)
       toast.error("Có lỗi xảy ra khi xóa đánh giá. Vui lòng thử lại!")
     }
-  }, [editEvaluation, deleteEval, queryClient, user])
+  }, [editEvaluation, deleteEval])
 
   const handleCompletionStatusChange = useCallback((value: string) => {
     const isCompleted = value === "true"

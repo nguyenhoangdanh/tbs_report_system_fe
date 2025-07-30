@@ -13,11 +13,11 @@ import { QUERY_KEYS } from './query-key'
 import { useAuth } from "@/components/providers/auth-provider"
 import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import useHierarchyStore from '@/store/hierarchy-store'
-import { useQueryClient } from '@tanstack/react-query'
 import { useAdminOverviewStore } from '@/store/admin-overview-store'
+import { useQueryClient } from '@tanstack/react-query'
 
 /**
- * Hook for manager reports - Add simple broadcast listener
+ * Hook for manager reports - Force fresh data every time
  */
 export function useManagerReports(filters?: {
   weekNumber?: number
@@ -25,72 +25,44 @@ export function useManagerReports(filters?: {
   userId?: string
 }) {
   const { user } = useAuth()
-  const queryClient = useQueryClient()
-  const [lastInvalidation, setLastInvalidation] = React.useState<number>(0)
-  
-  React.useEffect(() => {
-    let debounceTimer: NodeJS.Timeout
-    
-    const handleEvaluationBroadcast = (e: StorageEvent) => {
-      if (e.key === 'evaluation-broadcast' && e.newValue) {
-        try {
-          const broadcastData = JSON.parse(e.newValue)
-          if (broadcastData.type === 'evaluation-change') {
-            const now = Date.now()
-            
-            // ✅ DEBOUNCE: Avoid rapid consecutive invalidations
-            if (now - lastInvalidation < 1000) {
-              console.log('🔄 useManagerReports: Skipping duplicate broadcast (too soon)')
-              return
-            }
-            
-            console.log('🔄 useManagerReports: Received broadcast, invalidating queries')
-            
-            clearTimeout(debounceTimer)
-            debounceTimer = setTimeout(() => {
-              console.log('🔄 useManagerReports: Executing query invalidation')
-              setLastInvalidation(now)
-              queryClient.invalidateQueries({
-                queryKey: ['hierarchy', 'manager-reports'],
-                exact: false,
-                refetchType: 'all'
-              })
-            }, 800) // Increased delay to 800ms
-          }
-        } catch (e) {
-          console.warn('Invalid evaluation broadcast data:', e)
-        }
-      }
-    }
-    
-    window.addEventListener('storage', handleEvaluationBroadcast)
-    return () => {
-      window.removeEventListener('storage', handleEvaluationBroadcast)
-      clearTimeout(debounceTimer)
-    }
-  }, [queryClient, lastInvalidation])
 
+  console.log('🔍 useManagerReports filters:', {
+  weekNumber: filters?.weekNumber,
+  year: filters?.year,
+  userId: filters?.userId,
+  hasFilters: !!filters
+})
+
+ const currentWeek = getCurrentWeek()
+  const safeFilters = {
+    weekNumber: filters?.weekNumber || currentWeek.weekNumber,
+    year: filters?.year || currentWeek.year,
+    userId: filters?.userId || user?.id
+  }
+  
+  
   return useApiQuery({
-    queryKey: QUERY_KEYS.hierarchy.managerReports(filters?.userId || 'anonymous', filters),
+    // queryKey: [...QUERY_KEYS.hierarchy.managerReports(user?.id || 'anonymous', filters)],
+         queryKey: [
+      ...QUERY_KEYS.hierarchy.managerReports(user?.id || 'anonymous', safeFilters), 
+    ],
     queryFn: async () => {
       try {
-        console.log('🔄 useManagerReports: Fetching with filters:', filters)
-        const result = await HierarchyService.getManagerReports(filters)
-        console.log('✅ useManagerReports: Fresh data received')
+        const result = await HierarchyService.getManagerReports(safeFilters)
         return result
       } catch (error) {
         console.error('❌ useManagerReports: Fetch failed:', error)
         throw error
       }
     },
-    enabled: !!filters?.weekNumber && !!filters?.year && !!filters?.userId,
+    enabled: !!user?.id,
     cacheStrategy: 'realtime',
     throwOnError: false,
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: false,
+    refetchOnMount: true,
+    refetchOnWindowFocus: true,
     refetchOnReconnect: true,
-    staleTime: 2000, // ✅ Increase staleTime to reduce rapid refetches
-    gcTime: 5000,
+    staleTime: 0, // ✅ Always stale
+    gcTime: 0, // ✅ No cache retention
   })
 }
 
@@ -101,33 +73,26 @@ export function useMyHierarchyView(filters?: {
 }) {
   const { user } = useAuth()
   
+  // ✅ FIXED: Also update HierarchyDashboard to use custom events
   React.useEffect(() => {
-    let debounceTimer: NodeJS.Timeout
+    const handleCustomEvent = (e: CustomEvent) => {
+      console.log('🔄 useMyHierarchyView: Custom event received, forcing refresh')
+      useHierarchyStore.getState().forceRefresh()
+    }
     
-    const handleEvaluationBroadcast = (e: StorageEvent) => {
+    const handleStorageEvent = (e: StorageEvent) => {
       if (e.key === 'evaluation-broadcast' && e.newValue) {
-        try {
-          const broadcastData = JSON.parse(e.newValue)
-          if (broadcastData.type === 'evaluation-change') {
-            console.log('🔄 useMyHierarchyView: Received broadcast, debouncing refresh...')
-            
-            // ✅ DEBOUNCE: Clear previous timer and set new one
-            clearTimeout(debounceTimer)
-            debounceTimer = setTimeout(() => {
-              console.log('🔄 useMyHierarchyView: Executing debounced refresh')
-              useHierarchyStore.getState().forceRefresh()
-            }, 500) // 500ms debounce to ensure backend has processed
-          }
-        } catch (e) {
-          console.warn('Invalid evaluation broadcast data:', e)
-        }
+        console.log('🔄 useMyHierarchyView: Storage event received, forcing refresh')
+        useHierarchyStore.getState().forceRefresh()
       }
     }
     
-    window.addEventListener('storage', handleEvaluationBroadcast)
+    window.addEventListener('evaluation-changed', handleCustomEvent as EventListener)
+    window.addEventListener('storage', handleStorageEvent)
+    
     return () => {
-      window.removeEventListener('storage', handleEvaluationBroadcast)
-      clearTimeout(debounceTimer)
+      window.removeEventListener('evaluation-changed', handleCustomEvent as EventListener)
+      window.removeEventListener('storage', handleStorageEvent)
     }
   }, [])
 
@@ -359,4 +324,143 @@ export function hasJobPositions(data: any): boolean {
     return Array.isArray(data.jobPositions) && data.jobPositions.length > 0
   }
   return isStaffHierarchy(data) && data.jobPositions.length > 0
+}
+
+// ✅ SIMPLE: Revert to simple approach like useManagerReports
+export function useAdminOverview(filters?: {
+  weekNumber?: number
+  year?: number
+  userId?: string
+}) {
+  const { user } = useAuth()
+  
+  // ✅ SAME: Listen for evaluation broadcasts
+  React.useEffect(() => {
+    const handleCustomEvent = (e: CustomEvent) => {
+      console.log('🔄 useAdminOverview: Custom event received, forcing refresh')
+      useAdminOverviewStore.getState().forceRefresh()
+    }
+    
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === 'evaluation-broadcast' && e.newValue) {
+        console.log('🔄 useAdminOverview: Storage event received, forcing refresh')
+        useAdminOverviewStore.getState().forceRefresh()
+      }
+    }
+    
+    window.addEventListener('evaluation-changed', handleCustomEvent as EventListener)
+    window.addEventListener('storage', handleStorageEvent)
+    
+    return () => {
+      window.removeEventListener('evaluation-changed', handleCustomEvent as EventListener)
+      window.removeEventListener('storage', handleStorageEvent)
+    }
+  }, [])
+
+  const {
+    managerReportsData,
+    currentFilters,
+    lastRefreshTimestamp,
+    isRefetching,
+    setManagerReportsData,
+    setRefreshing,
+    shouldRefetch
+  } = useAdminOverviewStore()
+
+  // ✅ SAME: Sync user to store
+  useEffect(() => {
+    useAdminOverviewStore.getState().setLastUserId(user?.id || null)
+  }, [user?.id])
+
+  const currentWeek = getCurrentWeek()
+  const safeFilters = {
+    weekNumber: filters?.weekNumber || currentWeek.weekNumber,
+    year: filters?.year || currentWeek.year,
+    userId: filters?.userId || user?.id
+  }
+
+  // ✅ ENHANCED: Force enabled when data was cleared by forceRefresh
+  const shouldRefetchData = useMemo(() => {
+    if (!user?.id) return false
+    
+    const shouldFetch = shouldRefetch(user.id, safeFilters)
+    console.log('🔄 useAdminOverview needsRefetch calculation:', {
+      userId: user.id,
+      hasData: !!managerReportsData,
+      shouldFetch,
+      filters: safeFilters,
+      lastRefreshTimestamp,
+      timeSinceRefresh: Date.now() - lastRefreshTimestamp
+    })
+    
+    return shouldFetch
+  }, [user?.id, safeFilters?.weekNumber, safeFilters?.year, safeFilters?.userId, !!managerReportsData, shouldRefetch, lastRefreshTimestamp])
+
+  const queryResult = useApiQuery({
+    queryKey: ['admin-overview', 'manager-reports', user?.id || 'anonymous', JSON.stringify(safeFilters)],
+    queryFn: async () => {
+      try {
+        console.log('🔄 useAdminOverview: Fetching with filters:', safeFilters, 'for user:', user?.id)
+        setRefreshing(true)
+        
+        const result = await HierarchyService.getManagerReports(safeFilters)
+        
+        console.log('✅ useAdminOverview: Fresh data received:', !!result)
+        
+        if (result) {
+          setManagerReportsData(result, safeFilters)
+          setRefreshing(false)
+          return result
+        } else {
+          setManagerReportsData(null, safeFilters)
+          setRefreshing(false)
+          throw new Error('Failed to fetch manager reports data')
+        }
+      } catch (error) {
+        console.error('useAdminOverview: Error in queryFn:', error)
+        setRefreshing(false)
+        throw error
+      }
+    },
+    // ✅ CRITICAL FIX: Always enable the query, let the hook manage when to actually fetch
+    enabled: !!user?.id, // Don't depend on needsRefetch for enabled
+    cacheStrategy: 'realtime',
+    throwOnError: false,
+    refetchOnMount: false,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    staleTime: 0, // ✅ Always stale to ensure fresh data
+    gcTime: 0, // ✅ No cache retention
+  })
+
+  // ✅ ENHANCED: Force refetch when shouldRefetchData is true
+  React.useEffect(() => {
+    if (shouldRefetchData && queryResult.refetch) {
+      console.log('🔄 useAdminOverview: shouldRefetchData is true, forcing refetch')
+      queryResult.refetch()
+    }
+  }, [shouldRefetchData, queryResult.refetch])
+
+  const finalData = queryResult.data
+
+  // ✅ SAME: Return structure as useMyHierarchyView
+  return {
+    data: finalData,
+    isLoading: queryResult.isLoading || isRefetching,
+    isError: queryResult.isError,
+    error: queryResult.error,
+    isStoreRefreshing: isRefetching,
+    isFetching: queryResult.isFetching,
+    refetch: queryResult.refetch,
+  }
+}
+
+// ✅ DEPRECATED: Keep old hook for backward compatibility but mark as deprecated
+export function useManagerReportsWithStore(filters?: {
+  weekNumber?: number
+  year?: number
+  userId?: string
+}) {
+  console.warn('useManagerReportsWithStore is deprecated, use useAdminOverview instead')
+  return useAdminOverview(filters)
 }

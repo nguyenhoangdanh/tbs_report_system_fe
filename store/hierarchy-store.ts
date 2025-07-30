@@ -97,7 +97,6 @@ const useHierarchyStore = create<HierarchyState>()(
       },
 
       forceRefresh: () => {
-        console.log('🔄 HierarchyStore: Force refresh triggered - CLEARING ALL DATA')
         set({
           lastRefreshTimestamp: Date.now(),
           isRefreshing: true,

@@ -14,95 +14,98 @@ const handleError = (error: any, defaultMessage: string) => {
   toast.error(message)
 }
 
+// ✅ SIMPLE: Back to basic broadcast like HierarchyDashboard
+export const broadcastEvaluationChange = () => {
+  try {
+    const broadcastData = {
+      type: 'evaluation-change',
+      timestamp: Date.now()
+    }
+    
+    console.log('📢 Broadcasting evaluation change:', broadcastData)
+    
+    // ✅ PRIMARY: Custom event for same-tab
+    window.dispatchEvent(new CustomEvent('evaluation-changed', {
+      detail: broadcastData
+    }))
+    
+    // ✅ SECONDARY: localStorage for cross-tab
+    localStorage.setItem('evaluation-broadcast', JSON.stringify(broadcastData))
+    
+    setTimeout(() => {
+      localStorage.removeItem('evaluation-broadcast')
+    }, 2000)
+  } catch (error) {
+    console.error('❌ Failed to broadcast evaluation change:', error)
+  }
+}
+
 export function useCreateTaskEvaluation() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
 
   return useApiMutation<TaskEvaluation, CreateEvaluationDto, Error>({
     mutationFn: async (data: CreateEvaluationDto) => await TaskEvaluationsService.createTaskEvaluation(data),
-    enableOptimistic: true,
-    optimisticUpdate: {
-      queryKey: ["task-evaluations", "{taskId}"],
-      updater: (old: TaskEvaluation[] = [], variables) => {
-        const optimisticEvaluation: TaskEvaluation = {
-          id: `temp-${Date.now()}`,
-          taskId: variables.taskId,
-          evaluatorId: user?.id || '',
-          originalIsCompleted: false,
-          evaluatedIsCompleted: variables.evaluatedIsCompleted,
-          evaluatedReasonNotDone: variables.evaluatedReasonNotDone,
-          evaluatorComment: variables.evaluatorComment,
-          evaluationType: variables.evaluationType,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          evaluator: user || undefined
-        }
-        return [...old, optimisticEvaluation]
-      }
-    },
-    onMutate: async (newEvaluation) => {
-      if (!user?.id) return
-      console.log('🔄 CREATE evaluation mutation started')
-      
-      // ✅ BLOCK all hierarchy queries during mutation
-      queryClient.cancelQueries({
-        queryKey: ['hierarchy'],
-      })
-    },
     onSuccess: (newEvaluation, variables) => {
-      if (!user?.id) return
+      console.log('✅ CREATE evaluation SUCCESS')
       
-      console.log('✅ CREATE evaluation successful - NO auto invalidation')
+      // ✅ SIMPLE: Just broadcast like HierarchyDashboard
+      broadcastEvaluationChange()
       
-      // ✅ CRITICAL: Do NOT invalidate here - let EvaluationForm handle it sequentially
-      // This prevents race conditions with approve/reject mutations
+      // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses
+      queryClient.invalidateQueries({
+        queryKey: ['admin-overview', 'manager-reports'],
+        exact: false,
+        refetchType: 'all'
+      })
+      
+      // ✅ Also invalidate hierarchy queries for HierarchyDashboard
+      queryClient.invalidateQueries({
+        queryKey: ['hierarchy'],
+        exact: false,
+        refetchType: 'all'
+      })
       
       toast.success("Đánh giá nhiệm vụ thành công!")
     },
-    onError: (error, variables) => {
-      // ✅ NEW: Clear pending state on error
-      // adminOverviewStoreActions.markComplete(variables.taskId, 'create')
+    onError: (error) => {
+      console.error('❌ CREATE evaluation FAILED:', error)
       handleError(error, "Không thể đánh giá nhiệm vụ")
-    },
-    invalidation: {
-      type: 'evaluation',
-      userId: user?.id,
     },
     retry: 1,
   })
 }
 
+// ✅ SAME: Update and Delete mutations with simple broadcast
 export function useUpdateTaskEvaluation() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   
   return useApiMutation<TaskEvaluation, { evaluationId: string; data: UpdateEvaluationDto }, Error>({
     mutationFn: async ({ evaluationId, data }) => await TaskEvaluationsService.updateTaskEvaluation(evaluationId, data),
-    onMutate: async (variables) => {
-      if (!user?.id) return
-      console.log('🔄 UPDATE evaluation mutation started')
-      
-      // ✅ BLOCK all hierarchy queries during mutation
-      queryClient.cancelQueries({
-        queryKey: ['hierarchy'],
-      })
-    },
     onSuccess: (updatedEvaluation, variables) => {
-      if (!user?.id) return
+      console.log('✅ UPDATE evaluation SUCCESS')
+      broadcastEvaluationChange()
       
-      console.log('✅ UPDATE evaluation successful - NO auto invalidation')
+      // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses
+      queryClient.invalidateQueries({
+        queryKey: ['admin-overview', 'manager-reports'],
+        exact: false,
+        refetchType: 'all'
+      })
       
-      // ✅ CRITICAL: Do NOT invalidate here - let EvaluationForm handle it sequentially
+      // ✅ Also invalidate hierarchy queries for HierarchyDashboard  
+      queryClient.invalidateQueries({
+        queryKey: ['hierarchy'],
+        exact: false,
+        refetchType: 'all'
+      })
       
       toast.success("Cập nhật đánh giá thành công!")
     },
-    onError: (error, variables) => {
-      // adminOverviewStoreActions.markComplete(variables.evaluationId, 'update')
+    onError: (error) => {
+      console.error('❌ UPDATE evaluation FAILED:', error)
       handleError(error, "Không thể cập nhật đánh giá")
-    },
-    invalidation: {
-      type: 'evaluation',
-      userId: user?.id,
     },
     retry: 1,
   })
@@ -114,31 +117,29 @@ export function useDeleteTaskEvaluation() {
   
   return useApiMutation<{ message: string }, string, Error>({
     mutationFn: async (evaluationId: string) => await TaskEvaluationsService.deleteTaskEvaluation(evaluationId),
-    onMutate: async (evaluationId) => {
-      if (!user?.id) return
-      console.log('🔄 DELETE evaluation mutation started')
-      
-      // ✅ BLOCK all hierarchy queries during mutation
-      queryClient.cancelQueries({
-        queryKey: ['hierarchy'],
-      })
-    },
     onSuccess: (result, deletedId) => {
-      if (!user?.id) return
+      console.log('✅ DELETE evaluation SUCCESS')
+      broadcastEvaluationChange()
       
-      console.log('✅ DELETE evaluation successful - NO auto invalidation')
+      // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses
+      queryClient.invalidateQueries({
+        queryKey: ['admin-overview', 'manager-reports'],
+        exact: false,
+        refetchType: 'all'
+      })
       
-      // ✅ CRITICAL: Do NOT invalidate here - let EvaluationForm handle it sequentially
+      // ✅ Also invalidate hierarchy queries for HierarchyDashboard
+      queryClient.invalidateQueries({
+        queryKey: ['hierarchy'],
+        exact: false,
+        refetchType: 'all'
+      })
       
       toast.success("Xóa đánh giá thành công!")
     },
-    onError: (error, deletedId) => {
-      // adminOverviewStoreActions.markComplete(deletedId, 'delete')
+    onError: (error) => {
+      console.error('❌ DELETE evaluation FAILED:', error)
       handleError(error, "Không thể xóa đánh giá")
-    },
-    invalidation: {
-      type: 'evaluation',
-      userId: user?.id,
     },
     retry: 1,
   })

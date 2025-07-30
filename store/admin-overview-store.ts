@@ -2,13 +2,7 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { ManagerReportsEmployee, UserDetailsResponse } from '@/types/hierarchy'
 import { EvaluationType, type Task, type TaskEvaluation, type WeeklyReport } from '@/types'
-
-interface EvaluationFormState {
-  evaluatedIsCompleted: boolean
-  evaluatedReasonNotDone: string
-  evaluatorComment: string
-  evaluationType: EvaluationType
-}
+import { useQueryClient } from '@tanstack/react-query'
 
 interface AdminOverviewState {
   // Search state
@@ -25,21 +19,6 @@ interface AdminOverviewState {
   isRefetching: boolean
   setIsRefetching: (loading: boolean) => void
 
-  // Evaluation modal state
-  openEvalModal: boolean
-  selectedEmployee: ManagerReportsEmployee | null
-  selectedTask: Task | null
-  editEvaluation: TaskEvaluation | null
-  evaluationForm: EvaluationFormState
-  setEvaluationModal: (
-    open: boolean,
-    employee?: ManagerReportsEmployee | null,
-    task?: Task | null,
-    evaluation?: TaskEvaluation | null
-  ) => void
-  updateEvaluationForm: (updates: Partial<EvaluationFormState>) => void
-  resetEvaluationForm: () => void
-
   // Employee detail modal state
   openEmployeeModal: boolean
   selectedEmployeeDetail: ManagerReportsEmployee | null
@@ -50,28 +29,20 @@ interface AdminOverviewState {
   ) => void
   setWeeklyReport: (report: WeeklyReport | null) => void
 
-  // Reset all states
-  resetAllStates: () => void
-
-  // ✅ ADDED: Helper methods for ReportTemplate compatibility
-  setSelectedTask: (task: Task | null) => void
-  setSelectedEmployee: (employee: ManagerReportsEmployee | null) => void
-  setEditEvaluation: (evaluation: TaskEvaluation | null) => void
-  closeEvaluationModal: () => void
+  // ✅ NEW: Data cache similar to HierarchyStore
+  managerReportsData: any | null
+  currentFilters: any | null
   
-  // Force refresh tracking
+  // ✅ NEW: Enhanced refresh mechanism
   lastRefreshTimestamp: number
   forceRefresh: () => void
-  
-  // ✅ ADD: Missing method
-  onEvaluationChange: () => void
-}
+  setManagerReportsData: (data: any, filters?: any) => void
+  clearManagerReportsData: () => void
+  shouldRefetch: (userId: string, filters: any) => boolean
+  setRefreshing: (loading: boolean) => void
 
-const defaultEvaluationForm: EvaluationFormState = {
-  evaluatedIsCompleted: true,
-  evaluatedReasonNotDone: '',
-  evaluatorComment: '',
-  evaluationType: EvaluationType.REVIEW,
+  // Reset all states
+  resetAllStates: () => void
 }
 
 export const useAdminOverviewStore = create<AdminOverviewState>()(
@@ -95,51 +66,6 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
         set({ isRefetching: loading }, false, 'setIsRefetching')
       },
 
-      // Evaluation modal state - RESTORED ORIGINAL LOGIC
-      openEvalModal: false,
-      selectedEmployee: null,
-      selectedTask: null,
-      editEvaluation: null,
-      evaluationForm: { ...defaultEvaluationForm },
-
-      setEvaluationModal: (open, employee = null, task = null, evaluation = null) => {
-        if (open && employee && task) {
-          // Populate form with existing values or defaults
-          const form: EvaluationFormState = {
-            evaluatedIsCompleted: evaluation?.evaluatedIsCompleted ?? task.isCompleted,
-            evaluatedReasonNotDone: evaluation?.evaluatedReasonNotDone ?? task.reasonNotDone ?? '',
-            evaluatorComment: evaluation?.evaluatorComment ?? '',
-            evaluationType: evaluation?.evaluationType ?? EvaluationType.REVIEW,
-          }
-          
-          set({
-            openEvalModal: open,
-            selectedEmployee: employee,
-            selectedTask: task,
-            editEvaluation: evaluation,
-            evaluationForm: form,
-          }, false, 'setEvaluationModal')
-        } else {
-          set({
-            openEvalModal: open,
-            selectedEmployee: null,
-            selectedTask: null,
-            editEvaluation: null,
-            evaluationForm: { ...defaultEvaluationForm },
-          }, false, 'closeEvaluationModal')
-        }
-      },
-
-      updateEvaluationForm: (updates) => {
-        set((state) => ({
-          evaluationForm: { ...state.evaluationForm, ...updates }
-        }), false, 'updateEvaluationForm')
-      },
-
-      resetEvaluationForm: () => {
-        set({ evaluationForm: { ...defaultEvaluationForm } }, false, 'resetEvaluationForm')
-      },
-
       // Employee detail modal state
       openEmployeeModal: false,
       selectedEmployeeDetail: null,
@@ -149,7 +75,7 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
         set({
           openEmployeeModal: open,
           selectedEmployeeDetail: employee,
-          weeklyReport: null, // Reset weekly report when opening modal
+          weeklyReport: null,
         }, false, 'setEmployeeModal')
       },
 
@@ -157,142 +83,126 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
         set({ weeklyReport: report }, false, 'setWeeklyReport')
       },
 
-      // ✅ ADD: Refresh tracking
+      // ✅ NEW: Data cache
+      managerReportsData: null,
+      currentFilters: null,
       lastRefreshTimestamp: 0,
-      componentRefreshKey: 0,
 
-      // ✅ ADD: Evaluation change tracking
-      lastEvaluationUpdate: 0,
-      forceRefreshKey: 0,
-
-     
-
-      // ✅ ENHANCED: Clear all cached data
-      clearAllCachedData: () => {
-        console.log('🧹 AdminOverviewStore: Clearing all cached data and coordinating with hierarchy store')
-        const timestamp = Date.now()
+      // ✅ ENHANCED: Force refresh with better logging and state management
+      forceRefresh: () => {
+        const currentTimestamp = Date.now()
+        console.log('🔄 AdminOverviewStore: Force refresh triggered at:', currentTimestamp)
         
-        // Clear admin overview specific data
         set({
-          search: '',
-          openEvalModal: false,
-          selectedEmployee: null,
-          selectedTask: null,
-          editEvaluation: null,
-          evaluationForm: { ...defaultEvaluationForm },
-          openEmployeeModal: false,
-          selectedEmployeeDetail: null,
-          weeklyReport: null,
-          isSubmittingEvaluation: false,
-          isRefetching: false,
-          lastRefreshTimestamp: 0,
-        })
+          lastRefreshTimestamp: currentTimestamp,
+          isRefetching: true,
+          managerReportsData: null, // ✅ Clear data to force refetch
+          currentFilters: null, // ✅ Clear filters to force refetch
+        }, false, 'forceRefresh')
         
-        // Coordinate with hierarchy store
-        try {
-          const { forceRefresh } = require('@/store/hierarchy-store').hierarchyStoreActions
-          forceRefresh()
-        } catch (e) {
-          console.warn('Could not coordinate with hierarchy store:', e)
-        }
+        console.log('🔄 AdminOverviewStore: State after forceRefresh:', {
+          lastRefreshTimestamp: currentTimestamp,
+          isRefetching: true,
+          managerReportsData: null,
+          currentFilters: null,
+        })
       },
 
-      // Reset all states - ✅ Enhanced
+      setManagerReportsData: (data: any, filters?: any) => {
+        console.log('📊 AdminOverviewStore: Setting manager reports data:', !!data)
+        const state = get()
+        set({
+          managerReportsData: data,
+          currentFilters: filters || state.currentFilters,
+          lastRefreshTimestamp: Date.now(), // ✅ Update timestamp when data is set
+          isRefetching: false,
+        }, false, 'setManagerReportsData')
+      },
+
+      // ✅ ENHANCED: shouldRefetch with detailed logging for debugging
+      shouldRefetch: (userId: string, filters: any) => {
+        const state = get()
+        
+        console.log('🔍 AdminOverviewStore shouldRefetch check:', {
+          userId,
+          filters,
+          hasData: !!state.managerReportsData,
+          lastUserId: state.lastUserId,
+          currentFilters: state.currentFilters,
+          lastRefreshTimestamp: state.lastRefreshTimestamp,
+          timeSinceLastRefresh: Date.now() - state.lastRefreshTimestamp,
+          isRefetching: state.isRefetching
+        })
+        
+        // ✅ CRITICAL: Always refetch if data was cleared by forceRefresh
+        if (!state.managerReportsData && state.lastRefreshTimestamp > 0) {
+          console.log('✅ shouldRefetch: Data cleared by forceRefresh, MUST refetch')
+          return true
+        }
+        
+        // ✅ Always refetch if no data at all
+        if (!state.managerReportsData) {
+          console.log('✅ shouldRefetch: No data, MUST refetch')
+          return true
+        }
+        
+        // ✅ Refetch if user changed
+        if (state.lastUserId !== userId) {
+          console.log('✅ shouldRefetch: User changed, MUST refetch')
+          return true
+        }
+        
+        // ✅ Refetch if filters changed
+        if (!state.currentFilters || 
+            state.currentFilters.weekNumber !== filters?.weekNumber ||
+            state.currentFilters.year !== filters?.year ||
+            state.currentFilters.userId !== filters?.userId) {
+          console.log('✅ shouldRefetch: Filters changed, MUST refetch')
+          return true
+        }
+        
+        // ✅ ENHANCED: Refetch if forceRefresh was called recently (within 5 seconds)
+        const timeSinceRefresh = Date.now() - state.lastRefreshTimestamp
+        if (state.lastRefreshTimestamp > 0 && timeSinceRefresh < 5000) {
+          console.log('✅ shouldRefetch: Recent forceRefresh detected, MUST refetch')
+          return true
+        }
+        
+        console.log('✅ shouldRefetch: No need to refetch')
+        return false
+      },
+
+      // ✅ FIXED: Add missing setRefreshing implementation (same as HierarchyStore)
+      setRefreshing: (loading: boolean) => {
+        console.log('🔄 AdminOverviewStore: Setting refreshing state:', loading)
+        set({ isRefetching: loading })
+      },
+
+      // Reset all states - ✅ Updated
       resetAllStates: () => {
         console.log('🔄 AdminOverviewStore: Reset all states')
-        const timestamp = Date.now()
         set({
           search: '',
           lastUserId: null,
-          openEvalModal: false,
-          selectedEmployee: null,
-          selectedTask: null,
-          editEvaluation: null,
-          evaluationForm: { ...defaultEvaluationForm },
           openEmployeeModal: false,
           selectedEmployeeDetail: null,
           weeklyReport: null,
           isSubmittingEvaluation: false,
+          isRefetching: false, // ✅ Use isRefetching instead of isRefreshing
+          managerReportsData: null,
+          currentFilters: null,
+          lastRefreshTimestamp: 0,
+        })
+      },
+
+      // ✅ FIXED: Add missing clearManagerReportsData implementation
+      clearManagerReportsData: () => {
+        console.log('🧹 AdminOverviewStore: Clearing manager reports data')
+        set({
+          managerReportsData: null,
+          currentFilters: null,
+          lastRefreshTimestamp: 0,
           isRefetching: false,
-        }, false, 'resetAllStates')
-      },
-
-      // ✅ ADDED: Helper methods for ReportTemplate compatibility
-      setSelectedTask: (task) => {
-        console.log('📋 AdminOverviewStore: Setting selected task:', task?.id)
-        set({ selectedTask: task })
-      },
-
-      setSelectedEmployee: (employee) => {
-        console.log('👤 AdminOverviewStore: Setting selected employee:', employee?.user?.id)
-        set({ selectedEmployee: employee })
-      },
-
-      setEditEvaluation: (evaluation) => {
-        console.log('✏️ AdminOverviewStore: Setting edit evaluation:', evaluation?.id)
-        set({ editEvaluation: evaluation })
-      },
-
-      forceRefresh: () => {
-        console.log('🔄 AdminOverviewStore: Forcing refresh')
-        set({
-          lastRefreshTimestamp: Date.now(),
-        })
-      },
-
-      // ✅ ADD: Broadcast evaluation change like hierarchy store
-      onEvaluationChange: () => {
-        const timestamp = Date.now()
-        const state = get()
-        
-        // ✅ DEBOUNCE: Avoid rapid consecutive broadcasts
-        if (timestamp - state.lastRefreshTimestamp < 500) {
-          console.log('📡 AdminOverviewStore: Skipping duplicate broadcast (too soon)')
-          return
-        }
-        
-        console.log('📡 AdminOverviewStore: Broadcasting evaluation change:', timestamp)
-        
-        set({
-          lastRefreshTimestamp: timestamp,
-        })
-        
-        // ✅ REDUCE DELAY: Faster broadcast
-        setTimeout(() => {
-          try {
-            const broadcastData = {
-              type: 'evaluation-change',
-              timestamp,
-              source: 'admin-overview'
-            }
-            
-            console.log('📡 AdminOverviewStore: Setting localStorage broadcast data:', broadcastData)
-            localStorage.setItem('evaluation-broadcast', JSON.stringify(broadcastData))
-            
-            const storageEvent = new StorageEvent('storage', {
-              key: 'evaluation-broadcast',
-              newValue: JSON.stringify(broadcastData),
-              oldValue: null,
-              storageArea: localStorage
-            })
-            
-            console.log('📡 AdminOverviewStore: Dispatching storage event:', storageEvent)
-            window.dispatchEvent(storageEvent)
-            
-            console.log('📡 AdminOverviewStore: Broadcast sent successfully')
-          } catch (e) {
-            console.warn('Could not broadcast evaluation change:', e)
-          }
-        }, 100) // ✅ Reduced from 200ms to 100ms
-      },
-
-      closeEvaluationModal: () => {
-        console.log('❌ AdminOverviewStore: Closing evaluation modal')
-        set({
-          openEvalModal: false,
-          selectedTask: null,
-          editEvaluation: null,
-          // Keep selectedEmployee for reference
         })
       },
     }),
@@ -304,15 +214,13 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
 
 // Export individual selectors for better performance
 export const useAdminOverviewActions = () => useAdminOverviewStore((state) => ({
-  setEvaluationModal: state.setEvaluationModal,
   setEmployeeModal: state.setEmployeeModal,
   setSearch: state.setSearch,
   resetAllStates: state.resetAllStates,
 }))
 
-// ✅ ENHANCED: Export enhanced actions
+// ✅ Enhanced actions
 export const adminOverviewStoreActions = {
-  onEvaluationChange: () => useAdminOverviewStore.getState().onEvaluationChange(),
   forceRefresh: () => useAdminOverviewStore.getState().forceRefresh(),
-  // clearAll: () => useAdminOverviewStore.getState().clearAllCachedData(),
+  clearAll: () => useAdminOverviewStore.getState().clearManagerReportsData(),
 }

@@ -42,8 +42,11 @@ export const QUERY_KEYS = {
       ['hierarchy', 'report-details-admin', currentUserId, reportId] as const,
     userReports: (userId: string, filters?: any) => 
       ['hierarchy', 'user-reports', userId, JSON.stringify(filters || {})] as const,
+    // ✅ SEPARATE: Different key for original vs store version to prevent conflicts
     managerReports: (userId: string, filters?: any) => 
       ['hierarchy', 'manager-reports', userId, JSON.stringify(filters || {})] as const,
+    managerReportsWithStore: (userId: string, filters?: any, timestamp?: number) => 
+      ['hierarchy', 'manager-reports-with-store', userId, JSON.stringify(filters || {}), timestamp] as const,
     adminOverview: (userId: string, filters?: any) => 
       ['hierarchy', 'admin-overview', userId, JSON.stringify(filters || {})] as const,
   },
