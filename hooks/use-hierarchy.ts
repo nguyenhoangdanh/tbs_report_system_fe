@@ -379,7 +379,7 @@ export function useAdminOverview(filters?: {
     userId: filters?.userId || user?.id
   }
 
-  // ✅ ENHANCED: Force enabled when data was cleared by forceRefresh
+  // ✅ CRITICAL FIX: Make shouldRefetchData work like needsRefetch in useMyHierarchyView
   const shouldRefetchData = useMemo(() => {
     if (!user?.id) return false
     
@@ -422,24 +422,24 @@ export function useAdminOverview(filters?: {
         throw error
       }
     },
-    // ✅ CRITICAL FIX: Always enable the query, let the hook manage when to actually fetch
-    enabled: !!user?.id, // Don't depend on needsRefetch for enabled
+    // ✅ CRITICAL FIX: Make enabled depend on shouldRefetchData like useMyHierarchyView
+    enabled: !!user?.id && shouldRefetchData,
     cacheStrategy: 'realtime',
     throwOnError: false,
     refetchOnMount: false,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    staleTime: 0, // ✅ Always stale to ensure fresh data
-    gcTime: 0, // ✅ No cache retention
+    staleTime: 0,
+    gcTime: 0,
   })
 
-  // ✅ ENHANCED: Force refetch when shouldRefetchData is true
-  React.useEffect(() => {
-    if (shouldRefetchData && queryResult.refetch) {
-      console.log('🔄 useAdminOverview: shouldRefetchData is true, forcing refetch')
-      queryResult.refetch()
-    }
-  }, [shouldRefetchData, queryResult.refetch])
+  // ✅ REMOVE: No longer need manual useEffect refetch since enabled handles it
+  // React.useEffect(() => {
+  //   if (shouldRefetchData && queryResult.refetch) {
+  //     console.log('🔄 useAdminOverview: shouldRefetchData is true, forcing refetch')
+  //     queryResult.refetch()
+  //   }
+  // }, [shouldRefetchData, queryResult.refetch])
 
   const finalData = queryResult.data
 

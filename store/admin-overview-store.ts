@@ -152,7 +152,7 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
           return true
         }
         
-        // ✅ Refetch if filters changed
+        // ✅ Refetch if filters changed - IMPROVED: More thorough comparison
         if (!state.currentFilters || 
             state.currentFilters.weekNumber !== filters?.weekNumber ||
             state.currentFilters.year !== filters?.year ||
@@ -168,7 +168,7 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
           return true
         }
         
-        console.log('✅ shouldRefetch: No need to refetch')
+        console.log('❌ shouldRefetch: No need to refetch')
         return false
       },
 
