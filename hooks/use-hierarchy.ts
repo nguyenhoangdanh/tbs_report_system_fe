@@ -11,8 +11,88 @@ import type {
 import { useApiQuery } from './use-api-query'
 import { QUERY_KEYS } from './query-key'
 import { useAuth } from "@/components/providers/auth-provider"
-import { useMemo, useState, useCallback, useEffect } from 'react'
+import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import useHierarchyStore from '@/store/hierarchy-store'
+import { useQueryClient } from '@tanstack/react-query'
+import { useAdminOverviewStore } from '@/store/admin-overview-store'
+
+/**
+ * Hook for manager reports - Add simple broadcast listener
+ */
+export function useManagerReports(filters?: {
+  weekNumber?: number
+  year?: number
+  userId?: string
+}) {
+  const { user } = useAuth()
+  const queryClient = useQueryClient()
+  const [lastInvalidation, setLastInvalidation] = React.useState<number>(0)
+  
+  React.useEffect(() => {
+    let debounceTimer: NodeJS.Timeout
+    
+    const handleEvaluationBroadcast = (e: StorageEvent) => {
+      if (e.key === 'evaluation-broadcast' && e.newValue) {
+        try {
+          const broadcastData = JSON.parse(e.newValue)
+          if (broadcastData.type === 'evaluation-change') {
+            const now = Date.now()
+            
+            // ✅ DEBOUNCE: Avoid rapid consecutive invalidations
+            if (now - lastInvalidation < 1000) {
+              console.log('🔄 useManagerReports: Skipping duplicate broadcast (too soon)')
+              return
+            }
+            
+            console.log('🔄 useManagerReports: Received broadcast, invalidating queries')
+            
+            clearTimeout(debounceTimer)
+            debounceTimer = setTimeout(() => {
+              console.log('🔄 useManagerReports: Executing query invalidation')
+              setLastInvalidation(now)
+              queryClient.invalidateQueries({
+                queryKey: ['hierarchy', 'manager-reports'],
+                exact: false,
+                refetchType: 'all'
+              })
+            }, 800) // Increased delay to 800ms
+          }
+        } catch (e) {
+          console.warn('Invalid evaluation broadcast data:', e)
+        }
+      }
+    }
+    
+    window.addEventListener('storage', handleEvaluationBroadcast)
+    return () => {
+      window.removeEventListener('storage', handleEvaluationBroadcast)
+      clearTimeout(debounceTimer)
+    }
+  }, [queryClient, lastInvalidation])
+
+  return useApiQuery({
+    queryKey: QUERY_KEYS.hierarchy.managerReports(filters?.userId || 'anonymous', filters),
+    queryFn: async () => {
+      try {
+        console.log('🔄 useManagerReports: Fetching with filters:', filters)
+        const result = await HierarchyService.getManagerReports(filters)
+        console.log('✅ useManagerReports: Fresh data received')
+        return result
+      } catch (error) {
+        console.error('❌ useManagerReports: Fetch failed:', error)
+        throw error
+      }
+    },
+    enabled: !!filters?.weekNumber && !!filters?.year && !!filters?.userId,
+    cacheStrategy: 'realtime',
+    throwOnError: false,
+    refetchOnMount: 'always',
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    staleTime: 2000, // ✅ Increase staleTime to reduce rapid refetches
+    gcTime: 5000,
+  })
+}
 
 export function useMyHierarchyView(filters?: {
   weekNumber?: number
@@ -21,6 +101,36 @@ export function useMyHierarchyView(filters?: {
 }) {
   const { user } = useAuth()
   
+  React.useEffect(() => {
+    let debounceTimer: NodeJS.Timeout
+    
+    const handleEvaluationBroadcast = (e: StorageEvent) => {
+      if (e.key === 'evaluation-broadcast' && e.newValue) {
+        try {
+          const broadcastData = JSON.parse(e.newValue)
+          if (broadcastData.type === 'evaluation-change') {
+            console.log('🔄 useMyHierarchyView: Received broadcast, debouncing refresh...')
+            
+            // ✅ DEBOUNCE: Clear previous timer and set new one
+            clearTimeout(debounceTimer)
+            debounceTimer = setTimeout(() => {
+              console.log('🔄 useMyHierarchyView: Executing debounced refresh')
+              useHierarchyStore.getState().forceRefresh()
+            }, 500) // 500ms debounce to ensure backend has processed
+          }
+        } catch (e) {
+          console.warn('Invalid evaluation broadcast data:', e)
+        }
+      }
+    }
+    
+    window.addEventListener('storage', handleEvaluationBroadcast)
+    return () => {
+      window.removeEventListener('storage', handleEvaluationBroadcast)
+      clearTimeout(debounceTimer)
+    }
+  }, [])
+
   const {
     hierarchyData,
     currentFilters,
@@ -37,12 +147,20 @@ export function useMyHierarchyView(filters?: {
     setCurrentUser(user?.id || null)
   }, [user?.id, setCurrentUser])
 
-  // ✅ ENHANCED: More reliable shouldRefetch logic
+  // ✅ FIXED: Stable needsRefetch that doesn't change constantly
   const needsRefetch = useMemo(() => {
     if (!user?.id) return false
     
-    return shouldRefetch(user.id, filters)
-  }, [user?.id, filters, shouldRefetch, lastRefreshTimestamp])
+    const shouldFetch = shouldRefetch(user.id, filters)
+    console.log('🔄 needsRefetch calculation:', {
+      userId: user.id,
+      hasData: !!hierarchyData,
+      shouldFetch,
+      filters
+    })
+    
+    return shouldFetch
+  }, [user?.id, filters?.weekNumber, filters?.year, filters?.month, !!hierarchyData, shouldRefetch])
 
   const queryResult = useApiQuery({
     queryKey: QUERY_KEYS.hierarchy.myView(user?.id || 'anonymous', filters),
@@ -53,46 +171,44 @@ export function useMyHierarchyView(filters?: {
         
         const result = await HierarchyService.getMyHierarchyView(filters)
         
-        console.log('✅ useMyHierarchyView: Fresh data received:', result?.success, result?.data)
+        console.log('✅ useMyHierarchyView: Fresh data received:', result?.success)
         
-        // ✅ FIXED: Handle ApiResult structure correctly
         if (result?.success && result.data) {
           setHierarchyData(result.data, filters)
-          setRefreshing(false) // ✅ CRITICAL: Ensure loading state is cleared
+          setRefreshing(false)
           return result
         } else {
-          // Handle error case
           setHierarchyData(null, filters)
-          setRefreshing(false) // ✅ CRITICAL: Ensure loading state is cleared
+          setRefreshing(false)
           throw new Error(result?.error?.message || 'Failed to fetch hierarchy data')
         }
       } catch (error) {
         console.error('useMyHierarchyView: Error in queryFn:', error)
-        setRefreshing(false) // ✅ CRITICAL: Always clear loading state
+        setRefreshing(false)
         throw error
       }
     },
     enabled: !!user?.id && needsRefetch,
     cacheStrategy: 'realtime',
     throwOnError: false,
-    refetchOnMount: needsRefetch ? 'always' : false,
+    refetchOnMount: false, // ✅ CRITICAL: Don't auto refetch on mount
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    staleTime: 500,
-    gcTime: 1000,
+    staleTime: 5000, // ✅ Increase stale time to reduce refetches
+    gcTime: 10000, // ✅ Increase gc time
   })
-
 
   const finalData = queryResult.data;
 
   // ✅ FIXED: Return the correct loading state
   return {
     data: finalData,
-    isLoading: (queryResult.isLoading && needsRefetch) || isRefreshing,
+    isLoading: queryResult.isLoading || isRefreshing,
     isError: queryResult.isError,
     error: queryResult.error,
     isStoreRefreshing: isRefreshing,
     isFetching: queryResult.isFetching,
+    refetch: queryResult.refetch,
   }
 }
 
@@ -110,41 +226,6 @@ export function useUserDetails(userId: string, filters?: {
     enabled: !!userId && !!user?.id,
     cacheStrategy: 'realtime',
     throwOnError: false,
-  })
-}
-
-/**
- * Hook for manager reports - OPTIMIZED for real-time updates
- */
-export function useManagerReports(filters?: {
-  weekNumber?: number
-  year?: number
-  userId?: string
-}) {
-  return useApiQuery({
-    queryKey: ['hierarchy', 'managerReports', filters],
-    queryFn: async () => {
-      const enhancedFilters = {
-        ...filters,
-      }
-      
-      try {
-        const result = await HierarchyService.getManagerReports(enhancedFilters)
-        console.log('✅ useManagerReports: Fresh data received')
-        return result
-      } catch (error) {
-        console.error('❌ useManagerReports: Fetch failed:', error)
-        throw error
-      }
-    },
-    enabled: !!filters?.weekNumber && !!filters?.year && !!filters?.userId,
-    cacheStrategy: 'realtime',
-    throwOnError: true,
-    notifyOnChangeProps: ['data', 'error', 'isLoading'],
-    refetchOnMount: 'always',
-    refetchOnWindowFocus: false,
-    staleTime: 0,
-    gcTime: 1000,
   })
 }
 

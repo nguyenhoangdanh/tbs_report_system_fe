@@ -25,7 +25,7 @@ interface AdminOverviewState {
   isRefetching: boolean
   setIsRefetching: (loading: boolean) => void
 
-  // Evaluation modal state - RESTORED ORIGINAL INTERFACE
+  // Evaluation modal state
   openEvalModal: boolean
   selectedEmployee: ManagerReportsEmployee | null
   selectedTask: Task | null
@@ -58,6 +58,13 @@ interface AdminOverviewState {
   setSelectedEmployee: (employee: ManagerReportsEmployee | null) => void
   setEditEvaluation: (evaluation: TaskEvaluation | null) => void
   closeEvaluationModal: () => void
+  
+  // Force refresh tracking
+  lastRefreshTimestamp: number
+  forceRefresh: () => void
+  
+  // ✅ ADD: Missing method
+  onEvaluationChange: () => void
 }
 
 const defaultEvaluationForm: EvaluationFormState = {
@@ -150,8 +157,50 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
         set({ weeklyReport: report }, false, 'setWeeklyReport')
       },
 
-      // Reset all states
+      // ✅ ADD: Refresh tracking
+      lastRefreshTimestamp: 0,
+      componentRefreshKey: 0,
+
+      // ✅ ADD: Evaluation change tracking
+      lastEvaluationUpdate: 0,
+      forceRefreshKey: 0,
+
+     
+
+      // ✅ ENHANCED: Clear all cached data
+      clearAllCachedData: () => {
+        console.log('🧹 AdminOverviewStore: Clearing all cached data and coordinating with hierarchy store')
+        const timestamp = Date.now()
+        
+        // Clear admin overview specific data
+        set({
+          search: '',
+          openEvalModal: false,
+          selectedEmployee: null,
+          selectedTask: null,
+          editEvaluation: null,
+          evaluationForm: { ...defaultEvaluationForm },
+          openEmployeeModal: false,
+          selectedEmployeeDetail: null,
+          weeklyReport: null,
+          isSubmittingEvaluation: false,
+          isRefetching: false,
+          lastRefreshTimestamp: 0,
+        })
+        
+        // Coordinate with hierarchy store
+        try {
+          const { forceRefresh } = require('@/store/hierarchy-store').hierarchyStoreActions
+          forceRefresh()
+        } catch (e) {
+          console.warn('Could not coordinate with hierarchy store:', e)
+        }
+      },
+
+      // Reset all states - ✅ Enhanced
       resetAllStates: () => {
+        console.log('🔄 AdminOverviewStore: Reset all states')
+        const timestamp = Date.now()
         set({
           search: '',
           lastUserId: null,
@@ -184,6 +233,59 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
         set({ editEvaluation: evaluation })
       },
 
+      forceRefresh: () => {
+        console.log('🔄 AdminOverviewStore: Forcing refresh')
+        set({
+          lastRefreshTimestamp: Date.now(),
+        })
+      },
+
+      // ✅ ADD: Broadcast evaluation change like hierarchy store
+      onEvaluationChange: () => {
+        const timestamp = Date.now()
+        const state = get()
+        
+        // ✅ DEBOUNCE: Avoid rapid consecutive broadcasts
+        if (timestamp - state.lastRefreshTimestamp < 500) {
+          console.log('📡 AdminOverviewStore: Skipping duplicate broadcast (too soon)')
+          return
+        }
+        
+        console.log('📡 AdminOverviewStore: Broadcasting evaluation change:', timestamp)
+        
+        set({
+          lastRefreshTimestamp: timestamp,
+        })
+        
+        // ✅ REDUCE DELAY: Faster broadcast
+        setTimeout(() => {
+          try {
+            const broadcastData = {
+              type: 'evaluation-change',
+              timestamp,
+              source: 'admin-overview'
+            }
+            
+            console.log('📡 AdminOverviewStore: Setting localStorage broadcast data:', broadcastData)
+            localStorage.setItem('evaluation-broadcast', JSON.stringify(broadcastData))
+            
+            const storageEvent = new StorageEvent('storage', {
+              key: 'evaluation-broadcast',
+              newValue: JSON.stringify(broadcastData),
+              oldValue: null,
+              storageArea: localStorage
+            })
+            
+            console.log('📡 AdminOverviewStore: Dispatching storage event:', storageEvent)
+            window.dispatchEvent(storageEvent)
+            
+            console.log('📡 AdminOverviewStore: Broadcast sent successfully')
+          } catch (e) {
+            console.warn('Could not broadcast evaluation change:', e)
+          }
+        }, 100) // ✅ Reduced from 200ms to 100ms
+      },
+
       closeEvaluationModal: () => {
         console.log('❌ AdminOverviewStore: Closing evaluation modal')
         set({
@@ -207,3 +309,10 @@ export const useAdminOverviewActions = () => useAdminOverviewStore((state) => ({
   setSearch: state.setSearch,
   resetAllStates: state.resetAllStates,
 }))
+
+// ✅ ENHANCED: Export enhanced actions
+export const adminOverviewStoreActions = {
+  onEvaluationChange: () => useAdminOverviewStore.getState().onEvaluationChange(),
+  forceRefresh: () => useAdminOverviewStore.getState().forceRefresh(),
+  // clearAll: () => useAdminOverviewStore.getState().clearAllCachedData(),
+}

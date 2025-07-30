@@ -38,63 +38,7 @@ export interface JobPosition {
 
 // Backend getManagerReports return type
 export interface ManagerReportsResponse {
-  manager: {
-    id: string
-    firstName: string
-    lastName: string
-    fullName: string
-    office: {
-      id: string
-      name: string
-      type: string
-      description?: string
-      createdAt?: string
-      updatedAt?: string
-    }
-    jobPosition: {
-      id: string
-      jobName: string
-      code?: string
-      description?: string
-      positionId: string
-      departmentId: string
-      officeId: string
-      isActive: boolean
-      createdAt: string
-      updatedAt: string
-      position: {
-        id: string
-        name: string
-        description?: string
-        level?: number
-        priority?: number
-        isManagement?: boolean
-        isReportable?: boolean
-        canViewHierarchy?: boolean
-        createdAt?: string
-        updatedAt?: string
-      }
-      department: {
-        id: string
-        name: string
-        description?: string
-        officeId: string
-        createdAt?: string
-        updatedAt?: string
-        office: {
-          id: string
-          name: string
-          type: string
-          description?: string
-          createdAt?: string
-          updatedAt?: string
-        }
-      }
-    }
-    role: string
-    level?: number
-    officeId: string
-  }
+  manager: User
   weekNumber: number
   year: number
   groupedReports: ManagerReportsPositionGroup[]
@@ -163,66 +107,7 @@ export interface ManagerReportsJobPositionGroup {
 }
 
 export interface ManagerReportsEmployee {
-  user: {
-    id: string
-    employeeCode: string
-    firstName: string
-    lastName: string
-    fullName: string
-    email: string
-    phone?: string
-    role: string
-    isActive: boolean
-    office: {
-      id: string
-      name: string
-      type: string
-      description?: string
-      createdAt?: string
-      updatedAt?: string
-    }
-    jobPosition: {
-      id: string
-      jobName: string
-      code?: string
-      description?: string
-      positionId: string
-      departmentId: string
-      officeId: string
-      isActive: boolean
-      createdAt: string
-      updatedAt: string
-      position: {
-        id: string
-        name: string
-        description?: string
-        level?: number
-        priority?: number
-        isManagement?: boolean
-        isReportable?: boolean
-        canViewHierarchy?: boolean
-        createdAt?: string
-        updatedAt?: string
-      }
-      department: {
-        id: string
-        name: string
-        description?: string
-        officeId: string
-        createdAt?: string
-        updatedAt?: string
-        office: {
-          id: string
-          name: string
-          type: string
-          description?: string
-          createdAt?: string
-          updatedAt?: string
-        }
-      }
-    }
-  }
-  report?:  WeeklyReport
+  user:  User
   stats: {
     hasReport: boolean
     isCompleted: boolean
@@ -230,7 +115,7 @@ export interface ManagerReportsEmployee {
     completedTasks: number
     incompleteTasks: number
     taskCompletionRate: number
-    status: 'not_submitted' | 'incomplete' | 'completed'
+    status: "not_submitted" | "incomplete" | "completed"
   }
 }
 

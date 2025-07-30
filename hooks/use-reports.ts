@@ -8,24 +8,15 @@ import { useAuth } from '@/components/providers/auth-provider'
 import { useApiMutation, useApiQuery } from './use-api-query'
 import useReportStore from '@/store/report-store'
 import type { ApiResult, ProjectApiError  } from '@/lib/api'
-
-// User-specific query keys
-const QUERY_KEYS = {
-  reports: (userId?: string) => ['reports', userId] as const,
-  myReports: (userId: string, page: number, limit: number) => ['reports', 'my', userId, page, limit] as const,
-  reportById: (userId: string, id: string) => ['reports', 'by-id', userId, id] as const,
-  reportByWeek: (userId: string, weekNumber: number, year: number) => ['reports', 'by-week', userId, weekNumber, year] as const,
-  currentWeek: (userId: string) => ['reports', 'current-week', userId] as const,
-  statistics: (userId?: string) => ['statistics', userId] as const,
-  dashboardData: (userId: string) => ['statistics', 'dashboard-combined', userId] as const,
-}
+import { QUERY_KEYS, INVALIDATION_PATTERNS } from './query-key'
+import { hierarchyStoreActions } from '@/store/hierarchy-store'
 
 // Clear user caches
 export const clearUserCaches = (queryClient: any, userId?: string) => {
   if (userId) {
-    queryClient.removeQueries({ queryKey: QUERY_KEYS.reports(userId) })
-    queryClient.removeQueries({ queryKey: QUERY_KEYS.statistics(userId) })
-    queryClient.removeQueries({ queryKey: QUERY_KEYS.dashboardData(userId) })
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.reports.all(userId) })
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.statistics.user(userId) })
+    queryClient.removeQueries({ queryKey: QUERY_KEYS.statistics.dashboardCombined(userId) })
   } else {
     queryClient.clear()
   }
@@ -42,7 +33,7 @@ export function useMyReports(page = 1, limit = 10) {
   const { user } = useAuth()
   
   return useApiQuery({
-    queryKey: QUERY_KEYS.myReports(user?.id || 'anonymous', page, limit),
+    queryKey: QUERY_KEYS.reports.myReports(user?.id || 'anonymous', page, limit),
     queryFn: () => ReportService.getMyReports({ page, limit } as PaginationParams),
     enabled: !!user?.id,
     cacheStrategy: 'fresh',
@@ -54,7 +45,7 @@ export function useReportById(id?: string) {
   const { user } = useAuth()
   
   return useApiQuery<WeeklyReport, Error>({
-    queryKey: QUERY_KEYS.reportById(user?.id || 'anonymous', id!),
+    queryKey: QUERY_KEYS.reports.reportById(user?.id || 'anonymous', id!),
     queryFn: () => ReportService.getReportById(id!),
     enabled: !!id && !!user?.id,
     cacheStrategy: 'normal',
@@ -67,7 +58,7 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
   const { setCachedReport, getCachedReport, syncReportToStore, clearTasks } = useReportStore()
   
   return useApiQuery<WeeklyReport | null, Error>({
-    queryKey: QUERY_KEYS.reportByWeek(user?.id || 'anonymous', weekNumber!, year!),
+    queryKey: QUERY_KEYS.reports.reportByWeek(user?.id || 'anonymous', weekNumber!, year!),
     queryFn: async (): Promise<ApiResult<WeeklyReport | null>> => {
       // Check store cache first
       const cacheKey = `${weekNumber}-${year}`
@@ -144,7 +135,7 @@ export function useCurrentWeekReport() {
   const { user } = useAuth()
   
   return useApiQuery<WeeklyReport | null, Error>({
-    queryKey: QUERY_KEYS.currentWeek(user?.id || 'anonymous'),
+    queryKey: QUERY_KEYS.reports.currentWeek(user?.id || 'anonymous'),
     queryFn: () => ReportService.getCurrentWeekReport(),
     enabled: !!user?.id,
     cacheStrategy: 'fresh',
@@ -162,7 +153,7 @@ export function useCreateWeeklyReport() {
     mutationFn: (data: CreateWeeklyReportDto) => ReportService.createWeeklyReport(data),
     enableOptimistic: true,
     optimisticUpdate: {
-      queryKey: QUERY_KEYS.myReports(user?.id || 'anonymous', 1, 10),
+      queryKey: QUERY_KEYS.reports.myReports(user?.id || 'anonymous', 1, 10),
       updater: (old: any, variables) => {
         const optimisticReport = {
           id: `temp-${Date.now()}`,
@@ -186,29 +177,29 @@ export function useCreateWeeklyReport() {
       // ✅ ENHANCED: Update store with the ACTUAL response data
       const cacheKey = `${newReport.weekNumber}-${newReport.year}`
       setCachedReport(cacheKey, newReport)
-      syncReportToStore(newReport) // Sync with actual server response
+      syncReportToStore(newReport)
       
       // Update React Query cache
       queryClient.setQueryData(
-        QUERY_KEYS.reportByWeek(user.id, newReport.weekNumber, newReport.year),
+        QUERY_KEYS.reports.reportByWeek(user.id, newReport.weekNumber, newReport.year),
         newReport
       )
       
       // Invalidate related queries
       setTimeout(() => {
         queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.reports(user.id),
+          queryKey: QUERY_KEYS.reports.all(user.id),
           exact: false,
           refetchType: 'active'
         })
         
         queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.currentWeek(user.id),
+          queryKey: QUERY_KEYS.reports.currentWeek(user.id),
           refetchType: 'active'
         })
 
         queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.statistics(user.id),
+          queryKey: QUERY_KEYS.statistics.user(user.id),
           exact: false,
           refetchType: 'active'
         })
@@ -248,25 +239,25 @@ export function useUpdateReport() {
       // ✅ ENHANCED: Update store with the ACTUAL response data
       const cacheKey = `${updatedReport.weekNumber}-${updatedReport.year}`
       setCachedReport(cacheKey, updatedReport)
-      syncReportToStore(updatedReport) // Sync with actual server response
+      syncReportToStore(updatedReport)
       
       // Update React Query cache
-      queryClient.setQueryData(QUERY_KEYS.reportById(user.id, variables.id), updatedReport)
+      queryClient.setQueryData(QUERY_KEYS.reports.reportById(user.id, variables.id), updatedReport)
       queryClient.setQueryData(
-        QUERY_KEYS.reportByWeek(user.id, updatedReport.weekNumber, updatedReport.year),
+        QUERY_KEYS.reports.reportByWeek(user.id, updatedReport.weekNumber, updatedReport.year),
         updatedReport
       )
       
       // Invalidate related queries
       setTimeout(() => {
         queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.reports(user.id),
+          queryKey: QUERY_KEYS.reports.all(user.id),
           exact: false,
           refetchType: 'active'
         })
 
         queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.statistics(user.id),
+          queryKey: QUERY_KEYS.statistics.user(user.id),
           exact: false,
           refetchType: 'active'
         })
@@ -300,7 +291,7 @@ export function useDeleteReport() {
       
       // Get the report data before deletion for cleanup
       const reportQuery = queryClient.getQueriesData({ 
-        queryKey: QUERY_KEYS.reports(user.id) 
+        queryKey: QUERY_KEYS.reports.all(user.id) 
       })
       
       // Find the report to be deleted
@@ -335,10 +326,10 @@ export function useDeleteReport() {
         
         // Clear React Query cache immediately
         queryClient.removeQueries({ 
-          queryKey: QUERY_KEYS.reportByWeek(user.id, reportToDelete.weekNumber, reportToDelete.year) 
+          queryKey: QUERY_KEYS.reports.reportByWeek(user.id, reportToDelete.weekNumber, reportToDelete.year) 
         })
         queryClient.removeQueries({ 
-          queryKey: QUERY_KEYS.reportById(user.id, reportId) 
+          queryKey: QUERY_KEYS.reports.reportById(user.id, reportId) 
         })
       }
       
@@ -361,31 +352,31 @@ export function useDeleteReport() {
       removeCachedReport(deletedId)
       
       // Remove from React Query cache completely
-      queryClient.removeQueries({ queryKey: QUERY_KEYS.reportById(user.id, deletedId) })
-      
+      queryClient.removeQueries({ queryKey: QUERY_KEYS.reports.reportById(user.id, deletedId) })
+
       // If we have the report data, also clear week-specific cache
       if (context?.reportToDelete) {
         const { weekNumber, year } = context.reportToDelete
         queryClient.removeQueries({ 
-          queryKey: QUERY_KEYS.reportByWeek(user.id, weekNumber, year) 
+          queryKey: QUERY_KEYS.reports.reportByWeek(user.id, weekNumber, year) 
         })
         console.log('✅ Cleared week-specific cache for:', weekNumber, year)
       }
       
       // Force immediate invalidation of related queries
       queryClient.invalidateQueries({ 
-        queryKey: QUERY_KEYS.reports(user.id),
+        queryKey: QUERY_KEYS.reports.all(user.id),
         exact: false,
-        refetchType: 'all' // Force active refetch
+        refetchType: 'all'
       })
       
       queryClient.invalidateQueries({ 
-        queryKey: QUERY_KEYS.currentWeek(user.id),
+        queryKey: QUERY_KEYS.reports.currentWeek(user.id),
         refetchType: 'all'
       })
 
       queryClient.invalidateQueries({ 
-        queryKey: QUERY_KEYS.statistics(user.id),
+        queryKey: QUERY_KEYS.statistics.user(user.id),
         exact: false,
         refetchType: 'all'
       })
@@ -412,20 +403,22 @@ export function useApproveTask() {
     onSuccess: (result, taskId) => {
       if (!user?.id) return
       
-      // Invalidate related queries
+      // ✅ TARGETED: Use invalidation patterns for consistency
       setTimeout(() => {
         queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.reports(user.id),
+          queryKey: INVALIDATION_PATTERNS.adminOverview.all(),
           exact: false,
-          refetchType: 'active'
+          refetchType: 'all'
         })
         
         queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.statistics(user.id),
+          queryKey: INVALIDATION_PATTERNS.reports.userSpecific(user.id),
           exact: false,
-          refetchType: 'active'
+          refetchType: 'all'
         })
-      }, 100)
+        
+        hierarchyStoreActions.forceRefresh()
+      }, 50)
       
       toast.success('Task approved successfully!')
     },
@@ -449,20 +442,22 @@ export function useRejectTask() {
     onSuccess: (result, taskId) => {
       if (!user?.id) return
       
-      // Invalidate related queries
+      // ✅ TARGETED: Use invalidation patterns for consistency
       setTimeout(() => {
         queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.reports(user.id),
+          queryKey: INVALIDATION_PATTERNS.adminOverview.all(),
           exact: false,
-          refetchType: 'active'
+          refetchType: 'all'
         })
         
         queryClient.invalidateQueries({ 
-          queryKey: QUERY_KEYS.statistics(user.id),
+          queryKey: INVALIDATION_PATTERNS.reports.userSpecific(user.id),
           exact: false,
-          refetchType: 'active'
+          refetchType: 'all'
         })
-      }, 100)
+        
+        hierarchyStoreActions.forceRefresh()
+      }, 50)
       
       toast.success('Task rejected successfully!')
     },

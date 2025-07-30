@@ -7,23 +7,28 @@ import { Check, X, Download } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { type WeeklyReport, type TaskEvaluation, EvaluationType, type Task } from "@/types"
 import { getWorkWeekRange } from "@/utils/week-utils"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
   useCreateTaskEvaluation,
   useUpdateTaskEvaluation,
   useDeleteTaskEvaluation,
 } from "@/hooks/use-task-evaluation"
+import { AnimatedButton } from "../ui/animated-button"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useApproveTask, useRejectTask } from "@/hooks/use-reports"
 import { toast } from "react-toast-kit"
 import { useQueryClient } from "@tanstack/react-query"
 import { ConvertEvaluationTypeToVietNamese, exportToExcel } from "@/utils"
 import { Badge } from "../ui/badge"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
+import { Textarea } from "../ui/textarea"
+import { useForm } from "react-hook-form"
+import { zodResolver } from "@hookform/resolvers/zod"
+import { z } from "zod"
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "../ui/form"
 import { QUERY_KEYS } from "@/hooks/query-key"
-import { hierarchyStoreActions } from '@/store/hierarchy-store'
-import { useAdminOverviewStore } from '@/store/admin-overview-store'
-import { EvaluationForm } from '../admin/evaluation-form'
-import { z } from 'zod'
 
+// Validation schema
 const evaluationSchema = z.object({
   evaluatedIsCompleted: z.boolean(),
   evaluatorComment: z.string().optional(),
@@ -158,16 +163,27 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
   const queryClient = useQueryClient()
   const { user: currentUser } = useAuth()
 
-  // ✅ FIXED: Use the ORIGINAL AdminOverviewStore interface
-  const { setEvaluationModal } = useAdminOverviewStore()
+  // State management
+  const [openEvalModal, setOpenEvalModal] = useState(false)
+  const [selectedTask, setSelectedTask] = useState<Task | null>(null)
+  const [editEvaluation, setEditEvaluation] = useState<TaskEvaluation | null>(null)
 
-  // Remove local state for evaluation modal
-  // const [openEvalModal, setOpenEvalModal] = useState(false)
-  // const [selectedTask, setSelectedTask] = useState<Task | null>(null)
-  // const [editEvaluation, setEditEvaluation] = useState<TaskEvaluation | null>(null)
+  // Hooks for mutations
+  const createEval = useCreateTaskEvaluation()
+  const updateEval = useUpdateTaskEvaluation()
+  const deleteEval = useDeleteTaskEvaluation()
+  const approveTask = useApproveTask()
+  const rejectTask = useRejectTask()
 
-  // Remove form setup since it's now in EvaluationForm
-  // const form = useForm<EvaluationFormData>({...})
+  // Form setup
+  const form = useForm<EvaluationFormData>({
+    resolver: zodResolver(evaluationSchema),
+    defaultValues: {
+      evaluatedIsCompleted: true,
+      evaluatorComment: "",
+      evaluationType: EvaluationType.REVIEW,
+    },
+  })
 
   // Memoized calculations
   const { displayInfo } = useMemo(() => getWorkWeekRange(report.weekNumber, report.year), [report.weekNumber, report.year])
@@ -198,25 +214,109 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
     }
   }, [report])
 
-  // ✅ FIXED: Use the correct setEvaluationModal signature
   const handleOpenEval = useCallback((task: Task) => {
+    setSelectedTask(task)
     const myEval = task.evaluations?.find((ev: TaskEvaluation) => ev.evaluatorId === currentUser?.id) || null
-    
-    // Create ManagerReportsEmployee-compatible object for the report user
-    const employeeForModal: ManagerReportsEmployee = {
-      user: user, // Pass the report user
-      stats: {
-        hasReport: true,
-        isCompleted: task.isCompleted,
-        totalTasks: 1,
-        completedTasks: task.isCompleted ? 1 : 0,
-        taskCompletionRate: task.isCompleted ? 100 : 0
+    setEditEvaluation(myEval)
+
+    // Reset form with current evaluation data
+    form.reset({
+      evaluatedIsCompleted: myEval?.evaluatedIsCompleted ?? task.isCompleted,
+      evaluatorComment: myEval?.evaluatorComment ?? "",
+      evaluationType: myEval?.evaluationType ?? EvaluationType.REVIEW,
+    })
+    setOpenEvalModal(true)
+  }, [currentUser?.id, form])
+
+  const handleSubmitEval = useCallback(async (data: EvaluationFormData) => {
+    if (!selectedTask) return
+
+    try {
+      const originalIsCompleted = selectedTask.isCompleted
+
+      if (editEvaluation) {
+        await updateEval.mutateAsync({
+          evaluationId: editEvaluation.id,
+          data,
+        })
+      } else {
+        await createEval.mutateAsync({
+          ...data,
+          taskId: selectedTask.id,
+        })
       }
+
+      // Update task status if manager and status changed
+      if (currentUser?.isManager && data.evaluatedIsCompleted !== originalIsCompleted) {
+        if (data.evaluatedIsCompleted) {
+          await approveTask.mutateAsync(selectedTask.id)
+        } else {
+          await rejectTask.mutateAsync(selectedTask.id)
+        }
+      }
+
+      // Wait for mutations to complete and caches to update
+      await new Promise(resolve => setTimeout(resolve, 300))
+
+      // Force refetch to ensure UI updates
+      await Promise.all([
+        queryClient.invalidateQueries({ 
+          queryKey: QUERY_KEYS.reports.all(user?.id || ''),
+          exact: false,
+          refetchType: 'all'
+        }),
+        queryClient.invalidateQueries({ 
+          queryKey: ['hierarchy'],
+          exact: false,
+          refetchType: 'all'
+        })
+      ])
+
+      setOpenEvalModal(false)
+      toast.success(editEvaluation ? "Đánh giá đã được cập nhật thành công!" : "Đánh giá đã được tạo thành công!")
+    } catch (error) {
+      console.error("Error submitting evaluation:", error)
+      toast.error("Có lỗi xảy ra khi gửi đánh giá. Vui lòng thử lại!")
     }
-    
-    // ✅ FIXED: Use the ORIGINAL setEvaluationModal signature
-    setEvaluationModal(true, employeeForModal, task, myEval)
-  }, [currentUser?.id, user, setEvaluationModal])
+  }, [selectedTask, editEvaluation, updateEval, createEval, currentUser?.isManager, approveTask, rejectTask, queryClient, user])
+
+  const handleDeleteEval = useCallback(async () => {
+    if (!editEvaluation) return
+
+    try {
+      await deleteEval.mutateAsync(editEvaluation.id)
+      
+      await new Promise(resolve => setTimeout(resolve, 300))
+      
+      await Promise.all([
+        queryClient.invalidateQueries({ 
+          queryKey: QUERY_KEYS.reports.all(user?.id || ''),
+          exact: false,
+          refetchType: 'all'
+        }),
+        queryClient.invalidateQueries({ 
+          queryKey: ['hierarchy'],
+          exact: false,
+          refetchType: 'all'
+        })
+      ])
+      
+      setOpenEvalModal(false)
+      toast.success("Đánh giá đã được xóa thành công!")
+    } catch (error) {
+      console.error("Error deleting evaluation:", error)
+      toast.error("Có lỗi xảy ra khi xóa đánh giá. Vui lòng thử lại!")
+    }
+  }, [editEvaluation, deleteEval, queryClient, user])
+
+  const handleCompletionStatusChange = useCallback((value: string) => {
+    const isCompleted = value === "true"
+    form.setValue("evaluatedIsCompleted", isCompleted)
+    form.setValue("evaluationType", isCompleted ? EvaluationType.APPROVAL : EvaluationType.REJECTION)
+    if (isCompleted) {
+      form.setValue("evaluatorComment", "")
+    }
+  }, [form])
 
   return (
     <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden ${className}`}>
@@ -419,8 +519,170 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
         </div>
       </div>
 
-      {/* ✅ REPLACED: Use EvaluationForm component instead of custom dialog */}
-      <EvaluationForm />
+      {/* Evaluation Modal */}
+      <Dialog open={openEvalModal} onOpenChange={setOpenEvalModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] sm:max-h-[70vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-lg font-bold">
+              {editEvaluation ? "Chỉnh sửa đánh giá của bạn" : "Đánh giá công việc"}
+            </DialogTitle>
+            <div className="text-sm text-gray-600 mt-2">
+              <span className="font-medium">Công việc:</span> {selectedTask?.taskName}
+            </div>
+          </DialogHeader>
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Form đánh giá */}
+            <div className="space-y-4">
+              {editEvaluation && (
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-medium text-orange-800">
+                      Đánh giá hiện tại của bạn:
+                    </span>
+                    <EvaluationTypeBadge type={editEvaluation.evaluationType} />
+                  </div>
+                  <div className="space-y-2 text-sm">
+                    {editEvaluation.evaluatorComment && (
+                      <div>
+                        <span className="font-medium">Nhận xét:</span>
+                        <p className="bg-white p-2 rounded mt-1">{editEvaluation.evaluatorComment}</p>
+                      </div>
+                    )}
+                    <div className="text-xs text-gray-500">
+                      Cập nhật: {format(new Date(editEvaluation.updatedAt), "dd/MM/yyyy HH:mm", { locale: vi })}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <Form {...form}>
+                <form onSubmit={form.handleSubmit(handleSubmitEval)} className="space-y-4">
+                  <FormField
+                    control={form.control}
+                    name="evaluatedIsCompleted"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Trạng thái hoàn thành</FormLabel>
+                        <Select
+                          value={field.value ? "true" : "false"}
+                          onValueChange={handleCompletionStatusChange}
+                        >
+                          <FormControl>
+                            <SelectTrigger>
+                              <SelectValue placeholder="Chọn trạng thái hoàn thành" />
+                            </SelectTrigger>
+                          </FormControl>
+                          <SelectContent>
+                            <SelectItem value="true">
+                              <span>Hoàn thành</span>
+                            </SelectItem>
+                            <SelectItem value="false">
+                              <span>Chưa hoàn thành</span>
+                            </SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <FormField
+                    control={form.control}
+                    name="evaluatorComment"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel>Nhận xét của bạn</FormLabel>
+                        <FormControl>
+                          <Textarea
+                            {...field}
+                            rows={3}
+                            placeholder="Nhập nhận xét, góp ý hoặc đánh giá chi tiết..."
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+
+                  <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <Button variant="outline" type="button" onClick={() => setOpenEvalModal(false)}>
+                      Hủy
+                    </Button>
+                    {editEvaluation && (
+                      <Button variant="destructive" type="button" onClick={handleDeleteEval} disabled={deleteEval.isPending}>
+                        Xóa đánh giá
+                      </Button>
+                    )}
+                    <AnimatedButton
+                      type="submit"
+                      loading={createEval.isPending || updateEval.isPending}
+                      className="bg-blue-600 hover:bg-blue-700"
+                    >
+                      {editEvaluation ? "Cập nhật đánh giá" : "Gửi đánh giá"}
+                    </AnimatedButton>
+                  </div>
+                </form>
+              </Form>
+            </div>
+
+            {/* Danh sách đánh giá khác để tham khảo */}
+            <div className="space-y-4">
+              <h3 className="font-semibold text-gray-900 border-b pb-2">
+                {`Đánh giá khác để tham khảo (${selectedTask?.evaluations?.filter((ev) => ev.evaluatorId !== currentUser?.id).length || 0})`}
+              </h3>
+
+              <div className="max-h-96 overflow-y-auto space-y-3">
+                {selectedTask?.evaluations && selectedTask.evaluations.length > 0 ? (
+                  selectedTask.evaluations
+                    .filter((evalItem) => evalItem.evaluatorId !== currentUser?.id)
+                    .map((evalItem) => (
+                      <div key={evalItem.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold text-blue-600">
+                              {evalItem.evaluator?.firstName} {evalItem.evaluator?.lastName}
+                            </span>
+                            <span className="text-gray-400 text-sm">({evalItem.evaluator?.jobPosition?.position?.description})</span>
+                          </div>
+                          <EvaluationTypeBadge type={evalItem.evaluationType} />
+                        </div>
+
+                        <div className="space-y-2">
+                          {evalItem.evaluatedReasonNotDone && (
+                            <div>
+                              <span className="font-medium text-gray-600 text-sm">Nguyên nhân/Giải pháp:</span>
+                              <p className="text-gray-800 text-sm bg-white p-2 rounded mt-1">
+                                {evalItem.evaluatedReasonNotDone}
+                              </p>
+                            </div>
+                          )}
+
+                          {evalItem.evaluatorComment && (
+                            <div>
+                              <span className="font-medium text-gray-600 text-sm">Nhận xét:</span>
+                              <p className="text-gray-800 text-sm bg-white p-2 rounded mt-1">
+                                {evalItem.evaluatorComment}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="text-xs text-gray-400 pt-1 border-t">
+                            {format(new Date(evalItem.updatedAt), "dd/MM/yyyy HH:mm", { locale: vi })}
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                ) : (
+                  <div className="text-center py-8 text-gray-400">
+                    <p>Chưa có đánh giá nào khác để tham khảo</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Summary Section */}
       <div className="p-4 sm:p-6 bg-gradient-to-r from-yellow-50 to-orange-50 dark:from-yellow-900/20 dark:to-orange-900/20">

@@ -97,12 +97,13 @@ const useHierarchyStore = create<HierarchyState>()(
       },
 
       forceRefresh: () => {
-        console.log('🔄 HierarchyStore: Force refresh triggered')
+        console.log('🔄 HierarchyStore: Force refresh triggered - CLEARING ALL DATA')
         set({
           lastRefreshTimestamp: Date.now(),
           isRefreshing: true,
-          // ✅ NEW: Clear existing data to force refetch
+          // ✅ CRITICAL: Clear existing data to force complete refetch
           hierarchyData: null,
+          currentFilters: null, // ✅ Also clear filters to force fresh fetch
         })
       },
 
@@ -115,22 +116,15 @@ const useHierarchyStore = create<HierarchyState>()(
       shouldRefetch: (userId: string, filters: any) => {
         const state = get()
         
-        // Always refetch if no data
+        // ✅ ALWAYS refetch if data was cleared by forceRefresh
         if (!state.hierarchyData) {
-          console.log('✅ shouldRefetch: No data, refetching')
+          console.log('✅ shouldRefetch: No data (possibly cleared), refetching')
           return true
         }
         
         // Refetch if user changed
         if (state.currentUserId !== userId) {
           console.log('✅ shouldRefetch: User changed, refetching')
-          return true
-        }
-        
-        // ✅ ENHANCED: Allow refetch if force refresh was triggered recently (within 10 seconds)
-        const timeSinceRefresh = Date.now() - state.lastRefreshTimestamp
-        if (state.lastRefreshTimestamp > 0 && timeSinceRefresh < 10000) {
-          console.log('✅ shouldRefetch: Recent force refresh, allowing refetch:', timeSinceRefresh, 'ms')
           return true
         }
         
@@ -143,13 +137,8 @@ const useHierarchyStore = create<HierarchyState>()(
           return true
         }
         
-        // ✅ ENHANCED: Only prevent rapid successive calls (within 500ms)
-        if (timeSinceRefresh < 500 && state.hierarchyData && state.lastRefreshTimestamp > 0) {
-          console.log('🚫 shouldRefetch: Too rapid successive call, skipping:', timeSinceRefresh, 'ms')
-          return false
-        }
-        
-        console.log('🚫 shouldRefetch: No conditions met, skipping refetch')
+        // ✅ CRITICAL: Don't always return true - this causes infinite loop
+        console.log('✅ shouldRefetch: Data exists and filters match, no need to refetch')
         return false
       }
     }),

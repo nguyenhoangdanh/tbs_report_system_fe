@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useMemo,  useCallback } from "react"
+import React, { useState, useMemo, useCallback } from "react"
 import { useManagerReports } from "@/hooks/use-hierarchy"
 import { useAdminOverviewFilters } from '@/hooks/use-hierarchy'
 import { useAuth } from "@/components/providers/auth-provider"
@@ -26,7 +26,7 @@ import {
   Crown,
   BarChart3,
 } from "lucide-react"
-import {  EvaluationType} from "@/types"
+import { EvaluationType } from "@/types"
 import { Suspense } from "react"
 import { Input } from "@/components/ui/input"
 import { Form, FormControl, FormField as ReactHookFormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
@@ -34,6 +34,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Switch } from "@/components/ui/switch"
 import { AdminOverviewHeader } from "@/components/hierarchy/admin-overview-header"
 import { toast } from "react-toast-kit"
+import { QUERY_KEYS } from "@/hooks/query-key"
+import { useQueryClient } from "@tanstack/react-query"
+import { hierarchyStoreActions } from "@/store/hierarchy-store"
 
 // REWRITE: Transform ManagerReports data để tương thích với PositionCard
 function transformManagerReportsToPositionCardFormat(overview: any) {
@@ -270,13 +273,13 @@ function transformManagerReportsToPositionCardFormat(overview: any) {
 function groupPositionsForOverview(positionCards: any[]) {
   const managementGroups = new Map<string, any[]>()
   const jobPositionGroups = new Map<string, any[]>()
-  
+
   positionCards.forEach((card) => {
-    const isManagement = card.position?.isManagement || 
+    const isManagement = card.position?.isManagement ||
       card.position?.name?.toLowerCase().includes("trưởng") ||
       card.position?.name?.toLowerCase().includes("giám đốc") ||
       card.position?.name?.toLowerCase().includes("phó")
-    
+
     if (isManagement) {
       const key = card.position?.name || 'Vị trí quản lý'
       if (!managementGroups.has(key)) {
@@ -291,7 +294,7 @@ function groupPositionsForOverview(positionCards: any[]) {
       jobPositionGroups.get(key)!.push(card)
     }
   })
-  
+
   return {
     managementTabs: Array.from(managementGroups.entries()).map(([key, cards], index) => ({
       id: `mgmt-${index}-${key.toLowerCase().replace(/\s+/g, "-")}`,
@@ -324,7 +327,8 @@ function transformManagerReportsSummaryForCards(summary: any): any {
 
 function AdminOverview() {
   const { user: currentUser } = useAuth()
-  
+  const queryClient = useQueryClient()
+
   // Replace useCurrentWeekFilters with useAdminOverviewFilters
   const { filters, apiFilters, filterDisplayText, handleFiltersChange } = useAdminOverviewFilters()
 
@@ -336,7 +340,7 @@ function AdminOverview() {
     search,
     setSearch,
     openEvalModal,
-    setEvaluationModal,
+    closeEvaluationModal,
   } = useAdminOverviewStore()
 
   // STABLE filters với enhanced filters
@@ -344,27 +348,77 @@ function AdminOverview() {
     ...apiFilters,
     userId: currentUser?.id
   }), [apiFilters.weekNumber, apiFilters.month, apiFilters.year, currentUser?.id])
-  
-  // STABLE query với memoized filters
+
+  // STABLE query với memoized filters và ENHANCED dependency tracking
   const { data: overview, isLoading, error, refetch } = useManagerReports(stableFilters)
 
-  // Enhanced refetch with filters
+  // ✅ DEBUG: Add logging to track data changes và broadcast effects
+  React.useEffect(() => {
+    console.log('📊 AdminOverview: Data changed', {
+      hasData: !!overview,
+      dataTimestamp: Date.now(),
+      groupedReportsCount: overview?.groupedReports?.length || 0,
+      filters: stableFilters
+    })
+  }, [overview, stableFilters])
+
+  // ✅ REMOVE manual broadcast listener - let hook handle it
+  // React.useEffect(() => {
+  //   const handleEvaluationBroadcast = (e: StorageEvent) => {
+  //     if (e.key === 'evaluation-broadcast' && e.newValue) {
+  //       try {
+  //         const broadcastData = JSON.parse(e.newValue)
+  //         if (broadcastData.type === 'evaluation-change') {
+  //           console.log('🔄 AdminOverview: Received evaluation broadcast, manual refetch')
+  //           setTimeout(() => {
+  //             refetch()
+  //           }, 800)
+  //         }
+  //       } catch (e) {
+  //         console.warn('Invalid evaluation broadcast data:', e)
+  //       }
+  //     }
+  //   }
+    
+  //   window.addEventListener('storage', handleEvaluationBroadcast)
+  //   return () => window.removeEventListener('storage', handleEvaluationBroadcast)
+  // }, [refetch])
+
+  // ✅ ENHANCED: Enhanced refetch with comprehensive cache invalidation
   const handleFiltersChangeWithRefetch = useCallback(
     (newFilters: any) => {
       handleFiltersChange(newFilters)
+
+      // ✅ ENHANCED: Force immediate invalidation before refetch
       setTimeout(() => {
+        console.log('🔄 AdminOverview: Manual refetch triggered')
+        queryClient.invalidateQueries({
+          queryKey: ['hierarchy'],
+          exact: false,
+          refetchType: 'all'
+        })
         refetch()
       }, 100)
     },
-    [handleFiltersChange, refetch],
+    [handleFiltersChange, refetch, queryClient],
   )
 
   const handleRefresh = useCallback(() => {
+    // ✅ ENHANCED: Force comprehensive refresh
+    console.log('🔄 AdminOverview: Manual refresh triggered')
+    hierarchyStoreActions.forceRefresh()
+
+    queryClient.invalidateQueries({
+      queryKey: ['hierarchy'],
+      exact: false,
+      refetchType: 'all'
+    })
+
     refetch()
     setTimeout(() => {
       toast.success("Đã làm mới dữ liệu!")
     }, 1000)
-  }, [refetch])
+  }, [refetch, queryClient])
 
   // Evaluation form hook với react-hook-form + zod
   const {
@@ -398,13 +452,13 @@ function AdminOverview() {
       positions?: any[]
       isManagement?: boolean
     }> = [
-      {
-        id: "overview",
-        label: "Tổng quan",
-        icon: BarChart3,
-        show: true,
-      },
-    ]
+        {
+          id: "overview",
+          label: "Tổng quan",
+          icon: BarChart3,
+          show: true,
+        },
+      ]
 
     // Add management tabs
     managementTabs.forEach(tab => {
@@ -454,14 +508,14 @@ function AdminOverview() {
   // Filter by search
   const filteredManagementTabs = useMemo(() => {
     if (!search) return managementTabs
-    return managementTabs.filter(tab => 
+    return managementTabs.filter(tab =>
       tab.label.toLowerCase().includes(search.toLowerCase())
     )
   }, [managementTabs, search])
 
   const filteredJobPositionTabs = useMemo(() => {
     if (!search) return jobPositionTabs
-    return jobPositionTabs.filter(tab => 
+    return jobPositionTabs.filter(tab =>
       tab.label.toLowerCase().includes(search.toLowerCase())
     )
   }, [jobPositionTabs, search])
@@ -525,7 +579,7 @@ function AdminOverview() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Week badge - mobile friendly */}
               <div className="flex justify-end sm:justify-start">
                 <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-1">
@@ -560,7 +614,7 @@ function AdminOverview() {
               </Button>
             </div>
           )}
-          
+
           {effectiveActiveTab === "overview" && (
             <div className="flex flex-col gap-3 sm:gap-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -569,7 +623,7 @@ function AdminOverview() {
                   <span className="hidden sm:inline">Tổng quan theo vị trí</span>
                   <span className="sm:hidden">Tổng quan</span>
                 </CardTitle>
-                
+
                 {/* Mobile: Full width search */}
                 <div className="w-full sm:w-auto sm:max-w-xs">
                   <Input
@@ -584,7 +638,7 @@ function AdminOverview() {
             </div>
           )}
         </CardHeader>
-        
+
         <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6">
           {effectiveActiveTab === "overview" ? (
             <div className="space-y-4 sm:space-y-6">
@@ -600,7 +654,7 @@ function AdminOverview() {
                       {managementTabs.length}
                     </Badge>
                   </div>
-                  
+
                   {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                     {filteredManagementTabs.map((tab) => (
@@ -632,7 +686,7 @@ function AdminOverview() {
                       {jobPositionTabs.length}
                     </Badge>
                   </div>
-                  
+
                   {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
                     {filteredJobPositionTabs.map((tab) => (
@@ -660,7 +714,7 @@ function AdminOverview() {
                     {search ? "Không tìm thấy" : "Không có dữ liệu"}
                   </h3>
                   <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
-                    {search 
+                    {search
                       ? `Không tìm thấy vị trí phù hợp với "${search}"`
                       : "Không có dữ liệu với bộ lọc hiện tại"
                     }
@@ -686,7 +740,7 @@ function AdminOverview() {
       </Card>
 
       {/* Evaluation Modal - Mobile optimized */}
-      <Dialog open={openEvalModal} onOpenChange={(open) => setEvaluationModal(open)}>
+      <Dialog open={openEvalModal} onOpenChange={closeEvaluationModal}>
         <DialogContent className="w-[95vw] max-w-2xl max-h-[85vh] overflow-y-auto mx-auto">
           <DialogHeader className="pb-3">
             <DialogTitle className="flex items-center gap-2 text-base sm:text-lg">
@@ -825,19 +879,20 @@ function AdminOverview() {
 
               {/* Mobile optimized button layout */}
               <div className="flex flex-col sm:flex-row justify-end gap-2 sm:gap-3 pt-3 sm:pt-4 border-t border-gray-200 dark:border-gray-700">
-                <Button 
-                  variant="outline" 
-                  type="button" 
-                  onClick={() => setEvaluationModal(false)}
+                <Button
+                  variant="outline"
+                  type="button"
+                  // onClick={() => setEvaluationModal(false)}
+                  onClick={closeEvaluationModal}
                   className="order-3 sm:order-1 text-sm py-2"
                 >
                   Hủy
                 </Button>
                 {editEvaluation && (
-                  <Button 
-                    variant="destructive" 
+                  <Button
+                    variant="destructive"
                     type="button"
-                    onClick={handleDeleteEvaluation} 
+                    onClick={handleDeleteEvaluation}
                     disabled={isSubmittingEvaluation}
                     className="order-2 text-sm py-2"
                   >
@@ -863,8 +918,8 @@ function AdminOverview() {
 export default function AdminOverviewPage() {
   return (
     <MainLayout
-      // showBreadcrumb
-      // breadcrumbItems={[{ label: "Trang chủ", href: "/dashboard" }, { label: "Quản lý người dùng" }]}
+    // showBreadcrumb
+    // breadcrumbItems={[{ label: "Trang chủ", href: "/dashboard" }, { label: "Quản lý người dùng" }]}
     >
       <Suspense
         fallback={
@@ -881,4 +936,3 @@ export default function AdminOverviewPage() {
     </MainLayout>
   )
 }
-       

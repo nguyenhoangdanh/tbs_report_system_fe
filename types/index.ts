@@ -47,12 +47,15 @@ export interface User {
     id: string
     jobName: string
     positionName: string
+    description?: string
     department: {
       id: string
       name: string
+      description?: string
       office: {
         id: string
         name: string
+        description: string
       }
     }
     position: {

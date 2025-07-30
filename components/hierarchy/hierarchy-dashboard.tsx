@@ -206,7 +206,7 @@ const HierarchyDashboard = memo(() => {
     data: hierarchyData,
     isLoading: hierarchyLoading,
     error: hierarchyError,
-    refetch: refetchHierarchy,
+    refetch: refetchHierarchy, // ✅ NOW: This will work with the fixed hook
   } = useMyHierarchyView(apiFilters)
 
   const handleFiltersChangeWithRefetch = useCallback(
