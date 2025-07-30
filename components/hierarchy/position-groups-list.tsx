@@ -94,8 +94,6 @@ export const PositionGroupsList = memo(
       )
     }
 
-    console.log("Rendering PositionGroupsList with positions:", positions)
-
     return (
       <motion.div className="space-y-4" variants={containerVariants} initial="initial" animate="animate">
         {positions.map((position, index) => (

@@ -77,10 +77,8 @@ function ReportsPage() {
   // Sync user to store when user changes
   useEffect(() => {
     if (user?.id) {
-      console.log('👤 Setting current user in store:', user.id)
       setCurrentUser(user.id)
     } else {
-      console.log('👤 Clearing user from store')
       setCurrentUser(null)
     }
   }, [user?.id, setCurrentUser])
@@ -88,7 +86,6 @@ function ReportsPage() {
   // Clear store state when user logs out
   useEffect(() => {
     if (!isAuthenticated && !authLoading) {
-      console.log('🚪 User logged out, clearing store state')
       clearUserSpecificState()
     }
   }, [isAuthenticated, authLoading, clearUserSpecificState])
@@ -188,10 +185,8 @@ function ReportsPage() {
 
     if (viewMode === 'form') {
       if (weekReport?.id) {
-        console.log('📄 Setting selected report from week data:', weekReport.id)
         setSelectedReport(weekReport)
       } else {
-        console.log('📄 No week report found, clearing selected report')
         setSelectedReport(null)
       }
     }
@@ -224,10 +219,8 @@ function ReportsPage() {
     }
     
     setIsOperationLoading(true)
-    console.log('🗓️ Week changed by user:', user.id, `${newWeekNumber}/${newYear}`)
     
     // STEP 1: Complete state cleanup
-    console.log('🗓️ Step 1: Complete state cleanup for week change')
     setSelectedReport(null)
     syncReportToStore(null)
     clearTasks()
@@ -235,21 +228,11 @@ function ReportsPage() {
     setCurrentYear(newYear)
     
     // STEP 2: Clear cache for new week
-    console.log('🗓️ Step 2: Clear cache for new week')
     clearCacheForWeek(newWeekNumber, newYear)
     navigateToWeek(newWeekNumber, newYear, true)
     
     // STEP 3: Force refetch and verify state
     setTimeout(() => {
-      console.log('🗓️ Step 3: Force refetch and verify state')
-      const storeState = useReportStore.getState()
-      console.log('Week change - Current store state:', {
-        selectedReport: storeState.selectedReport?.id,
-        tasksCount: storeState.currentTasks.length,
-        weekNumber: storeState.currentWeekNumber,
-        year: storeState.currentYear
-      })
-      
       refetchReports()
       setIsOperationLoading(false)
     }, 300)
@@ -337,8 +320,6 @@ function ReportsPage() {
       throw new Error('Vui lòng đăng nhập để tạo báo cáo');
     }
 
-    console.log('💾 Creating/updating report for user:', user.id)
-
     // CRITICAL: Validate week for creation
     if (!selectedReport) {
       const weekValidation = isValidWeekForCreation(
@@ -412,9 +393,6 @@ function ReportsPage() {
         result = await createReportMutation.mutateAsync(createData);
       }
 
-      // ✅ FIXED: Only clear state AFTER successful API response
-      console.log('✅ Save successful, now clearing state and navigating')
-      
       // Wait for mutations to complete and caches to update
       await new Promise(resolve => setTimeout(resolve, 300))
 
@@ -471,7 +449,6 @@ function ReportsPage() {
       const reportToDelete = reports.find(r => r.id === reportId)
       
       // STEP 1: Clear ALL state immediately BEFORE deletion
-      console.log('🗑️ Step 1: Pre-delete state cleanup for report:', reportId)
       setSelectedReport(null)
       syncReportToStore(null)
       clearTasks()
@@ -489,18 +466,15 @@ function ReportsPage() {
       }
 
       // STEP 2: Perform deletion
-      console.log('🗑️ Step 2: Performing deletion')
       await deleteReportMutation.mutateAsync(reportId)
       
       // STEP 3: Additional cleanup after deletion
-      console.log('🗑️ Step 3: Post-delete cleanup')
       if (selectedReport?.id === reportId) {
         setSelectedReport(null)
         setViewMode('list')
       }
       
       // STEP 4: Force clear Zustand store state
-      console.log('🗑️ Step 4: Force clearing Zustand state')
       syncReportToStore(null)
       clearTasks()
       
@@ -508,7 +482,6 @@ function ReportsPage() {
       await new Promise(resolve => setTimeout(resolve, 500))
       
       // STEP 6: Force refetch to ensure fresh data
-      console.log('🗑️ Step 6: Force refetching data')
       await Promise.all([
         refetchReports(),
         refetchCurrentWeek()
@@ -540,10 +513,8 @@ function ReportsPage() {
     }
     
     setIsOperationLoading(true)
-    console.log('➕ Creating new report for user:', user.id)
     
     // STEP 1: Complete state reset
-    console.log('➕ Step 1: Complete state reset')
     setSelectedReport(null)
     syncReportToStore(null)
     clearTasks()
@@ -553,19 +524,11 @@ function ReportsPage() {
     setCurrentYear(current.year)
     
     // STEP 2: Clear cache for target week
-    console.log('➕ Step 2: Clear cache for week:', current.weekNumber, current.year)
     clearCacheForWeek(current.weekNumber, current.year)
     navigateToWeek(current.weekNumber, current.year, true)
     
     // STEP 3: Ensure state is completely clean
     setTimeout(() => {
-      console.log('➕ Step 3: Final state verification')
-      const storeState = useReportStore.getState()
-      console.log('Current store state:', {
-        selectedReport: storeState.selectedReport?.id,
-        tasksCount: storeState.currentTasks.length
-      })
-      
       setViewMode('form')
       setIsOperationLoading(false)
     }, 200)
@@ -579,10 +542,8 @@ function ReportsPage() {
     }
     
     setIsOperationLoading(true)
-    console.log(`➕ Creating ${weekType} week report for user:`, user.id, `${weekNumber}/${year}`)
     
     // STEP 1: Complete state reset
-    console.log('➕ Step 1: Complete state reset for week creation')
     setSelectedReport(null)
     syncReportToStore(null)
     clearTasks()
@@ -590,21 +551,11 @@ function ReportsPage() {
     setCurrentYear(year)
     
     // STEP 2: Clear cache for target week
-    console.log('➕ Step 2: Clear cache for week:', weekNumber, year)
     clearCacheForWeek(weekNumber, year)
     navigateToWeek(weekNumber, year, true)
     
     // STEP 3: Ensure state is completely clean
     setTimeout(() => {
-      console.log('➕ Step 3: Final state verification for week creation')
-      const storeState = useReportStore.getState()
-      console.log('Current store state:', {
-        selectedReport: storeState.selectedReport?.id,
-        tasksCount: storeState.currentTasks.length,
-        weekNumber: storeState.currentWeekNumber,
-        year: storeState.currentYear
-      })
-      
       setViewMode('form')
       setIsOperationLoading(false)
     }, 200)

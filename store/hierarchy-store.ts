@@ -54,7 +54,6 @@ const useHierarchyStore = create<HierarchyState>()(
         
         // Clear data when user changes
         if (state.currentUserId !== userId) {
-          console.log('🔄 HierarchyStore: User changed, clearing data')
           set({
             currentUserId: userId,
             hierarchyData: null,
@@ -76,8 +75,6 @@ const useHierarchyStore = create<HierarchyState>()(
           return
         }
         
-        console.log('📊 HierarchyStore: Setting hierarchy data for user:', state.currentUserId)
-        
         set({
           hierarchyData: data,
           currentFilters: filters || state.currentFilters,
@@ -87,7 +84,6 @@ const useHierarchyStore = create<HierarchyState>()(
       },
 
       clearHierarchyData: () => {
-        console.log('🧹 HierarchyStore: Clearing hierarchy data')
         set({
           hierarchyData: null,
           currentFilters: null,
@@ -107,7 +103,6 @@ const useHierarchyStore = create<HierarchyState>()(
       },
 
       setRefreshing: (refreshing: boolean) => {
-        console.log('🔄 HierarchyStore: Setting refreshing state:', refreshing)
         set({ isRefreshing: refreshing })
       },
 
@@ -117,13 +112,11 @@ const useHierarchyStore = create<HierarchyState>()(
         
         // ✅ ALWAYS refetch if data was cleared by forceRefresh
         if (!state.hierarchyData) {
-          console.log('✅ shouldRefetch: No data (possibly cleared), refetching')
           return true
         }
         
         // Refetch if user changed
         if (state.currentUserId !== userId) {
-          console.log('✅ shouldRefetch: User changed, refetching')
           return true
         }
         
@@ -132,12 +125,9 @@ const useHierarchyStore = create<HierarchyState>()(
             state.currentFilters.weekNumber !== filters?.weekNumber ||
             state.currentFilters.year !== filters?.year ||
             state.currentFilters.month !== filters?.month) {
-          console.log('✅ shouldRefetch: Filters changed, refetching')
           return true
         }
         
-        // ✅ CRITICAL: Don't always return true - this causes infinite loop
-        console.log('✅ shouldRefetch: Data exists and filters match, no need to refetch')
         return false
       }
     }),

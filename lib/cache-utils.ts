@@ -51,7 +51,7 @@ export class CacheUtils {
       this.queryClient.invalidateQueries({ queryKey: ['reports', 'user', userId] }),
       this.queryClient.invalidateQueries({ queryKey: ['evaluations', 'user', userId] }),
       this.queryClient.invalidateQueries({ queryKey: ['hierarchy', 'myView', userId] }),
-      this.queryClient.invalidateQueries({ queryKey: ['hierarchy', 'managerReports', userId] }),
+      this.queryClient.invalidateQueries({ queryKey: ['hierarchy', 'manager-reports', userId] }),
       this.queryClient.invalidateQueries({ queryKey: ['statistics', 'user', userId] }),
       this.queryClient.invalidateQueries({ queryKey: ['users', 'detail', userId] }),
     ]

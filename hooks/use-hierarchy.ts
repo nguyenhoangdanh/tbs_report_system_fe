@@ -13,8 +13,7 @@ import { QUERY_KEYS } from './query-key'
 import { useAuth } from "@/components/providers/auth-provider"
 import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import useHierarchyStore from '@/store/hierarchy-store'
-import { useAdminOverviewStore } from '@/store/admin-overview-store'
-import { useQueryClient } from '@tanstack/react-query'
+import useAdminOverviewStore from '@/store/admin-overview-store'
 
 /**
  * Hook for manager reports - Force fresh data every time
@@ -25,13 +24,6 @@ export function useManagerReports(filters?: {
   userId?: string
 }) {
   const { user } = useAuth()
-
-  console.log('🔍 useManagerReports filters:', {
-  weekNumber: filters?.weekNumber,
-  year: filters?.year,
-  userId: filters?.userId,
-  hasFilters: !!filters
-})
 
  const currentWeek = getCurrentWeek()
   const safeFilters = {
@@ -76,13 +68,11 @@ export function useMyHierarchyView(filters?: {
   // ✅ FIXED: Also update HierarchyDashboard to use custom events
   React.useEffect(() => {
     const handleCustomEvent = (e: CustomEvent) => {
-      console.log('🔄 useMyHierarchyView: Custom event received, forcing refresh')
       useHierarchyStore.getState().forceRefresh()
     }
     
     const handleStorageEvent = (e: StorageEvent) => {
       if (e.key === 'evaluation-broadcast' && e.newValue) {
-        console.log('🔄 useMyHierarchyView: Storage event received, forcing refresh')
         useHierarchyStore.getState().forceRefresh()
       }
     }
@@ -98,8 +88,6 @@ export function useMyHierarchyView(filters?: {
 
   const {
     hierarchyData,
-    currentFilters,
-    lastRefreshTimestamp,
     isRefreshing,
     setCurrentUser,
     setHierarchyData,
@@ -117,12 +105,6 @@ export function useMyHierarchyView(filters?: {
     if (!user?.id) return false
     
     const shouldFetch = shouldRefetch(user.id, filters)
-    console.log('🔄 needsRefetch calculation:', {
-      userId: user.id,
-      hasData: !!hierarchyData,
-      shouldFetch,
-      filters
-    })
     
     return shouldFetch
   }, [user?.id, filters?.weekNumber, filters?.year, filters?.month, !!hierarchyData, shouldRefetch])
@@ -131,12 +113,10 @@ export function useMyHierarchyView(filters?: {
     queryKey: QUERY_KEYS.hierarchy.myView(user?.id || 'anonymous', filters),
     queryFn: async () => {
       try {
-        console.log('🔄 useMyHierarchyView: Fetching with filters:', filters, 'for user:', user?.id)
         setRefreshing(true)
         
         const result = await HierarchyService.getMyHierarchyView(filters)
         
-        console.log('✅ useMyHierarchyView: Fresh data received:', result?.success)
         
         if (result?.success && result.data) {
           setHierarchyData(result.data, filters)
@@ -328,22 +308,23 @@ export function hasJobPositions(data: any): boolean {
 
 // ✅ SIMPLE: Revert to simple approach like useManagerReports
 export function useAdminOverview(filters?: {
-  weekNumber?: number
+  // weekNumber?: number
+  // year?: number
+  // userId?: string
+   weekNumber?: number
   year?: number
-  userId?: string
+  month?: number
 }) {
   const { user } = useAuth()
   
   // ✅ SAME: Listen for evaluation broadcasts
   React.useEffect(() => {
     const handleCustomEvent = (e: CustomEvent) => {
-      console.log('🔄 useAdminOverview: Custom event received, forcing refresh')
       useAdminOverviewStore.getState().forceRefresh()
     }
     
     const handleStorageEvent = (e: StorageEvent) => {
       if (e.key === 'evaluation-broadcast' && e.newValue) {
-        console.log('🔄 useAdminOverview: Storage event received, forcing refresh')
         useAdminOverviewStore.getState().forceRefresh()
       }
     }
@@ -359,60 +340,42 @@ export function useAdminOverview(filters?: {
 
   const {
     managerReportsData,
-    currentFilters,
-    lastRefreshTimestamp,
     isRefetching,
     setManagerReportsData,
     setRefreshing,
-    shouldRefetch
+    shouldRefetch,
+    setLastUserId
   } = useAdminOverviewStore()
 
-  // ✅ SAME: Sync user to store
+  // Sync user to store
   useEffect(() => {
-    useAdminOverviewStore.getState().setLastUserId(user?.id || null)
-  }, [user?.id])
-
-  const currentWeek = getCurrentWeek()
-  const safeFilters = {
-    weekNumber: filters?.weekNumber || currentWeek.weekNumber,
-    year: filters?.year || currentWeek.year,
-    userId: filters?.userId || user?.id
-  }
+    setLastUserId(user?.id || null)
+  }, [user?.id, setLastUserId])
 
   // ✅ CRITICAL FIX: Make shouldRefetchData work like needsRefetch in useMyHierarchyView
   const shouldRefetchData = useMemo(() => {
     if (!user?.id) return false
     
-    const shouldFetch = shouldRefetch(user.id, safeFilters)
-    console.log('🔄 useAdminOverview needsRefetch calculation:', {
-      userId: user.id,
-      hasData: !!managerReportsData,
-      shouldFetch,
-      filters: safeFilters,
-      lastRefreshTimestamp,
-      timeSinceRefresh: Date.now() - lastRefreshTimestamp
-    })
+    const shouldFetch = shouldRefetch(user.id, filters)
     
     return shouldFetch
-  }, [user?.id, safeFilters?.weekNumber, safeFilters?.year, safeFilters?.userId, !!managerReportsData, shouldRefetch, lastRefreshTimestamp])
+  }, [user?.id, filters?.weekNumber, filters?.year, filters?.month, !!managerReportsData, shouldRefetch])
 
   const queryResult = useApiQuery({
-    queryKey: ['admin-overview', 'manager-reports', user?.id || 'anonymous', JSON.stringify(safeFilters)],
+    // queryKey: ['admin-overview', 'manager-reports', user?.id || 'anonymous', JSON.stringify(safeFilters)],
+    queryKey: QUERY_KEYS.hierarchy.managerReports(user?.id || 'anonymous', filters),
     queryFn: async () => {
       try {
-        console.log('🔄 useAdminOverview: Fetching with filters:', safeFilters, 'for user:', user?.id)
         setRefreshing(true)
-        
-        const result = await HierarchyService.getManagerReports(safeFilters)
-        
-        console.log('✅ useAdminOverview: Fresh data received:', !!result)
-        
-        if (result) {
-          setManagerReportsData(result, safeFilters)
+
+        const result = await HierarchyService.getManagerReports(filters)
+
+       if (result?.success && result.data) {
+          setManagerReportsData(result.data, filters)
           setRefreshing(false)
           return result
         } else {
-          setManagerReportsData(null, safeFilters)
+          setManagerReportsData(null, filters)
           setRefreshing(false)
           throw new Error('Failed to fetch manager reports data')
         }
@@ -425,10 +388,11 @@ export function useAdminOverview(filters?: {
     enabled: !!user?.id && shouldRefetchData,
     cacheStrategy: 'realtime', // ✅ CRITICAL: Use fresh strategy for immediate updates
     throwOnError: false,
-    // ✅ OVERRIDE: Force fresh fetch behavior
-    staleTime: 0,
-    gcTime: 0,
-    refetchOnMount: true,
+    refetchOnMount: false, // ✅ CRITICAL: Don't auto refetch on mount
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    staleTime: 5000, // ✅ Increase stale time to reduce refetches
+    gcTime: 10000, // ✅ Increase gc time
   })
 
   const finalData = queryResult.data
@@ -442,14 +406,4 @@ export function useAdminOverview(filters?: {
     isFetching: queryResult.isFetching,
     refetch: queryResult.refetch,
   }
-}
-
-// ✅ DEPRECATED: Keep old hook for backward compatibility but mark as deprecated
-export function useManagerReportsWithStore(filters?: {
-  weekNumber?: number
-  year?: number
-  userId?: string
-}) {
-  console.warn('useManagerReportsWithStore is deprecated, use useAdminOverview instead')
-  return useAdminOverview(filters)
 }

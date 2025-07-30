@@ -2,7 +2,6 @@ import { create } from 'zustand'
 import { devtools } from 'zustand/middleware'
 import type { ManagerReportsEmployee, UserDetailsResponse } from '@/types/hierarchy'
 import { EvaluationType, type Task, type TaskEvaluation, type WeeklyReport } from '@/types'
-import { useQueryClient } from '@tanstack/react-query'
 
 interface AdminOverviewState {
   // Search state
@@ -45,7 +44,7 @@ interface AdminOverviewState {
   resetAllStates: () => void
 }
 
-export const useAdminOverviewStore = create<AdminOverviewState>()(
+const useAdminOverviewStore = create<AdminOverviewState>()(
   devtools(
     (set, get) => ({
       // Search state
@@ -54,7 +53,6 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
 
       // User tracking
       lastUserId: null,
-      setLastUserId: (userId) => set({ lastUserId: userId }, false, 'setLastUserId'),
 
       // Loading states
       isSubmittingEvaluation: false,
@@ -62,9 +60,7 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
         set({ isSubmittingEvaluation: loading }, false, 'setSubmittingEvaluation')
       },
       isRefetching: false,
-      setIsRefetching: (loading) => {
-        set({ isRefetching: loading }, false, 'setIsRefetching')
-      },
+      
 
       // Employee detail modal state
       openEmployeeModal: false,
@@ -88,74 +84,74 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
       currentFilters: null,
       lastRefreshTimestamp: 0,
 
-      // ✅ ENHANCED: Force refresh with better logging and state management
-      forceRefresh: () => {
-        const currentTimestamp = Date.now()
-        console.log('🔄 AdminOverviewStore: Force refresh triggered at:', currentTimestamp)
+      // User management
+      setLastUserId: (userId: string | null) => {
+        const state = get()
         
-        set({
-          lastRefreshTimestamp: currentTimestamp,
-          isRefetching: true,
-          managerReportsData: null, // ✅ Clear data to force refetch
-          currentFilters: null, // ✅ Clear filters to force refetch
-        }, false, 'forceRefresh')
-        
-        console.log('🔄 AdminOverviewStore: State after forceRefresh:', {
-          lastRefreshTimestamp: currentTimestamp,
-          isRefetching: true,
-          managerReportsData: null,
-          currentFilters: null,
-        })
+        // Clear data when user changes
+        if (state.lastUserId !== userId) {
+          set({
+            lastUserId: userId,
+            managerReportsData: null,
+            currentFilters: null,
+            lastRefreshTimestamp: 0,
+            isRefetching: false,
+          })
+        } else {
+          set({ lastUserId: userId })
+        }
       },
 
-      setManagerReportsData: (data: any, filters?: any) => {
-        console.log('📊 AdminOverviewStore: Setting manager reports data:', !!data)
+
+      setManagerReportsData: (data, filters = null) => {
         const state = get()
+
+        if (!state.lastUserId) {
+          console.warn('Cannot set manager reports data without a user ID')
+          return
+        }
+
         set({
           managerReportsData: data,
           currentFilters: filters || state.currentFilters,
-          lastRefreshTimestamp: Date.now(), // ✅ Update timestamp when data is set
+          lastRefreshTimestamp: Date.now(),
           isRefetching: false,
-        }, false, 'setManagerReportsData')
+        })
+      },
+
+     
+
+      clearManagerReportsData: () => {
+        set({
+          managerReportsData: null,
+          currentFilters: null,
+          lastRefreshTimestamp: 0,
+          isRefetching: false,
+        })
+      },
+
+       // ✅ ENHANCED: Force refresh with better logging and state management
+      forceRefresh: () => {
+        set({
+          lastRefreshTimestamp: Date.now(),
+          isRefetching: true,
+          managerReportsData: null, // ✅ Clear data to force refetch
+          currentFilters: null, // ✅ Clear filters to force refetch
+        })
+        
       },
 
       // ✅ ENHANCED: shouldRefetch with detailed logging for debugging
       shouldRefetch: (userId: string, filters: any) => {
         const state = get()
         
-        console.log('🔍 AdminOverviewStore shouldRefetch check:', {
-          userId,
-          filters,
-          hasData: !!state.managerReportsData,
-          lastUserId: state.lastUserId,
-          currentFilters: state.currentFilters,
-          lastRefreshTimestamp: state.lastRefreshTimestamp,
-          timeSinceLastRefresh: Date.now() - state.lastRefreshTimestamp,
-          isRefetching: state.isRefetching
-        })
-        
         // ✅ CRITICAL: Always refetch if data was cleared by forceRefresh
-        if (!state.managerReportsData && state.lastRefreshTimestamp > 0) {
-          console.log('✅ shouldRefetch: Data cleared by forceRefresh, MUST refetch')
-          return true
-        }
-        
-        // ✅ Always refetch if no data at all
         if (!state.managerReportsData) {
-          console.log('✅ shouldRefetch: No data, MUST refetch')
           return true
         }
         
         // ✅ Refetch if user changed
         if (state.lastUserId !== userId) {
-          console.log('✅ shouldRefetch: User changed, MUST refetch')
-          return true
-        }
-        
-        // ✅ ENHANCED: Refetch if forceRefresh was called recently (within 10 seconds instead of 5)
-        const timeSinceRefresh = Date.now() - state.lastRefreshTimestamp
-        if (state.lastRefreshTimestamp > 0 && timeSinceRefresh < 10000) {
-          console.log('✅ shouldRefetch: Recent forceRefresh detected, MUST refetch')
           return true
         }
         
@@ -163,24 +159,20 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
         if (!state.currentFilters || 
             state.currentFilters.weekNumber !== filters?.weekNumber ||
             state.currentFilters.year !== filters?.year ||
-            state.currentFilters.userId !== filters?.userId) {
-          console.log('✅ shouldRefetch: Filters changed, MUST refetch')
+            state.currentFilters.month !== filters?.month) {
           return true
         }
         
-        console.log('❌ shouldRefetch: No need to refetch')
         return false
       },
 
       // ✅ FIXED: Add missing setRefreshing implementation (same as HierarchyStore)
       setRefreshing: (loading: boolean) => {
-        console.log('🔄 AdminOverviewStore: Setting refreshing state:', loading)
         set({ isRefetching: loading })
       },
 
       // Reset all states - ✅ Updated
       resetAllStates: () => {
-        console.log('🔄 AdminOverviewStore: Reset all states')
         set({
           search: '',
           lastUserId: null,
@@ -194,17 +186,6 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
           lastRefreshTimestamp: 0,
         })
       },
-
-      // ✅ FIXED: Add missing clearManagerReportsData implementation
-      clearManagerReportsData: () => {
-        console.log('🧹 AdminOverviewStore: Clearing manager reports data')
-        set({
-          managerReportsData: null,
-          currentFilters: null,
-          lastRefreshTimestamp: 0,
-          isRefetching: false,
-        })
-      },
     }),
     {
       name: 'admin-overview-store',
@@ -212,15 +193,11 @@ export const useAdminOverviewStore = create<AdminOverviewState>()(
   )
 )
 
-// Export individual selectors for better performance
-export const useAdminOverviewActions = () => useAdminOverviewStore((state) => ({
-  setEmployeeModal: state.setEmployeeModal,
-  setSearch: state.setSearch,
-  resetAllStates: state.resetAllStates,
-}))
 
 // ✅ Enhanced actions
 export const adminOverviewStoreActions = {
   forceRefresh: () => useAdminOverviewStore.getState().forceRefresh(),
   clearAll: () => useAdminOverviewStore.getState().clearManagerReportsData(),
 }
+
+export default useAdminOverviewStore

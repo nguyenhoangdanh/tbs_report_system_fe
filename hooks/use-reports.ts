@@ -10,6 +10,7 @@ import useReportStore from '@/store/report-store'
 import type { ApiResult, ProjectApiError  } from '@/lib/api'
 import { QUERY_KEYS, INVALIDATION_PATTERNS } from './query-key'
 import { hierarchyStoreActions } from '@/store/hierarchy-store'
+import { adminOverviewStoreActions } from '@/store/admin-overview-store'
 
 // Clear user caches
 export const clearUserCaches = (queryClient: any, userId?: string) => {
@@ -167,12 +168,10 @@ export function useCreateWeeklyReport() {
     onMutate: async (newReport) => {
       if (!user?.id) return
       setSaving(true)
-      console.log('🔄 CREATE mutation started, keeping state until success')
     },
     onSuccess: (newReport, variables) => {
       if (!user?.id) return
       
-      console.log('✅ CREATE mutation successful:', newReport.id)
       
       // ✅ ENHANCED: Update store with the ACTUAL response data
       const cacheKey = `${newReport.weekNumber}-${newReport.year}`
@@ -213,7 +212,6 @@ export function useCreateWeeklyReport() {
     },
     onSettled: () => {
       setSaving(false)
-      console.log('🔄 CREATE mutation settled')
     },
     retry: 1,
   })
@@ -229,12 +227,10 @@ export function useUpdateReport() {
     onMutate: async (variables) => {
       if (!user?.id) return
       setSaving(true)
-      console.log('🔄 UPDATE mutation started, keeping state until success')
     },
     onSuccess: (updatedReport, variables) => {
       if (!user?.id) return
       
-      console.log('✅ UPDATE mutation successful:', updatedReport.id)
       
       // ✅ ENHANCED: Update store with the ACTUAL response data
       const cacheKey = `${updatedReport.weekNumber}-${updatedReport.year}`
@@ -271,7 +267,6 @@ export function useUpdateReport() {
     },
     onSettled: () => {
       setSaving(false)
-      console.log('🔄 UPDATE mutation settled')
     },
     retry: 1,
   })
@@ -286,8 +281,6 @@ export function useDeleteReport() {
     mutationFn: (id: string) => ReportService.deleteReport(id),
     onMutate: async (reportId) => {
       if (!user?.id) return
-      
-      console.log('🗑️ Starting delete mutation for report:', reportId)
       
       // Get the report data before deletion for cleanup
       const reportQuery = queryClient.getQueriesData({ 
@@ -308,19 +301,15 @@ export function useDeleteReport() {
         if (reportToDelete) break
       }
       
-      // ENHANCED: Aggressive pre-cleanup of ALL related state
-      console.log('🧹 Enhanced pre-delete cleanup for report:', reportId)
       
       // Clear store state first
       const { selectedReport } = useReportStore.getState()
       if (selectedReport?.id === reportId) {
-        console.log('🧹 Clearing selected report from store')
         syncReportToStore(null)
         clearTasks()
       }
       
       if (reportToDelete) {
-        console.log('🧹 Pre-delete cleanup for week:', reportToDelete.weekNumber, reportToDelete.year)
         clearCacheForWeek(reportToDelete.weekNumber, reportToDelete.year)
         removeCachedReport(reportId)
         
@@ -338,12 +327,10 @@ export function useDeleteReport() {
     onSuccess: (result, deletedId, context) => {
       if (!user?.id) return
       
-      console.log('✅ Delete mutation successful for report:', deletedId)
       
       // ENHANCED: Ensure complete state cleanup after successful deletion
       const { selectedReport } = useReportStore.getState()
       if (selectedReport?.id === deletedId) {
-        console.log('✅ Post-delete: Clearing selected report from store')
         syncReportToStore(null)
         clearTasks()
       }
@@ -360,7 +347,6 @@ export function useDeleteReport() {
         queryClient.removeQueries({ 
           queryKey: QUERY_KEYS.reports.reportByWeek(user.id, weekNumber, year) 
         })
-        console.log('✅ Cleared week-specific cache for:', weekNumber, year)
       }
       
       // Force immediate invalidation of related queries
@@ -401,6 +387,7 @@ export function useApproveTask() {
       if (!user?.id) return
     },
     onSuccess: (result, taskId) => {
+
       if (!user?.id) return
       
       // ✅ TARGETED: Use invalidation patterns for consistency
@@ -418,6 +405,7 @@ export function useApproveTask() {
         })
         
         hierarchyStoreActions.forceRefresh()
+        adminOverviewStoreActions.forceRefresh()
       }, 50)
       
       toast.success('Task approved successfully!')
@@ -441,7 +429,7 @@ export function useRejectTask() {
     },
     onSuccess: (result, taskId) => {
       if (!user?.id) return
-      
+
       // ✅ TARGETED: Use invalidation patterns for consistency
       setTimeout(() => {
         queryClient.invalidateQueries({ 
@@ -457,6 +445,7 @@ export function useRejectTask() {
         })
         
         hierarchyStoreActions.forceRefresh()
+        adminOverviewStoreActions.forceRefresh()
       }, 50)
       
       toast.success('Task rejected successfully!')

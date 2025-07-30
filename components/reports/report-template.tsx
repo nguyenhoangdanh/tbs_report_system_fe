@@ -234,57 +234,43 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
     try {
       const originalIsCompleted = selectedTask.isCompleted
 
-      console.log('🔄 ReportTemplate: Starting evaluation submission...', {
-        taskId: selectedTask.id,
-        data,
-        isUpdate: !!editEvaluation
-      })
-
-      // ✅ STEP 1: Preemptively remove admin-overview cache
-      await Promise.all([
-        queryClient.removeQueries({ queryKey: ["admin-overview", "manager-reports"] }),
-      ])
+      // // ✅ STEP 1: Preemptively remove admin-overview cache
+      // await Promise.all([
+      //   queryClient.removeQueries({ queryKey: ["hierarchy", "manager-reports"] }),
+      // ])
 
       if (editEvaluation) {
-        console.log('🔄 ReportTemplate: Updating evaluation:', editEvaluation.id)
         await updateEval.mutateAsync({
           evaluationId: editEvaluation.id,
           data,
         })
-        console.log('✅ ReportTemplate: Update evaluation completed')
       } else {
-        console.log('🔄 ReportTemplate: Creating new evaluation')
         await createEval.mutateAsync({
           ...data,
           taskId: selectedTask.id,
         })
-        console.log('✅ ReportTemplate: Create evaluation completed')
       }
 
       // ✅ Handle task approval/rejection if manager
-      if (currentUser?.isManager && data.evaluatedIsCompleted !== originalIsCompleted) {
-        console.log('🔄 ReportTemplate: Manager handling task status change')
+      // if (currentUser?.isManager && data.evaluatedIsCompleted !== originalIsCompleted) {
         if (data.evaluatedIsCompleted) {
           await approveTask.mutateAsync(selectedTask.id)
-          console.log('✅ ReportTemplate: Task approved')
         } else {
           await rejectTask.mutateAsync(selectedTask.id)
-          console.log('✅ ReportTemplate: Task rejected')
         }
-      }
+      // }
 
-      console.log('✅ ReportTemplate: All operations completed successfully')
       setOpenEvalModal(false)
       
       // ✅ STEP 2: Force invalidation after success (backup)
-      setTimeout(async () => {
-        await Promise.all([
-          queryClient.invalidateQueries({
-            queryKey: ['admin-overview', 'manager-reports'],
-            refetchType: 'all'
-          }),
-        ])
-      }, 100)
+      // setTimeout(async () => {
+      //   await Promise.all([
+      //     queryClient.invalidateQueries({
+      //       queryKey: ['hierarchy', 'manager-reports'],
+      //       refetchType: 'all'
+      //     }),
+      //   ])
+      // }, 100)
       
     } catch (error) {
       console.error("❌ ReportTemplate: Error submitting evaluation:", error)
@@ -296,11 +282,9 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
     if (!editEvaluation) return
 
     try {
-      console.log('🔄 ReportTemplate: Starting evaluation deletion...', editEvaluation.id)
       
       await deleteEval.mutateAsync(editEvaluation.id)
       
-      console.log('✅ ReportTemplate: Delete evaluation completed')
       setOpenEvalModal(false)
     } catch (error) {
       console.error("❌ ReportTemplate: Error deleting evaluation:", error)

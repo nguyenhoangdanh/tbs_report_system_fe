@@ -6,8 +6,6 @@ import { toast } from "react-toast-kit"
 import { useApiMutation, useApiQuery } from "./use-api-query"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useQueryClient } from "@tanstack/react-query"
-import { INVALIDATION_PATTERNS, QUERY_KEYS } from "./query-key"
-import { HierarchyService } from "@/services/hierarchy.service"
 
 const handleError = (error: any, defaultMessage: string) => {
   const message = error?.message || defaultMessage
@@ -22,7 +20,6 @@ export const broadcastEvaluationChange = () => {
       timestamp: Date.now()
     }
     
-    console.log('📢 Broadcasting evaluation change:', broadcastData)
     
     // ✅ PRIMARY: Custom event for same-tab
     window.dispatchEvent(new CustomEvent('evaluation-changed', {
@@ -47,7 +44,6 @@ export function useCreateTaskEvaluation() {
   return useApiMutation<TaskEvaluation, CreateEvaluationDto, Error>({
     mutationFn: async (data: CreateEvaluationDto) => await TaskEvaluationsService.createTaskEvaluation(data),
     onSuccess: (newEvaluation, variables) => {
-      console.log('✅ CREATE evaluation SUCCESS')
       
       // ✅ SIMPLE: Just broadcast like HierarchyDashboard
       broadcastEvaluationChange()
@@ -84,9 +80,8 @@ export function useUpdateTaskEvaluation() {
   return useApiMutation<TaskEvaluation, { evaluationId: string; data: UpdateEvaluationDto }, Error>({
     mutationFn: async ({ evaluationId, data }) => await TaskEvaluationsService.updateTaskEvaluation(evaluationId, data),
     onSuccess: (updatedEvaluation, variables) => {
-      console.log('✅ UPDATE evaluation SUCCESS')
       broadcastEvaluationChange()
-      
+
       // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses
       // queryClient.invalidateQueries({
       //   queryKey: ['admin-overview', 'manager-reports'],
@@ -118,7 +113,6 @@ export function useDeleteTaskEvaluation() {
   return useApiMutation<{ message: string }, string, Error>({
     mutationFn: async (evaluationId: string) => await TaskEvaluationsService.deleteTaskEvaluation(evaluationId),
     onSuccess: (result, deletedId) => {
-      console.log('✅ DELETE evaluation SUCCESS')
       broadcastEvaluationChange()
       
       // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses

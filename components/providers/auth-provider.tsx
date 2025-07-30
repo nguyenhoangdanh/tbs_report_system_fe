@@ -7,6 +7,7 @@ import { useQueryClient } from "@tanstack/react-query"
 import { AuthService } from "@/services/auth.service"
 import { toast } from "react-toast-kit"
 import type { User, LoginDto } from "@/types"
+import { adminOverviewStoreActions } from "@/store/admin-overview-store"
 
 interface AuthContextType {
   user: User | null
@@ -200,6 +201,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== 'undefined') {
         const { clearAllState } = await import('@/store/report-store')
         clearAllState()
+        adminOverviewStoreActions.clearAll()
       }
 
       // Try to logout from server (but don't block UI)

@@ -185,8 +185,6 @@ const useReportStore = create<ReportState>()(
             updatedAt: new Date().toISOString()
           }))
 
-          console.log('📥 Adding multiple clean tasks:', cleanTasks.length, 'for user:', state.currentUserId)
-          
           set({
             currentTasks: [...state.currentTasks, ...cleanTasks]
           })
@@ -250,8 +248,6 @@ const useReportStore = create<ReportState>()(
         removeCachedReport: (reportId: string) => {
           const state = get()
           if (!state.currentUserId) return
-          
-          console.log('🗑️ Removing cached report:', reportId, 'for user:', state.currentUserId)
           
           const newCache = { ...state.cachedReports }
           Object.keys(newCache).forEach(key => {
@@ -351,8 +347,6 @@ const useReportStore = create<ReportState>()(
 
         // Clear all state
         clearAllState: () => {
-          console.log('🧹 Clearing ALL report store state')
-          
           const currentWeek = getCurrentWeek()
           set({
             currentUserId: null,

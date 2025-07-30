@@ -1,9 +1,8 @@
 "use client"
 
-import React, { useState, useMemo, useCallback } from "react"
+import React, { useState, useMemo, useCallback, useEffect } from "react"
 import { useAdminOverview, useAdminOverviewFilters } from "@/hooks/use-hierarchy"
 import { useAuth } from "@/components/providers/auth-provider"
-import { adminOverviewStoreActions, useAdminOverviewStore } from "@/store/admin-overview-store"
 import { HierarchySummaryCards } from "@/components/hierarchy/hierarchy-summary-cards"
 import { ScreenLoading } from "@/components/loading/screen-loading"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -22,10 +21,8 @@ import {
 import { Suspense } from "react"
 import { Input } from "@/components/ui/input"
 import { AdminOverviewHeader } from "@/components/hierarchy/admin-overview-header"
-import { toast } from "react-toast-kit"
-import { useQueryClient } from "@tanstack/react-query"
 import { PositionGroupsList } from "@/components/hierarchy/position-groups-list"
-import { getCurrentWeek } from "@/utils/week-utils"
+import useAdminOverviewStore from "@/store/admin-overview-store"
 
 // REWRITE: Transform ManagerReports data để tương thích với PositionCard
 function transformManagerReportsToPositionCardFormat(overview: any) {
@@ -334,7 +331,6 @@ function AdminOverview() {
   const [activeTab, setActiveTab] = useState<string>("overview")
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
   const { search, setSearch } = useAdminOverviewStore()
-  const queryClient = useQueryClient()
 
   // ✅ EXACT COPY: Same as HierarchyDashboard
   const {
@@ -363,33 +359,6 @@ function AdminOverview() {
     }, 1000)
   }, [refetchAdminOverview, setIsRefreshing])
 
-  // ✅ EXACT COPY: Same evaluation handler as HierarchyDashboard
-  const handleEvaluationChange = useCallback(() => {
-    console.log('🔄 AdminOverview: Evaluation change detected, performing aggressive refresh')
-    
-    // ✅ STEP 1: Clear all admin-overview related cache immediately
-    queryClient.removeQueries({ 
-      queryKey: ['admin-overview'], 
-      exact: false 
-    })
-    
-    // ✅ STEP 2: Force store refresh
-    useAdminOverviewStore.getState().forceRefresh()
-    
-    // ✅ STEP 3: Manual refetch after short delay
-    setTimeout(() => {
-      refetchAdminOverview()
-    }, 200)
-    
-    // ✅ STEP 4: Invalidate for good measure
-    setTimeout(() => {
-      queryClient.invalidateQueries({ 
-        queryKey: ['admin-overview'], 
-        exact: false,
-        refetchType: 'all' 
-      })
-    }, 500)
-  }, [queryClient, refetchAdminOverview])
 
   // ✅ SAME: Transform and group logic (unchanged)
   const positionCards = useMemo(() => {
@@ -691,7 +660,7 @@ function AdminOverview() {
                 weekNumber={apiFilters.weekNumber || filters.weekNumber}
                 year={filters.year || new Date().getFullYear()}
                 canEvaluation={currentUser?.isManager}
-                onEvaluationChange={handleEvaluationChange}
+                // onEvaluationChange={handleEvaluationChange}
               />
             </div>
           )}

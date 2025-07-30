@@ -431,8 +431,23 @@ export class HierarchyService {
         params.append('year', String(yearNum))
       }
     }
-    const query = params.toString() ? `?${params}` : ''
-    return await api.get<ManagerReportsResponse>(`/hierarchy-reports/manager-reports${query}`)
+    // const query = params.toString() ? `?${params}` : ''a
+    // return await api.get<ManagerReportsResponse>(`/hierarchy-reports/manager-reports${query}`)
+
+
+    const url = `/hierarchy-reports/manager-reports${params.toString() ? `?${params.toString()}` : ''}`
+
+    const response = await api.get<ManagerReportsResponse>(url, {
+      enableCache: false // Always fetch fresh data for manager reports
+    })
+
+    // Validate response structure
+    if (!response.data || typeof response !== 'object') {
+      throw new Error('Invalid response format')
+    }
+
+    return response;
+
   }
 
   /**
