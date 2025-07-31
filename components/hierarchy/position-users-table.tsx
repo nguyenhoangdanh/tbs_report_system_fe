@@ -299,7 +299,7 @@ export const PositionUsersTable = memo(
               </button>
             </div>
             <div className="flex-1 overflow-y-auto px-3 sm:px-6 py-3 sm:py-4">
-              {userDetails.isLoading && <ScreenLoading size="md" variant="dual-ring" />}
+              {userDetails.isLoading && <ScreenLoading size="md" variant="grid" />}
               {userDetails.error && (
                 <div className="text-center py-8 text-destructive">{String(userDetails.error)}</div>
               )}

@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
-import { Role } from '@/types'
 
 export function UserNav() {
   const { user, logout } = useAuth()

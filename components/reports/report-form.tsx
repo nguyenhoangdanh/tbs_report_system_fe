@@ -187,6 +187,17 @@ export const ReportForm = memo(function ReportForm({
     }
   }, [selectedReport, weekNumber, year])
 
+  // Check if current week can be edited
+  const canEditCurrentWeek = useMemo(() => {
+    if (selectedReport) {
+      const editValidation = isValidWeekForEdit(weekNumber, year)
+      return editValidation.isValid && !selectedReport.isLocked
+    } else {
+      const creationValidation = isValidWeekForCreation(weekNumber, year)
+      return creationValidation.isValid
+    }
+  }, [selectedReport, weekNumber, year])
+
   // Week type info
   const weekTypeInfo = useMemo(() => {
     const weekInfo = availableWeeks.find(w => w.weekNumber === weekNumber && w.year === year)
@@ -216,14 +227,21 @@ export const ReportForm = memo(function ReportForm({
     }
 
     setIsFormOperationLoading(true)
+    
+    // ✅ CRITICAL: Clear store immediately
     syncReportToStore(null)
     clearTasks()
+    
+    // ✅ CRITICAL: Navigate to new week with force clear
     navigateToWeek(newWeekNumber, newYear, true)
     
+    // ✅ CRITICAL: Call onWeekChange immediately
+    onWeekChange?.(newWeekNumber, newYear)
+    
+    // ✅ Shorter timeout for better UX
     setTimeout(() => {
-      onWeekChange?.(newWeekNumber, newYear)
       setIsFormOperationLoading(false)
-    }, 100)
+    }, 200)
   }, [weekNumber, year, navigateToWeek, onWeekChange, syncReportToStore, clearTasks])
 
   const handleNextWeek = useCallback(() => {
@@ -236,27 +254,42 @@ export const ReportForm = memo(function ReportForm({
     }
 
     setIsFormOperationLoading(true)
+    
+    // ✅ CRITICAL: Clear store immediately
     syncReportToStore(null)
     clearTasks()
+    
+    // ✅ CRITICAL: Navigate to new week with force clear
     navigateToWeek(newWeekNumber, newYear, true)
     
+    // ✅ CRITICAL: Call onWeekChange immediately
+    onWeekChange?.(newWeekNumber, newYear)
+    
+    // ✅ Shorter timeout for better UX
     setTimeout(() => {
-      onWeekChange?.(newWeekNumber, newYear)
       setIsFormOperationLoading(false)
-    }, 100)
+    }, 200)
   }, [weekNumber, year, navigateToWeek, onWeekChange, syncReportToStore, clearTasks])
 
   const handleCurrentWeek = useCallback(() => {
     const current = getCurrentWeek()
+    
     setIsFormOperationLoading(true)
+    
+    // ✅ CRITICAL: Clear store immediately
     syncReportToStore(null)
     clearTasks()
+    
+    // ✅ CRITICAL: Navigate to current week with force clear
     navigateToWeek(current.weekNumber, current.year, true)
     
+    // ✅ CRITICAL: Call onWeekChange immediately
+    onWeekChange?.(current.weekNumber, current.year)
+    
+    // ✅ Shorter timeout for better UX
     setTimeout(() => {
-      onWeekChange?.(current.weekNumber, current.year)
       setIsFormOperationLoading(false)
-    }, 100)
+    }, 200)
   }, [navigateToWeek, onWeekChange, syncReportToStore, clearTasks])
 
   // Check if navigation is available
@@ -271,25 +304,61 @@ export const ReportForm = memo(function ReportForm({
     }
   }, [weekNumber, year])
 
-  // Check if report can be deleted
+  // ✅ NEW: Helper function to check if report has evaluations
+  const hasReportEvaluations = useCallback((report: WeeklyReport): boolean => {
+    return report.tasks?.some(task => 
+      task.evaluations && Array.isArray(task.evaluations) && task.evaluations.length > 0
+    ) || false
+  }, [])
+
+  // ✅ ENHANCED: Check if report can be deleted with evaluation validation
   const canDeleteReport = useMemo(() => {
     if (!selectedReport) return false
 
     const deletionValidation = isValidWeekForDeletion(selectedReport.weekNumber, selectedReport.year)
-    return deletionValidation.isValid && !selectedReport.isLocked
-  }, [selectedReport])
+    const hasEvaluations = hasReportEvaluations(selectedReport)
+    
+    return deletionValidation.isValid && !selectedReport.isLocked && !hasEvaluations
+  }, [selectedReport, hasReportEvaluations])
 
-  // Check if current week can be edited
-  const canEditCurrentWeek = useMemo(() => {
-    if (selectedReport) {
-      const editValidation = isValidWeekForEdit(weekNumber, year)
-      return editValidation.isValid && !selectedReport.isLocked
-    } else {
-      const creationValidation = isValidWeekForCreation(weekNumber, year)
-      return creationValidation.isValid
+  // ✅ NEW: Get evaluation statistics for display
+  const evaluationStats = useMemo(() => {
+    if (!selectedReport) return null
+    
+    const hasEvaluations = hasReportEvaluations(selectedReport)
+    const totalEvaluations = selectedReport.tasks?.reduce((total, task) => {
+      return total + (task.evaluations?.length || 0)
+    }, 0) || 0
+    const evaluatedTasksCount = selectedReport.tasks?.filter(task => 
+      task.evaluations && task.evaluations.length > 0
+    ).length || 0
+
+    return { hasEvaluations, totalEvaluations, evaluatedTasksCount }
+  }, [selectedReport, hasReportEvaluations])
+
+  const handleDelete = useCallback(async () => {
+    if (!selectedReport || !onDelete) return
+
+    // ✅ NEW: Final check for evaluations before deletion
+    if (evaluationStats?.hasEvaluations) {
+      toast.error(
+        `Không thể xóa báo cáo do có ${evaluationStats.totalEvaluations} đánh giá từ cấp trên`,
+      )
+      return
     }
-  }, [selectedReport, weekNumber, year])
 
+    try {
+      await onDelete(selectedReport.id)
+      setShowDeleteDialog(false)
+    } catch (error: any) {
+      toast.error(error.message || 'Không thể xóa báo cáo')
+    }
+  }, [selectedReport, onDelete, evaluationStats])
+
+  // Enhanced loading check
+  const isAnyLoading = isLoading || isFormOperationLoading || isSaving
+
+  // Task validation
   const validateTasks = useCallback(() => {
     if (currentTasks.length === 0) {
       toast.error('Vui lòng thêm ít nhất một công việc')
@@ -387,22 +456,7 @@ export const ReportForm = memo(function ReportForm({
     } finally {
       setSaving(false)
     }
-  }, [validateTasks, selectedReport, weekNumber, year, currentTasks, onSave, setSaving, report?.id])
-
-  const handleDelete = useCallback(async () => {
-    if (!selectedReport || !onDelete) return
-
-    try {
-      await onDelete(selectedReport.id)
-      setShowDeleteDialog(false)
-    } catch (error: any) {
-      toast.error(error.message || 'Không thể xóa báo cáo')
-    }
-  }, [selectedReport, onDelete])
-  
-
-  // Enhanced loading check
-  const isAnyLoading = isLoading || isFormOperationLoading || isSaving
+  }, [validateTasks, selectedReport, weekNumber, year, currentTasks, onSave, setSaving])
 
   return (
     <div className="space-y-6">
@@ -525,7 +579,16 @@ export const ReportForm = memo(function ReportForm({
             {/* Delete restrictions notice */}
             {selectedReport && !canDeleteReport && (
               <div className="text-xs text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20 px-3 py-2 rounded border border-red-200 dark:border-red-800 text-center">
-                🚫 Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo
+                {evaluationStats?.hasEvaluations ? (
+                  <div className="space-y-1">
+                    <div>🚫 Không thể xóa báo cáo do có đánh giá từ cấp trên</div>
+                    <div className="text-xs">
+                      ({evaluationStats.totalEvaluations} đánh giá trên {evaluationStats.evaluatedTasksCount} công việc)
+                    </div>
+                  </div>
+                ) : (
+                  '🚫 Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo'
+                )}
               </div>
             )}
           </div>
@@ -558,6 +621,7 @@ export const ReportForm = memo(function ReportForm({
             weekNumber={weekNumber}
             year={year}
             isEditable={canEditCurrentWeek && !isAnyLoading}
+            // ✅ FIX: Pass handleSave instead of calling it
             onSave={canEditCurrentWeek && currentTasks.length > 0 && !isAnyLoading ? handleSave : undefined}
           />
           <div className="flex justify-end items-center gap-2">
@@ -565,6 +629,7 @@ export const ReportForm = memo(function ReportForm({
             {(currentTasks.length !== 0 && canEdit) && (
               <SubmitButton
                 disabled={isSaving}
+                // ✅ FIX: Pass handleSave as function, not call it
                 onClick={canEditCurrentWeek && currentTasks.length > 0 ? handleSave : undefined}
                 loading={isSaving}
                 text='Lưu báo cáo'
@@ -592,10 +657,37 @@ export const ReportForm = memo(function ReportForm({
       <Dialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa báo cáo</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa báo cáo tuần {weekNumber}/{year}?
-              Thao tác này không thể hoàn tác và sẽ xóa tất cả công việc trong báo cáo.
+            <DialogTitle>
+              {evaluationStats?.hasEvaluations ? 'Không thể xóa báo cáo' : 'Xác nhận xóa báo cáo'}
+            </DialogTitle>
+            <DialogDescription className="space-y-2">
+              {evaluationStats?.hasEvaluations ? (
+                <div className="space-y-3">
+                  <p className="text-amber-700 dark:text-amber-300">
+                    Báo cáo tuần {weekNumber}/{year} không thể xóa vì:
+                  </p>
+                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    <ul className="space-y-1 text-sm text-amber-800 dark:text-amber-200">
+                      <li>• Có <strong>{evaluationStats.totalEvaluations} đánh giá</strong> từ cấp trên</li>
+                      <li>• Trên <strong>{evaluationStats.evaluatedTasksCount} công việc</strong> đã được review</li>
+                    </ul>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Để bảo vệ dữ liệu đánh giá, báo cáo này không thể bị xóa.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p>
+                    Bạn có chắc chắn muốn xóa báo cáo tuần {weekNumber}/{year}?
+                  </p>
+                  <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                    <p className="text-red-700 dark:text-red-300 font-medium text-sm">
+                      ⚠️ Thao tác này không thể hoàn tác và sẽ xóa tất cả công việc trong báo cáo.
+                    </p>
+                  </div>
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="flex-col sm:flex-row gap-2">
@@ -604,16 +696,18 @@ export const ReportForm = memo(function ReportForm({
               onClick={() => setShowDeleteDialog(false)}
               className="w-full sm:w-auto"
             >
-              Hủy
+              {evaluationStats?.hasEvaluations ? 'Đóng' : 'Hủy'}
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              className="w-full sm:w-auto flex items-center gap-2"
-            >
-              <Trash2 className="w-4 h-4" />
-              Xóa báo cáo
-            </Button>
+            {!evaluationStats?.hasEvaluations && (
+              <Button
+                variant="destructive"
+                onClick={handleDelete}
+                className="w-full sm:w-auto flex items-center gap-2"
+              >
+                <Trash2 className="w-4 h-4" />
+                Xóa báo cáo
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

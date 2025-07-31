@@ -442,9 +442,9 @@ export class HierarchyService {
     })
 
     // Validate response structure
-    if (!response.data || typeof response !== 'object') {
-      throw new Error('Invalid response format')
-    }
+    // if (!response.data || typeof response !== 'object') {
+    //   throw new Error('Invalid response format')
+    // }
 
     return response;
 

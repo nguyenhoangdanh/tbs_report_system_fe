@@ -139,7 +139,7 @@ export function AppFooter() {
               >
                 <Heart className="w-3 h-3 sm:w-4 sm:h-4 text-red-500 fill-current" />
               </motion.span>{" "}
-              in Vietnam
+              by Hoang Danh
             </p>
 
             {/* Footer Links */}

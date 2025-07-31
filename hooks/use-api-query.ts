@@ -47,8 +47,8 @@ export function useApiQuery<TData, TError = Error>(
         }
       case 'fresh':
         return { 
-          staleTime: 0, // ✅ CRITICAL: Always stale for AdminOverview
-          gcTime: 1000, // ✅ Very short cache time
+          staleTime: 0, // Always stale
+          gcTime: 1000, // Very short cache time
           refetchOnMount: true,
           refetchOnWindowFocus: false,
           refetchOnReconnect: false

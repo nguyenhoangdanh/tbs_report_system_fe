@@ -462,9 +462,9 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
       return
     }
 
-    // ✅ CRITICAL: Create completely new Task objects without copying any existing evaluations
-    const tasksToAdd: Task[] = parsedTasks.map((parsedTask) => ({
-      id: `temp-import-${Date.now()}-${Math.random()}`, // Unique ID for imported tasks
+    // ✅ CRITICAL: Create completely new Task objects with proper initialization
+    const tasksToAdd: Task[] = parsedTasks.map((parsedTask, index) => ({
+      id: `temp-import-${Date.now()}-${index}-${Math.random()}`, // More unique ID
       taskName: parsedTask.taskName,
       monday: parsedTask.monday,
       tuesday: parsedTask.tuesday,
@@ -473,11 +473,11 @@ const ExcelImport = ({ weekNumber, year, isOpen, onClose }: ExcelImportProps) =>
       friday: parsedTask.friday,
       saturday: parsedTask.saturday,
       isCompleted: parsedTask.isCompleted,
-      reasonNotDone: parsedTask.reasonNotDone,
+      reasonNotDone: parsedTask.reasonNotDone || '',
       reportId: '',
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      // ✅ CRITICAL: Explicitly set evaluations to empty array for new tasks
+      // ✅ CRITICAL: Explicitly initialize evaluations as empty array
       evaluations: []
     }))
 

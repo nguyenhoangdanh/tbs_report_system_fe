@@ -92,8 +92,16 @@ export class ReportService {
       }
     }
     
-    const query = searchParams.toString() ? `?${searchParams}` : ''
-    return await api.get<PaginatedResponse<WeeklyReport>>(`/reports/my-reports${query}`)
+    // const query = searchParams.toString() ? `?${searchParams}` : ''
+    // return await api.get<PaginatedResponse<WeeklyReport>>(`/reports/my-reports${query}`)
+
+    const url = `/reports/my-reports?${searchParams.toString() ? searchParams.toString() : ''}`
+    
+    const response = await api.get<PaginatedResponse<WeeklyReport>>(url, {
+      enableCache: false
+    })
+      
+      return response
   }
 
   /**
@@ -122,15 +130,19 @@ export class ReportService {
     if (validYear < 2020 || validYear > 2030) {
       throw new Error('Year must be between 2020 and 2030')
     }
-    
-    return await api.get<WeeklyReport>(`/reports/week/${validWeekNumber}/${validYear}`)
+
+    return await api.get<WeeklyReport>(`/reports/week/${validWeekNumber}/${validYear}`, {
+      enableCache: false
+    })
   }
 
   /**
    * Get current week report
    */
   static async getCurrentWeekReport(): Promise<ApiResult<WeeklyReport>> {
-    return await api.get<WeeklyReport>('/reports/current-week')
+    return await api.get<WeeklyReport>('/reports/current-week', {
+      enableCache: false // Disable cache to always get the latest report
+    })
   }
 
   /**
@@ -256,7 +268,9 @@ export class TaskEvaluationsService {
    * Get all evaluations for a specific task
    */
   static async getTaskEvaluations(taskId: string): Promise<ApiResult<TaskEvaluation[]>> {
-    return await api.get<TaskEvaluation[]>(`/task-evaluations/task/${taskId}`)
+    return await api.get<TaskEvaluation[]>(`/task-evaluations/task/${taskId}`, {
+      enableCache: false // Disable cache to always get the latest evaluations
+    })
   }
 
   /**

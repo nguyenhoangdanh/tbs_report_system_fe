@@ -5,11 +5,12 @@ import { motion } from 'framer-motion'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Eye, Trash2, Calendar, Clock, CheckCircle2, XCircle } from 'lucide-react'
+import { Eye, Trash2, Calendar, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { vi } from 'date-fns/locale'
 import { getCurrentWeek } from '@/utils/week-utils'
 import type { WeeklyReport } from '@/types'
+import { toast } from 'react-toast-kit'
 
 // Helper function to get next week
 function getNextWeek() {
@@ -25,6 +26,20 @@ function getNextWeek() {
   return { weekNumber: nextWeekNumber, year: nextYear }
 }
 
+// ✅ NEW: Helper function to check if report has evaluations
+function hasReportEvaluations(report: WeeklyReport): boolean {
+  return report.tasks?.some(task => 
+    task.evaluations && Array.isArray(task.evaluations) && task.evaluations.length > 0
+  ) || false
+}
+
+// ✅ NEW: Helper function to count total evaluations in report
+function countReportEvaluations(report: WeeklyReport): number {
+  return report.tasks?.reduce((total, task) => {
+    return total + (task.evaluations?.length || 0)
+  }, 0) || 0
+}
+
 interface ReportsListProps {
   reports: WeeklyReport[]
   onViewReport: (report: WeeklyReport) => void
@@ -33,7 +48,7 @@ interface ReportsListProps {
   isLoading?: boolean
 }
 
-// Memoized ReportCard component with corrected prop types
+// Memoized ReportCard component with enhanced evaluation checks
 const ReportCard = memo(function ReportCard({
   report,
   onView,
@@ -52,10 +67,25 @@ const ReportCard = memo(function ReportCard({
     const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
     const isReportCompleted = totalTasks > 0 && completedTasks === totalTasks
 
-    return { completedTasks, totalTasks, completionRate, isReportCompleted }
+    // ✅ NEW: Calculate evaluation statistics
+    const hasEvaluations = hasReportEvaluations(report)
+    const totalEvaluations = countReportEvaluations(report)
+    const evaluatedTasksCount = report.tasks?.filter(task => 
+      task.evaluations && task.evaluations.length > 0
+    ).length || 0
+
+    return { 
+      completedTasks, 
+      totalTasks, 
+      completionRate, 
+      isReportCompleted,
+      hasEvaluations,
+      totalEvaluations,
+      evaluatedTasksCount
+    }
   }, [report.tasks])
 
-  // Memoize formatted date
+  // Memoized formatted date
   const formattedDate = useMemo(() => {
     return report.createdAt ? formatDistanceToNow(new Date(report.createdAt), { 
       addSuffix: true, 
@@ -66,10 +96,19 @@ const ReportCard = memo(function ReportCard({
   const handleClick = useCallback(() => onView(report), [onView, report])
   const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
+
+    // ✅ NEW: Check for evaluations before allowing delete
+    if (stats.hasEvaluations) {
+      toast.error(
+        `Không thể xóa báo cáo do có ${stats.totalEvaluations} đánh giá trên ${stats.evaluatedTasksCount} công việc`,
+      )
+      return
+    }
+
     if (onDelete) {
       onDelete(report, e)
     }
-  }, [onDelete, report])
+  }, [onDelete, report, stats.hasEvaluations, stats.totalEvaluations, stats.evaluatedTasksCount])
 
   return (
     <motion.div
@@ -86,12 +125,14 @@ const ReportCard = memo(function ReportCard({
             <CardTitle className="text-lg">
               Tuần {report.weekNumber}/{report.year}
             </CardTitle>
-            {/* <Badge 
-              variant={stats.isReportCompleted ? "default" : "secondary"}
-              className={stats.isReportCompleted ? "bg-green-100 text-green-800" : ""}
-            >
-              {stats.isReportCompleted ? 'Hoàn thành' : 'Chưa hoàn thành'}
-            </Badge> */}
+            
+            {/* ✅ NEW: Show evaluation indicator */}
+            {stats.hasEvaluations && (
+              <div className="flex items-center gap-1 text-xs bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 px-2 py-1 rounded-full">
+                <AlertTriangle className="w-3 h-3" />
+                <span>{stats.totalEvaluations} đánh giá</span>
+              </div>
+            )}
           </div>
           
           <div className="flex items-center text-sm text-muted-foreground">
@@ -127,6 +168,16 @@ const ReportCard = memo(function ReportCard({
               )}
             </div>
 
+            {/* ✅ NEW: Show evaluation summary */}
+            {stats.hasEvaluations && (
+              <div className="bg-blue-50 dark:bg-blue-950/20 border border-blue-200 dark:border-blue-800 rounded-lg p-2">
+                <div className="flex items-center gap-2 text-xs text-blue-700 dark:text-blue-300">
+                  <AlertTriangle className="w-3 h-3" />
+                  <span>Có {stats.evaluatedTasksCount} công việc đã được đánh giá</span>
+                </div>
+              </div>
+            )}
+
             <div className="flex gap-2 pt-2">
               <Button 
                 variant="outline" 
@@ -143,7 +194,15 @@ const ReportCard = memo(function ReportCard({
                   variant="outline" 
                   size="sm" 
                   onClick={handleDeleteClick}
-                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                  className={`${stats.hasEvaluations 
+                    ? 'text-gray-400 hover:text-gray-500 hover:bg-gray-50 cursor-not-allowed opacity-50' 
+                    : 'text-red-600 hover:text-red-700 hover:bg-red-50'
+                  }`}
+                  disabled={stats.hasEvaluations}
+                  title={stats.hasEvaluations 
+                    ? `Không thể xóa do có ${stats.totalEvaluations} đánh giá` 
+                    : 'Xóa báo cáo'
+                  }
                 >
                   <Trash2 className="w-4 h-4" />
                 </Button>
@@ -172,21 +231,47 @@ export const ReportsList = memo(function ReportsList({
   // Memoize current week
   const currentWeek = useMemo(() => getCurrentWeek(), [])
   const nextWeek = useMemo(() => getNextWeek(), [])
+  
+  // ✅ ENHANCED: Enhanced canDeleteReport with evaluation check
   const canDeleteReport = useCallback((report: WeeklyReport): boolean => {
     const isCurrentWeek = (report.weekNumber === currentWeek.weekNumber && report.year === currentWeek.year) 
     || (report.weekNumber === nextWeek.weekNumber && report.year === nextWeek.year)
-    return isCurrentWeek && !report.isLocked && !!onDeleteReport
+    
+    const hasEvaluations = hasReportEvaluations(report)
+    
+    return isCurrentWeek && !report.isLocked && !!onDeleteReport && !hasEvaluations
   }, [currentWeek, nextWeek, onDeleteReport])
 
-  // Optimized delete handlers - now takes report and event
+  // ✅ ENHANCED: Delete handlers with evaluation validation
   const handleDeleteClick = useCallback((report: WeeklyReport, e: React.MouseEvent) => {
     e.stopPropagation()
+    
+    // Double-check evaluations before showing dialog
+    const hasEvaluations = hasReportEvaluations(report)
+    const totalEvaluations = countReportEvaluations(report)
+    
+    if (hasEvaluations) {
+      toast.error(
+        `Không thể xóa báo cáo do có ${totalEvaluations} đánh giá từ cấp trên`,
+      )
+      return
+    }
+
     setReportToDelete(report)
     setShowDeleteDialog(true)
   }, [])
 
   const handleConfirmDelete = useCallback(async () => {
     if (!reportToDelete || !onDeleteReport) return
+
+    // Final evaluation check before deletion
+    const hasEvaluations = hasReportEvaluations(reportToDelete)
+    if (hasEvaluations) {
+      toast.error('Không thể xóa báo cáo do có đánh giá từ cấp trên')
+      setShowDeleteDialog(false)
+      setReportToDelete(null)
+      return
+    }
 
     setIsDeleting(true)
     try {
@@ -205,13 +290,25 @@ export const ReportsList = memo(function ReportsList({
 
   // Enhanced memoization with proper cache busting
   const validReports = useMemo(() => {
-    
     const filtered = Array.isArray(reports)
       ? reports.filter(report => report?.id && typeof report.id === 'string')
       : []
     
     return filtered
-  }, [reports]) // Remove extra dependency, just use reports
+  }, [reports])
+
+  // ✅ FIX: Move reportStats calculation here - ALWAYS call useMemo unconditionally
+  const reportStats = useMemo(() => {
+    if (!reportToDelete) return null
+    
+    const hasEvaluations = hasReportEvaluations(reportToDelete)
+    const totalEvaluations = countReportEvaluations(reportToDelete)
+    const evaluatedTasksCount = reportToDelete.tasks?.filter(task => 
+      task.evaluations && task.evaluations.length > 0
+    ).length || 0
+
+    return { hasEvaluations, totalEvaluations, evaluatedTasksCount }
+  }, [reportToDelete]) // ✅ This is now always called, no conditional hook usage
 
   if (isLoading) {
     return (
@@ -253,7 +350,7 @@ export const ReportsList = memo(function ReportsList({
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {validReports.map((report) => (
           <ReportCard
-            key={`report-${report.id}-${report.updatedAt || report.createdAt}`} // Enhanced key for proper re-rendering
+            key={`report-${report.id}-${report.updatedAt || report.createdAt}`}
             report={report}
             onView={onViewReport}
             onDelete={handleDeleteClick}
@@ -262,17 +359,51 @@ export const ReportsList = memo(function ReportsList({
         ))}
       </div>
 
-      {/* Delete Dialog */}
+      {/* ✅ ENHANCED: Delete Dialog with evaluation warnings */}
       <Dialog open={showDeleteDialog} onOpenChange={handleCloseDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-md">
           <DialogHeader>
-            <DialogTitle>Xác nhận xóa báo cáo</DialogTitle>
-            <DialogDescription>
-              Bạn có chắc chắn muốn xóa báo cáo tuần {reportToDelete?.weekNumber}/{reportToDelete?.year}?
-              <br />
-              <span className="text-red-600 font-medium">
-                Thao tác này không thể hoàn tác và sẽ xóa tất cả công việc trong báo cáo.
-              </span>
+            <DialogTitle className="flex items-center gap-2">
+              {reportStats?.hasEvaluations ? (
+                <>
+                  <AlertTriangle className="w-5 h-5 text-amber-600" />
+                  Không thể xóa báo cáo
+                </>
+              ) : (
+                <>
+                  <Trash2 className="w-5 h-5 text-red-600" />
+                  Xác nhận xóa báo cáo
+                </>
+              )}
+            </DialogTitle>
+            <DialogDescription className="space-y-2">
+              {reportStats?.hasEvaluations ? (
+                <div className="space-y-3">
+                  <p className="text-amber-700 dark:text-amber-300">
+                    Báo cáo tuần {reportToDelete?.weekNumber}/{reportToDelete?.year} không thể xóa vì:
+                  </p>
+                  <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3">
+                    <ul className="space-y-1 text-sm text-amber-800 dark:text-amber-200">
+                      <li>• Có <strong>{reportStats.totalEvaluations} đánh giá</strong> từ cấp trên</li>
+                      <li>• Trên <strong>{reportStats.evaluatedTasksCount} công việc</strong> đã được review</li>
+                    </ul>
+                  </div>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Để bảo vệ dữ liệu đánh giá, báo cáo này không thể bị xóa.
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-2">
+                  <p>
+                    Bạn có chắc chắn muốn xóa báo cáo tuần {reportToDelete?.weekNumber}/{reportToDelete?.year}?
+                  </p>
+                  <div className="bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-800 rounded-lg p-3">
+                    <p className="text-red-700 dark:text-red-300 font-medium text-sm">
+                      ⚠️ Thao tác này không thể hoàn tác và sẽ xóa tất cả công việc trong báo cáo.
+                    </p>
+                  </div>
+                </div>
+              )}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -281,26 +412,28 @@ export const ReportsList = memo(function ReportsList({
               onClick={handleCloseDialog}
               disabled={isDeleting}
             >
-              Hủy
+              {reportStats?.hasEvaluations ? 'Đóng' : 'Hủy'}
             </Button>
-            <Button
-              variant="destructive"
-              onClick={handleConfirmDelete}
-              disabled={isDeleting}
-              className="flex items-center gap-2"
-            >
-              {isDeleting ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Đang xóa...
-                </>
-              ) : (
-                <>
-                  <Trash2 className="w-4 h-4" />
-                  Xóa báo cáo
-                </>
-              )}
-            </Button>
+            {!reportStats?.hasEvaluations && (
+              <Button
+                variant="destructive"
+                onClick={handleConfirmDelete}
+                disabled={isDeleting}
+                className="flex items-center gap-2"
+              >
+                {isDeleting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    Đang xóa...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="w-4 h-4" />
+                    Xóa báo cáo
+                  </>
+                )}
+              </Button>
+            )}
           </DialogFooter>
         </DialogContent>
       </Dialog>

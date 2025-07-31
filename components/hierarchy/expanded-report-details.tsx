@@ -23,7 +23,7 @@ export const ExpandedReportDetails = memo(function ExpandedReportDetails({
             <div className="space-y-4">
                 {isLoading && (
                     <div className="flex items-center justify-center py-8">
-                        <ScreenLoading size="sm" variant="dual-ring" fullScreen backdrop text="Đang tải chi tiết..." />
+                        <ScreenLoading size="sm" variant="grid" fullScreen backdrop text="Đang tải chi tiết..." />
                     </div>
                 )}
 

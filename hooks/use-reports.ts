@@ -61,48 +61,54 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
   return useApiQuery<WeeklyReport | null, Error>({
     queryKey: QUERY_KEYS.reports.reportByWeek(user?.id || 'anonymous', weekNumber!, year!),
     queryFn: async (): Promise<ApiResult<WeeklyReport | null>> => {
-      // Check store cache first
-      const cacheKey = `${weekNumber}-${year}`
-      const cached = getCachedReport(cacheKey)
-      
-      if (cached) {
-        syncReportToStore(cached)
-        return {
-          success: true,
-          data: cached
-        }
-      }
       
       try {
-        // Call the service method
+        // Call the service method directly - NO cache check here to ensure fresh data
         const apiResult = await ReportService.getReportByWeek(weekNumber!, year!)
         
         // Handle the API result
         if (apiResult.success && apiResult.data) {
+          
+          // ✅ CRITICAL: Force store sync immediately when data arrives
+          const cacheKey = `${weekNumber}-${year}`
           setCachedReport(cacheKey, apiResult.data)
-          syncReportToStore(apiResult.data)
+          
+          // ✅ FORCE SYNC: Always sync to store when fresh data arrives
+          setTimeout(() => {
+            syncReportToStore(apiResult.data!)
+          }, 0)
+          
           return {
             success: true,
             data: apiResult.data
           }
         } else if (apiResult.success && !apiResult.data) {
-          // No report found for this week (valid case)
-          // OPTIMIZED: Use store directly instead of hook
+          
+          // ✅ CRITICAL: Clear store when no report found
           const { selectedReport, clearCacheForWeek } = useReportStore.getState()
           if (selectedReport?.weekNumber === weekNumber && selectedReport?.year === year) {
-            clearCacheForWeek(weekNumber!, year!) // Clear cache
-            syncReportToStore(null) // Clear selectedReport
-            clearTasks()
+            clearCacheForWeek(weekNumber!, year!)
           }
+          
+          // ✅ FORCE SYNC: Always clear store when no data
+          setTimeout(() => {
+            syncReportToStore(null)
+            clearTasks()
+          }, 0)
           
           return {
             success: true,
             data: null
           }
         } else {
-          // API returned error
-          syncReportToStore(null)
-          clearTasks()
+          console.error(`❌ useReportByWeek: API error for week ${weekNumber}/${year}:`, apiResult.error)
+          
+          // ✅ FORCE SYNC: Clear store on error
+          setTimeout(() => {
+            syncReportToStore(null)
+            clearTasks()
+          }, 0)
+          
           return {
             success: false,
             error: apiResult.error || {
@@ -113,8 +119,13 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
           }
         }
       } catch (error: any) {
-        syncReportToStore(null)
-        clearTasks()
+        console.error(`❌ useReportByWeek: Network error for week ${weekNumber}/${year}:`, error)
+        
+        // ✅ FORCE SYNC: Clear store on network error
+        setTimeout(() => {
+          syncReportToStore(null)
+          clearTasks()
+        }, 0)
         
         return {
           success: false,
@@ -127,8 +138,13 @@ export function useReportByWeek(weekNumber?: number, year?: number) {
       }
     },
     enabled: !!weekNumber && !!year && weekNumber > 0 && year > 0 && !!user?.id,
-    cacheStrategy: 'fresh', // Always fresh for current work
+    cacheStrategy: 'fresh', // Always fresh to ensure immediate updates
     throwOnError: false,
+    // ✅ CRITICAL: Always refetch to get latest data
+    refetchOnMount: 'always',
+    // ✅ NEW: Force stale immediately to trigger refetch
+    staleTime: 0,
+    gcTime: 1000,
   })
 }
 

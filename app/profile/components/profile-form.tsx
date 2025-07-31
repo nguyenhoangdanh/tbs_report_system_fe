@@ -219,7 +219,7 @@ export const ProfileForm = memo(({
                     }
                   />
                 </SelectTrigger>
-                <SelectContent>
+                <SelectContent className="z-[9999] max-h-[200px] overflow-y-auto">
                   {filteredJobPositions.map((jobPosition) => (
                     <SelectItem key={jobPosition.id} value={jobPosition.id}>
                       <div className="flex flex-col">

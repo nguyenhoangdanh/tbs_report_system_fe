@@ -48,8 +48,8 @@ export function MainLayout({
       )}
 
       {/* Header */}
-      <AppHeader title={title} subtitle={subtitle} />
-
+      <AppHeader />  
+        
       {/* Breadcrumbs */}
       {showBreadcrumb && breadcrumbItems.length > 0 && (
         <motion.div

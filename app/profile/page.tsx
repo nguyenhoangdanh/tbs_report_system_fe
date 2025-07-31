@@ -153,12 +153,12 @@ function ProfileContent() {
   return (
     <MainLayout
       title="Thông tin cá nhân"
-      subtitle="Quản lý thông tin tài khoản và cài đặt bảo mật"
-      showBreadcrumb
-      breadcrumbItems={[
-        { label: 'Trang chủ', href: user?.role === 'USER' ? "/dashboard" : "/admin/hierarchy" },
-        { label: 'Thông tin cá nhân' }
-      ]}
+      // subtitle="Quản lý thông tin tài khoản và cài đặt bảo mật"
+      // showBreadcrumb
+      // breadcrumbItems={[
+      //   { label: 'Trang chủ', href: user?.role === 'USER' ? "/dashboard" : "/admin/hierarchy" },
+      //   { label: 'Thông tin cá nhân' }
+      // ]}
     >
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">

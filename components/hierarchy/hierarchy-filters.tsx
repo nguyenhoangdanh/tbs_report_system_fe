@@ -63,7 +63,7 @@ export const FiltersComponent = memo(({ filters, onFiltersChange }: FiltersCompo
               <SelectTrigger className="w-28">
                 <SelectValue />
               </SelectTrigger>
-              <SelectContent>
+              <SelectContent className="z-[9999] max-h-[400px] overflow-y-auto">
                 {weekOptions.map((week) => (
                   <SelectItem key={week.value} value={week.value.toString()}>
                     {week.label}

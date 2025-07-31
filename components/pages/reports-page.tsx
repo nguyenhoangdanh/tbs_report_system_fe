@@ -12,7 +12,7 @@ import { Plus, ArrowLeft, Edit } from 'lucide-react'
 import { toast } from 'react-toast-kit'
 import { getCurrentWeek, isValidWeekForCreation } from '@/utils/week-utils'
 import { useMyReports, useCurrentWeekReport, useCreateWeeklyReport, useUpdateReport, useDeleteReport, useReportByWeek } from '@/hooks/use-reports'
-import {  Task, UpdateTaskDto, WeeklyReport } from '@/types'
+import { Task, UpdateTaskDto, WeeklyReport } from '@/types'
 import { ScreenLoading } from '../loading/screen-loading'
 import { UpdateReportDto } from '@/services/report.service'
 import useReportStore from '@/store/report-store'
@@ -31,7 +31,7 @@ function ReportsPage() {
   const { user, isAuthenticated, isLoading: authLoading } = useAuth()
   const searchParams = useSearchParams()
 
-  // Parse URL params for initial filter state - ONLY for UI state, not API calls
+  // Parse URL params for initial filter state
   const initialFilter = useMemo(() => {
     const filter = searchParams.get('filter')
     const month = searchParams.get('month')
@@ -49,29 +49,31 @@ function ReportsPage() {
   }, [searchParams])
 
   // UI State
-  const [viewMode, setViewMode] = useState<ViewMode>('list')
   const [filterTab, setFilterTab] = useState<FilterTab>(initialFilter.tab)
   const [selectedMonth, setSelectedMonth] = useState<number>(initialFilter.month)
   const [selectedYear, setSelectedYear] = useState<number>(initialFilter.year)
 
-  // Report State
-  const [selectedReport, setSelectedReport] = useState<WeeklyReport | null>(null)
-  const [currentWeekNumber, setCurrentWeekNumber] = useState<number>(getCurrentWeek().weekNumber)
-  const [currentYear, setCurrentYear] = useState<number>(getCurrentWeek().year)
-
-  // Zustand store with user sync
+  // ✅ NEW: Use store for ALL navigation state
   const {
+    // Navigation state from store
+    viewMode,
+    setViewMode,
+    selectedReport,
+    setSelectedReport,
+    currentWeekNumber,
+    currentYear,
     currentTasks,
-    selectedReport: storeSelectedReport,
-    currentWeekNumber: storeWeekNumber,
-    currentYear: storeYear,
     isSaving,
+    // User management
     setCurrentUser,
-    navigateToWeek,
+    // Report management
     syncReportToStore,
+    navigateToWeek,
     clearUserSpecificState,
     clearCacheForWeek,
-    clearTasks
+    clearTasks,
+    // Add these methods to store if not exists
+    forceResetForNewOperation
   } = useReportStore()
 
   // Sync user to store when user changes
@@ -103,21 +105,17 @@ function ReportsPage() {
   const updateReportMutation = useUpdateReport()
   const deleteReportMutation = useDeleteReport()
 
-  // Memoized data processing - FIX: Handle API response structure correctly
+  // Memoized data processing
   const reports = useMemo(() => {
-
-    // Handle direct array response or paginated response
     if (Array.isArray(reportsData?.data)) {
       return reportsData.data
     }
     if (Array.isArray(reportsData)) {
       return reportsData
     }
-    // Handle paginated response structure
     if (reportsData?.data && Array.isArray(reportsData.data)) {
       return reportsData.data
     }
-
     return []
   }, [reportsData])
 
@@ -175,9 +173,8 @@ function ReportsPage() {
     return allYears.length > 0 ? allYears : [new Date().getFullYear()]
   }, [reports])
 
-  // Effect to sync selected report with week report - Enhanced with user validation
+  // ✅ ENHANCED: Sync selected report with week report from store
   useEffect(() => {
-    // Only sync if we have a valid user
     if (!user?.id) {
       setSelectedReport(null)
       return
@@ -185,14 +182,22 @@ function ReportsPage() {
 
     if (viewMode === 'form') {
       if (weekReport?.id) {
-        setSelectedReport(weekReport)
+        // ✅ CRITICAL: Only sync if the report matches current week
+        if (weekReport.weekNumber === currentWeekNumber && weekReport.year === currentYear) {
+          setSelectedReport(weekReport)
+          syncReportToStore(weekReport)
+        }
       } else {
-        setSelectedReport(null)
+        // ✅ CRITICAL: Only clear if we're not loading and week matches
+        if (!weekReportLoading) {
+          setSelectedReport(null)
+          syncReportToStore(null)
+        }
       }
     }
-  }, [weekReport, viewMode, user?.id])
+  }, [weekReport, viewMode, user?.id, weekReportLoading, setSelectedReport, syncReportToStore, currentWeekNumber, currentYear])
 
-  // CRITICAL: Use shallow routing to prevent API calls - FIXED with stable dependencies
+  // CRITICAL: Use shallow routing to prevent API calls
   const updateURLParams = useCallback((tab: FilterTab, month?: number, year?: number) => {
     const params = new URLSearchParams()
     params.set('filter', tab)
@@ -205,38 +210,25 @@ function ReportsPage() {
     }
 
     const newURL = `${window.location.pathname}?${params.toString()}`
-
-    // Use replace to avoid adding to history
     window.history.replaceState(null, '', newURL)
+  }, [])
 
-  }, []) // Remove router dependency to prevent re-renders
-
-  // Event handlers with stable references
+  // ✅ ENHANCED: Event handlers using store state with better logging
   const handleWeekChange = useCallback((newWeekNumber: number, newYear: number) => {
     if (!user?.id) {
       console.warn('⚠️ No user logged in, skipping week change')
       return
     }
-    
-    setIsOperationLoading(true)
-    
-    // STEP 1: Complete state cleanup
+
+    // STEP 1: Complete state cleanup using store methods
     setSelectedReport(null)
     syncReportToStore(null)
     clearTasks()
-    setCurrentWeekNumber(newWeekNumber)
-    setCurrentYear(newYear)
     
-    // STEP 2: Clear cache for new week
-    clearCacheForWeek(newWeekNumber, newYear)
+    // STEP 2: Navigate to new week using store
     navigateToWeek(newWeekNumber, newYear, true)
     
-    // STEP 3: Force refetch and verify state
-    setTimeout(() => {
-      refetchReports()
-      setIsOperationLoading(false)
-    }, 300)
-  }, [user?.id, navigateToWeek, refetchReports, syncReportToStore, clearCacheForWeek, clearTasks])
+  }, [user?.id, navigateToWeek, syncReportToStore, clearTasks, setSelectedReport, currentWeekNumber, currentYear])
 
   const handleFilterTabChange = useCallback((tab: FilterTab) => {
     setFilterTab(tab)
@@ -253,7 +245,7 @@ function ReportsPage() {
     updateURLParams(filterTab, selectedMonth, year)
   }, [filterTab, selectedMonth, updateURLParams])
 
-  // Calculate week availability - FIX: Type safety for reports
+  // Calculate week availability
   const weekAvailability = useMemo(() => {
     const current = getCurrentWeek()
 
@@ -273,7 +265,7 @@ function ReportsPage() {
       nextYear = current.year + 1
     }
 
-    // Check which weeks have existing reports - FIX: Type safety
+    // Check which weeks have existing reports
     const hasPreviousWeekReport = Array.isArray(reports) && reports.some((report: any) =>
       report?.weekNumber === prevWeek && report?.year === prevYear
     )
@@ -314,14 +306,17 @@ function ReportsPage() {
     }
   }, [reports])
 
-  // FIXED: Remove handleBackToList dependency to prevent infinite loops
+  // ✅ ENHANCED: Handle create or update using store state
   const handleCreateOrUpdateReport = useCallback(async (reportData: ReportData): Promise<WeeklyReport> => {
     if (!user?.id) {
       throw new Error('Vui lòng đăng nhập để tạo báo cáo');
     }
 
+    // Use store's selectedReport
+    const currentSelectedReport = selectedReport
+
     // CRITICAL: Validate week for creation
-    if (!selectedReport) {
+    if (!currentSelectedReport) {
       const weekValidation = isValidWeekForCreation(
         Number(reportData.weekNumber),
         Number(reportData.year)
@@ -352,7 +347,6 @@ function ReportsPage() {
     try {
       let result: WeeklyReport;
 
-      const currentSelectedReport = selectedReport
       const isUpdating = currentSelectedReport && currentSelectedReport.id
 
       if (isUpdating) {
@@ -372,7 +366,7 @@ function ReportsPage() {
           }))
         };
 
-        result = await updateReportMutation.mutateAsync({ id: selectedReport.id, data: updateData });
+        result = await updateReportMutation.mutateAsync({ id: currentSelectedReport.id, data: updateData });
       } else {
         const createData = {
           weekNumber: Number(reportData.weekNumber),
@@ -402,9 +396,9 @@ function ReportsPage() {
         refetchCurrentWeek()
       ])
 
-      // ✅ NOW clear state and navigate back to list - AFTER API success
+      // ✅ NOW clear state and navigate back to list using store
       setSelectedReport(null);
-      syncReportToStore(null); // Clear store state
+      syncReportToStore(null);
       setViewMode('list');
       updateURLParams(filterTab, selectedMonth, selectedYear);
 
@@ -415,85 +409,110 @@ function ReportsPage() {
       toast.error(message);
       throw error;
     }
-  }, [user?.id, selectedReport, updateReportMutation, createReportMutation, refetchReports, refetchCurrentWeek, filterTab, selectedMonth, selectedYear, updateURLParams, syncReportToStore])
+  }, [user?.id, selectedReport, updateReportMutation, createReportMutation, refetchReports, refetchCurrentWeek, filterTab, selectedMonth, selectedYear, updateURLParams, syncReportToStore, setSelectedReport, setViewMode])
 
-  // Add missing handlers
+  // ✅ ENHANCED: Handlers using store state
   const handleViewReport = useCallback((report: WeeklyReport) => {
     setSelectedReport(report)
-    setCurrentWeekNumber(report.weekNumber)
-    setCurrentYear(report.year)
+    syncReportToStore(report)
+    navigateToWeek(report.weekNumber, report.year, false)
     setViewMode('template')
-  }, [])
+  }, [setSelectedReport, syncReportToStore, navigateToWeek, setViewMode])
 
   const handleEditReport = useCallback((report: WeeklyReport) => {
     setSelectedReport(report)
-    setCurrentWeekNumber(report.weekNumber)
-    setCurrentYear(report.year)
+    syncReportToStore(report)
+    navigateToWeek(report.weekNumber, report.year, false)
     setViewMode('form')
-  }, [])
+  }, [setSelectedReport, syncReportToStore, navigateToWeek, setViewMode])
 
   const handleBackToList = useCallback(() => {
     setSelectedReport(null)
+    syncReportToStore(null)
     setViewMode('list')
     updateURLParams(filterTab, selectedMonth, selectedYear)
-  }, [filterTab, selectedMonth, selectedYear, updateURLParams])
+  }, [filterTab, selectedMonth, selectedYear, updateURLParams, setSelectedReport, syncReportToStore, setViewMode])
 
   // Add loading state for operations
   const [isOperationLoading, setIsOperationLoading] = useState(false)
 
-  // Enhanced delete handler with complete state cleanup
+  // ✅ NEW: Helper function to check if report has evaluations
+  const hasReportEvaluations = useCallback((report: WeeklyReport): boolean => {
+    return report.tasks?.some(task => 
+      task.evaluations && Array.isArray(task.evaluations) && task.evaluations.length > 0
+    ) || false
+  }, [])
+
+  // ✅ ENHANCED: Delete handler using store state with evaluation validation
   const handleDeleteReport = useCallback(async (reportId: string): Promise<void> => {
     setIsOperationLoading(true)
     try {
       // Get report info BEFORE deletion
       const reportToDelete = reports.find(r => r.id === reportId)
-      
-      // STEP 1: Clear ALL state immediately BEFORE deletion
+
+      if (!reportToDelete) {
+        throw new Error('Không tìm thấy báo cáo để xóa')
+      }
+
+      // ✅ NEW: Check for evaluations before deletion
+      const hasEvaluations = hasReportEvaluations(reportToDelete)
+      if (hasEvaluations) {
+        const totalEvaluations = reportToDelete.tasks?.reduce((total: number, task: Task) => {
+          return total + (task.evaluations?.length || 0)
+        }, 0) || 0
+        
+        throw new Error(
+          `Không thể xóa báo cáo do có ${totalEvaluations} đánh giá từ cấp trên. ` +
+          'Báo cáo đã được đánh giá không thể xóa để bảo vệ dữ liệu.'
+        )
+      }
+
+      // STEP 1: Clear ALL state immediately using store methods
       setSelectedReport(null)
       syncReportToStore(null)
       clearTasks()
-      
+
       if (reportToDelete) {
         clearCacheForWeek(reportToDelete.weekNumber, reportToDelete.year)
-        
-        // If we're currently viewing this week, clear week navigation too
+
+        // If we're currently viewing this week, reset to current week
         if (currentWeekNumber === reportToDelete.weekNumber && currentYear === reportToDelete.year) {
           const currentWeek = getCurrentWeek()
-          setCurrentWeekNumber(currentWeek.weekNumber)
-          setCurrentYear(currentWeek.year)
           navigateToWeek(currentWeek.weekNumber, currentWeek.year, true)
         }
       }
 
       // STEP 2: Perform deletion
       await deleteReportMutation.mutateAsync(reportId)
-      
-      // STEP 3: Additional cleanup after deletion
+
+      // STEP 3: Additional cleanup after deletion using store
       if (selectedReport?.id === reportId) {
         setSelectedReport(null)
         setViewMode('list')
       }
-      
-      // STEP 4: Force clear Zustand store state
+
+      // STEP 4: Force clear store state
       syncReportToStore(null)
       clearTasks()
-      
+
       // STEP 5: Wait for state to settle
       await new Promise(resolve => setTimeout(resolve, 500))
-      
+
       // STEP 6: Force refetch to ensure fresh data
       await Promise.all([
         refetchReports(),
         refetchCurrentWeek()
       ])
-      
-      // STEP 7: Navigate back to list view safely
+
+      // STEP 7: Navigate back to list view safely using store
       setViewMode('list')
       updateURLParams(filterTab, selectedMonth, selectedYear)
-      
+
     } catch (error: any) {
       console.error('❌ Delete report error:', error)
-      if (error.message.includes('tuần hiện tại') || error.message.includes('tuần tiếp theo')) {
+      if (error.message.includes('đánh giá')) {
+        toast.error(error.message)
+      } else if (error.message.includes('tuần hiện tại') || error.message.includes('tuần tiếp theo')) {
         toast.error('Chỉ có thể xóa báo cáo của tuần hiện tại và tuần tiếp theo')
       } else {
         toast.error(error.message || 'Không thể xóa báo cáo. Vui lòng thử lại.')
@@ -502,37 +521,37 @@ function ReportsPage() {
     } finally {
       setIsOperationLoading(false)
     }
-  }, [selectedReport, deleteReportMutation, refetchReports, refetchCurrentWeek, reports, clearCacheForWeek, syncReportToStore, clearTasks, currentWeekNumber, currentYear, navigateToWeek, filterTab, selectedMonth, selectedYear, updateURLParams])
+  }, [
+    selectedReport, deleteReportMutation, refetchReports, refetchCurrentWeek, reports, 
+    clearCacheForWeek, syncReportToStore, clearTasks, currentWeekNumber, currentYear, 
+    navigateToWeek, filterTab, selectedMonth, selectedYear, updateURLParams, 
+    setSelectedReport, setViewMode, hasReportEvaluations
+  ])
 
-  // Enhanced create handlers with complete state reset
+  // ✅ ENHANCED: Create handlers using store methods
   const handleCreateNew = useCallback(() => {
     if (!user?.id) {
       console.warn('⚠️ No user logged in, cannot create new report')
       toast.error('Vui lòng đăng nhập để tạo báo cáo')
       return
     }
-    
+
     setIsOperationLoading(true)
-    
-    // STEP 1: Complete state reset
+
+    // STEP 1: Complete state reset using store
+    forceResetForNewOperation(getCurrentWeek().weekNumber, getCurrentWeek().year)
     setSelectedReport(null)
-    syncReportToStore(null)
-    clearTasks()
-    
+
+    // STEP 2: Navigate to current week and form mode
     const current = getCurrentWeek()
-    setCurrentWeekNumber(current.weekNumber)
-    setCurrentYear(current.year)
-    
-    // STEP 2: Clear cache for target week
-    clearCacheForWeek(current.weekNumber, current.year)
     navigateToWeek(current.weekNumber, current.year, true)
-    
-    // STEP 3: Ensure state is completely clean
+
+    // STEP 3: Set view mode
     setTimeout(() => {
       setViewMode('form')
       setIsOperationLoading(false)
     }, 200)
-  }, [user?.id, navigateToWeek, syncReportToStore, clearCacheForWeek, clearTasks])
+  }, [user?.id, forceResetForNewOperation, navigateToWeek, setSelectedReport, setViewMode])
 
   const handleCreateForWeek = useCallback((weekNumber: number, year: number, weekType: 'previous' | 'current' | 'next') => {
     if (!user?.id) {
@@ -540,26 +559,22 @@ function ReportsPage() {
       toast.error('Vui lòng đăng nhập để tạo báo cáo')
       return
     }
-    
+
     setIsOperationLoading(true)
-    
-    // STEP 1: Complete state reset
+
+    // STEP 1: Complete state reset using store
+    forceResetForNewOperation(weekNumber, year)
     setSelectedReport(null)
-    syncReportToStore(null)
-    clearTasks()
-    setCurrentWeekNumber(weekNumber)
-    setCurrentYear(year)
-    
-    // STEP 2: Clear cache for target week
-    clearCacheForWeek(weekNumber, year)
+
+    // STEP 2: Navigate to target week
     navigateToWeek(weekNumber, year, true)
-    
-    // STEP 3: Ensure state is completely clean
+
+    // STEP 3: Set view mode
     setTimeout(() => {
       setViewMode('form')
       setIsOperationLoading(false)
     }, 200)
-  }, [user?.id, navigateToWeek, syncReportToStore, clearCacheForWeek, clearTasks])
+  }, [user?.id, forceResetForNewOperation, navigateToWeek, setSelectedReport, setViewMode])
 
   const isFormLoading = useMemo(() => {
     return isOperationLoading || isSaving || weekReportLoading || reportsLoading
@@ -574,10 +589,10 @@ function ReportsPage() {
     return null
   }
 
-  // Add a resetKey to force remount ReportForm when week changes
+  // Add a resetKey to force remount components when state changes
   const resetKey = useMemo(
-    () => `${user?.id}-${currentWeekNumber}-${currentYear}-${selectedReport?.id ?? 'no-report'}`,
-    [user?.id, currentWeekNumber, currentYear, selectedReport?.id]
+    () => `${user?.id}-${currentWeekNumber}-${currentYear}-${selectedReport?.id ?? 'no-report'}-${viewMode}`,
+    [user?.id, currentWeekNumber, currentYear, selectedReport?.id, viewMode]
   )
 
   return (
@@ -591,14 +606,12 @@ function ReportsPage() {
       <div className="max-w-8xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         {/* Add operation loading overlay */}
         {isOperationLoading && (
-          <div className="fixed inset-0 bg-black/20 backdrop-blur-sm z-50 flex items-center justify-center">
-            <div className="bg-white dark:bg-gray-800 rounded-lg p-6 shadow-xl">
-              <div className="flex items-center gap-3">
-                <div className="w-5 h-5 border-2 border-green-600/30 border-t-green-600 rounded-full animate-spin"></div>
-                <span>Đang xử lý...</span>
-              </div>
-            </div>
-          </div>
+          <ScreenLoading
+            size="lg"
+            variant="square-split"
+            fullScreen
+            backdrop
+          />
         )}
 
         {viewMode === 'list' ? (
@@ -779,8 +792,9 @@ function ReportsPage() {
 
             {selectedReport && (
               <ReportTemplate
+                key={`template-${resetKey}`}
                 report={selectedReport}
-                canEvaluation={user?.isManager}
+                canEvaluation={false}
                 className="print:max-w-none"
               />
             )}
@@ -827,7 +841,7 @@ function ReportsPage() {
               </Card>
             ) : (
               <ReportForm
-                key={resetKey}
+                key={`form-${resetKey}`}
                 report={selectedReport}
                 onSave={handleCreateOrUpdateReport}
                 onDelete={handleDeleteReport}

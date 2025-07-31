@@ -457,7 +457,7 @@ class EnhancedApiClient {
 
   // Convenience methods returning ApiResult
   async get<T>(endpoint: string, config?: RequestConfig): Promise<ApiResult<T>> {
-    return this.request<T>('GET', endpoint, undefined, config)
+    return this.request<T>('GET', endpoint, undefined, { ...config, enableCache: false })
   }
 
   async post<T>(endpoint: string, data?: any, config?: RequestConfig): Promise<ApiResult<T>> {

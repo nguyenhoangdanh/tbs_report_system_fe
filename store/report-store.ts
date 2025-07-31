@@ -3,9 +3,15 @@ import { devtools, persist } from 'zustand/middleware'
 import type { Task, WeeklyReport } from '@/types'
 import { getCurrentWeek } from '@/utils/week-utils'
 
+// ✅ NEW: Add ViewMode type
+type ViewMode = 'list' | 'form' | 'template'
+
 interface ReportState {
   // User-specific state
   currentUserId: string | null
+  
+  // ✅ NEW: Navigation state
+  viewMode: ViewMode
   
   // Report data
   selectedReport: WeeklyReport | null
@@ -20,6 +26,11 @@ interface ReportState {
   
   // Actions
   setCurrentUser: (userId: string | null) => void
+  
+  // ✅ NEW: View mode management
+  setViewMode: (mode: ViewMode) => void
+  setSelectedReport: (report: WeeklyReport | null) => void
+  
   syncReportToStore: (report: WeeklyReport | null) => void
   navigateToWeek: (weekNumber: number, year: number, clearData?: boolean) => void
   
@@ -68,6 +79,7 @@ const useReportStore = create<ReportState>()(
       (set, get) => ({
         // Initial state
         currentUserId: null,
+        viewMode: 'list', // ✅ NEW: Default view mode
         selectedReport: null,
         currentTasks: [],
         cachedReports: {},
@@ -81,11 +93,11 @@ const useReportStore = create<ReportState>()(
           
           // If switching to different user, clear all state
           if (state.currentUserId && state.currentUserId !== userId) {
-            
             // Clear everything for user switch
             const currentWeek = getCurrentWeek()
             set({
               currentUserId: userId,
+              viewMode: 'list', // ✅ Reset to list view
               selectedReport: null,
               currentTasks: [],
               cachedReports: {},
@@ -99,6 +111,25 @@ const useReportStore = create<ReportState>()(
           }
         },
 
+        // ✅ NEW: View mode management
+        setViewMode: (mode: ViewMode) => {
+          const state = get()
+          if (!state.currentUserId) {
+            console.warn('⚠️ No current user set, skipping view mode change')
+            return
+          }
+          set({ viewMode: mode })
+        },
+
+        setSelectedReport: (report: WeeklyReport | null) => {
+          const state = get()
+          if (!state.currentUserId) {
+            console.warn('⚠️ No current user set, skipping report selection')
+            return
+          }
+          set({ selectedReport: report })
+        },
+
         // Report management
         syncReportToStore: (report: WeeklyReport | null) => {
           const state = get()
@@ -110,7 +141,6 @@ const useReportStore = create<ReportState>()(
           }
           
           if (report) {
-            
             set({
               selectedReport: report,
               currentTasks: report.tasks || [],
@@ -134,7 +164,6 @@ const useReportStore = create<ReportState>()(
             console.warn('⚠️ No current user set, skipping week navigation')
             return
           }
-          
           
           // Always clear data when navigating to different week
           const isDifferentWeek = weekNumber !== state.currentWeekNumber || year !== state.currentYear
@@ -175,14 +204,25 @@ const useReportStore = create<ReportState>()(
             return
           }
 
-          // ✅ ENHANCED: Ensure imported tasks don't inherit evaluations
-          const cleanTasks = tasks.map(task => ({
+          // ✅ ENHANCED: Ensure imported tasks are properly initialized
+          const cleanTasks = tasks.map((task, index) => ({
             ...task,
-            id: task.id || `temp-${Date.now()}-${Math.random()}`, // Ensure unique ID
-            evaluations: [], // ✅ CRITICAL: Always clear evaluations for imported tasks
+            id: task.id || `temp-${Date.now()}-${index}-${Math.random()}`, // Ensure unique ID
+            evaluations: [], // ✅ CRITICAL: Always initialize as empty array for new tasks
             reportId: '', // Clear report association
             createdAt: task.createdAt || new Date().toISOString(),
-            updatedAt: new Date().toISOString()
+            updatedAt: new Date().toISOString(),
+            // ✅ ENSURE: All boolean fields are properly set
+            monday: Boolean(task.monday),
+            tuesday: Boolean(task.tuesday),
+            wednesday: Boolean(task.wednesday),
+            thursday: Boolean(task.thursday),
+            friday: Boolean(task.friday),
+            saturday: Boolean(task.saturday),
+            isCompleted: Boolean(task.isCompleted),
+            // ✅ ENSURE: reasonNotDone is string
+            reasonNotDone: task.reasonNotDone || '',
+            taskName: task.taskName || ''
           }))
 
           set({
@@ -311,6 +351,7 @@ const useReportStore = create<ReportState>()(
           
           const currentWeek = getCurrentWeek()
           set({
+            viewMode: 'list', // ✅ Reset to list view
             selectedReport: null,
             currentTasks: [],
             cachedReports: newCache,
@@ -342,7 +383,6 @@ const useReportStore = create<ReportState>()(
             currentYear: year,
             isSaving: false,
           })
-          
         },
 
         // Clear all state
@@ -350,6 +390,7 @@ const useReportStore = create<ReportState>()(
           const currentWeek = getCurrentWeek()
           set({
             currentUserId: null,
+            viewMode: 'list', // ✅ Reset to list view
             selectedReport: null,
             currentTasks: [],
             cachedReports: {},
