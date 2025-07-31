@@ -605,7 +605,7 @@ export const ReportForm = memo(function ReportForm({
                 <p className="text-sm text-muted-foreground">
                   {isFormOperationLoading 
                     ? 'Đang chuyển đổi tuần...' 
-                    : 'Đang kiểm tra báo cáo tuần {weekNumber}/{year}...'
+                    : `Đang tải báo cáo tuần ${weekNumber}/${year}...`
                   }
                 </p>
               </div>

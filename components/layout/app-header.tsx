@@ -34,20 +34,20 @@ export function AppHeader() {
     const userRole = user.role
 
     // Role-specific links
-    if (userRole === 'USER' && !user.isManager) {
-      links.push(
-        {
-          href: '/dashboard',
-          label: 'Dashboard',
-          icon: '🏠'
-        },
-        {
-          href: '/reports',
-          label: 'Báo cáo của tôi',
-          icon: '📝'
-        }
-      )
-    }
+    // if (userRole === 'USER' && !user.isManager) {
+    //   links.push(
+    //     {
+    //       href: '/dashboard',
+    //       label: 'Dashboard',
+    //       icon: '🏠'
+    //     },
+    //     {
+    //       href: '/reports',
+    //       label: 'Báo cáo của tôi',
+    //       icon: '📝'
+    //     }
+    //   )
+    // }
 
     // Admin links
     if (['SUPERADMIN', 'ADMIN'].includes(userRole) || (userRole === 'USER' && user.isManager)) {
@@ -66,17 +66,19 @@ export function AppHeader() {
       })
     }
 
-    links.push({
-      href: '/dashboard',
-      label: 'Trang chủ cá nhân',
-      icon: '🏠'
-    })
+    if (userRole === 'USER') {
+      links.push({
+        href: '/dashboard',
+        label: 'Trang chủ cá nhân',
+        icon: '🏠'
+      })
 
-    links.push({
-      href: '/reports',
-      label: 'Báo cáo của tôi',
-      icon: '📝'
-    })
+      links.push({
+        href: '/reports',
+        label: 'Báo cáo của tôi',
+        icon: '📝'
+      })
+    }
 
     // Common links for all users
     links.push({
@@ -102,8 +104,8 @@ export function AppHeader() {
           {/* Left side: Logo + Brand + Navigation */}
           <div className="flex items-center gap-4 lg:gap-6 flex-1">
             {/* Logo + Brand Name */}
-            <Link 
-              href={getHomeLink()} 
+            <Link
+              href={getHomeLink()}
               className="flex items-center gap-2 group flex-shrink-0"
             >
               <motion.div
@@ -120,7 +122,7 @@ export function AppHeader() {
                   className="w-8 h-8 sm:w-10 sm:h-10 md:w-12 md:h-12 object-contain drop-shadow-lg"
                 />
               </motion.div>
-              
+
               <motion.div
                 whileHover={{ scale: 1.02 }}
                 transition={{ type: "spring", stiffness: 400, damping: 17 }}
@@ -140,11 +142,11 @@ export function AppHeader() {
                 transition={{ delay: 0.2 }}
               >
                 {navigationLinks.map((link, index) => {
-                  const isActive = pathname === link.href || 
+                  const isActive = pathname === link.href ||
                     (link.href === '/admin/hierarchy' && pathname.startsWith('/admin/hierarchy')) ||
                     (link.href === '/admin/overview' && pathname.startsWith('/admin/overview')) ||
                     (link.href === '/reports' && pathname.startsWith('/reports'))
-                  
+
                   return (
                     <motion.div
                       key={link.href}
@@ -156,8 +158,8 @@ export function AppHeader() {
                         href={link.href}
                         className={`
                           relative flex items-center space-x-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-300 group whitespace-nowrap
-                          ${isActive 
-                            ? 'bg-green-500/15 text-green-700 dark:text-green-300 shadow-lg ring-1 ring-green-500/20' 
+                          ${isActive
+                            ? 'bg-green-500/15 text-green-700 dark:text-green-300 shadow-lg ring-1 ring-green-500/20'
                             : 'text-muted-foreground hover:text-foreground hover:bg-green-50 dark:hover:bg-green-950/20'
                           }
                         `}
@@ -170,16 +172,16 @@ export function AppHeader() {
                             transition={{ type: "spring", bounce: 0.2, duration: 0.6 }}
                           />
                         )}
-                        
+
                         {/* Icon with hover effect */}
-                        <motion.span 
+                        <motion.span
                           className={`text-base relative z-10 ${isActive ? 'scale-110' : ''}`}
                           whileHover={{ scale: 1.1 }}
                           transition={{ type: "spring", stiffness: 400, damping: 17 }}
                         >
                           {link.icon}
                         </motion.span>
-                        
+
                         {/* Label */}
                         <span className="relative z-10 group-hover:translate-x-0.5 transition-transform duration-200">
                           {link.label}
@@ -210,16 +212,16 @@ export function AppHeader() {
             transition={{ delay: 0.3 }}
           >
             {/* Theme toggle */}
-              <ThemeToggle />
-            
+            <ThemeToggle />
+
             {/* Login button for guests */}
             {!user && (
-              <motion.div 
-                whileHover={{ scale: 1.02 }} 
+              <motion.div
+                whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
               >
-                <Button 
-                  asChild 
+                <Button
+                  asChild
                   size="sm"
                   className="bg-green-gradient hover:shadow-green-glow transition-all duration-300 text-xs sm:text-sm px-2 sm:px-4"
                 >
@@ -230,7 +232,7 @@ export function AppHeader() {
                 </Button>
               </motion.div>
             )}
-            
+
             {/* User navigation */}
             <UserNav />
           </motion.div>

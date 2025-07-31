@@ -274,7 +274,7 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
       
     } catch (error) {
       console.error("❌ ReportTemplate: Error submitting evaluation:", error)
-      toast.error("Có lỗi xảy ra khi gửi đánh giá. Vui lòng thử lại!")
+      // toast.error("Có lỗi xảy ra khi gửi đánh giá. Vui lòng thử lại!")
     }
   }, [selectedTask, editEvaluation, updateEval, createEval, currentUser?.isManager, approveTask, rejectTask, queryClient])
 
