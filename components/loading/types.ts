@@ -46,35 +46,7 @@ export interface LoadingSkeletonProps {
 export interface ScreenLoadingProps {
   text?: string
   size?: "xs" | "sm" | "md" | "lg" | "xl"
-  variant?:
-    | "spin"
-    | "dots"
-    | "pulse"
-    | "bars"
-    | "wave"
-    | "bounce"
-    | "ring"
-    | "dual-ring"
-    | "ripple"
-    | "grid"
-    | "fade"
-    | "flip"
-    | "orbit"
-    | "elastic"
-    | "heart"
-    | "hourglass"
-    | "square-split"
-    | "triangle-spin"
-    | "diamond-dance"
-    | "hexagon-morph"
-    | "line-wave"
-    | "circle-chase"
-    | "square-pulse"
-    | "infinity"
-    | "corner-squares"
-    | "conic-loader"
-    | "tsb-text"
-    | "company-logo"
+  variant?: "spin" | "ring" | "dual-ring" | "grid" | "bars" | "square-split" | "corner-squares"
   className?: string
   fullScreen?: boolean
   backdrop?: boolean

@@ -8,15 +8,14 @@ interface AdminOverviewState {
   search: string
   setSearch: (search: string) => void
 
-  // User tracking
+  // User tracking with stable reference
   lastUserId: string | null
-  setLastUserId: (userId: string | null) => void
+  lastFiltersHash: string | null // ✅ NEW: Track filters hash to prevent loops
 
-  // Loading states
+  // Loading states - simplified
   isSubmittingEvaluation: boolean
   setSubmittingEvaluation: (loading: boolean) => void
   isRefetching: boolean
-  setIsRefetching: (loading: boolean) => void
 
   // Employee detail modal state
   openEmployeeModal: boolean
@@ -28,20 +27,29 @@ interface AdminOverviewState {
   ) => void
   setWeeklyReport: (report: WeeklyReport | null) => void
 
-  // ✅ NEW: Data cache similar to HierarchyStore
+  // ✅ FIXED: Simplified data cache with atomic operations
   managerReportsData: any | null
   currentFilters: any | null
   
-  // ✅ NEW: Enhanced refresh mechanism
+  // ✅ FIXED: Single source of truth for refresh state
   lastRefreshTimestamp: number
-  forceRefresh: () => void
+  isInitialized: boolean // ✅ NEW: Track initialization state
+  
+  // Actions with atomic operations
+  initializeStore: (userId: string) => void
   setManagerReportsData: (data: any, filters?: any) => void
   clearManagerReportsData: () => void
+  forceRefresh: () => void
   shouldRefetch: (userId: string, filters: any) => boolean
   setRefreshing: (loading: boolean) => void
-
-  // Reset all states
   resetAllStates: () => void
+}
+
+// ✅ HELPER: Create stable hash for filters
+const createFiltersHash = (filters: any): string => {
+  if (!filters) return 'null'
+  const { weekNumber, year, month } = filters
+  return `${weekNumber || 'null'}-${year || 'null'}-${month || 'null'}`
 }
 
 const useAdminOverviewStore = create<AdminOverviewState>()(
@@ -51,8 +59,9 @@ const useAdminOverviewStore = create<AdminOverviewState>()(
       search: '',
       setSearch: (search) => set({ search }, false, 'setSearch'),
 
-      // User tracking
+      // User tracking with stability
       lastUserId: null,
+      lastFiltersHash: null,
 
       // Loading states
       isSubmittingEvaluation: false,
@@ -60,7 +69,6 @@ const useAdminOverviewStore = create<AdminOverviewState>()(
         set({ isSubmittingEvaluation: loading }, false, 'setSubmittingEvaluation')
       },
       isRefetching: false,
-      
 
       // Employee detail modal state
       openEmployeeModal: false,
@@ -79,112 +87,125 @@ const useAdminOverviewStore = create<AdminOverviewState>()(
         set({ weeklyReport: report }, false, 'setWeeklyReport')
       },
 
-      // ✅ NEW: Data cache
+      // ✅ FIXED: Stable data cache
       managerReportsData: null,
       currentFilters: null,
       lastRefreshTimestamp: 0,
+      isInitialized: false,
 
-      // User management
-      setLastUserId: (userId: string | null) => {
-        const state = get()
-        
-        // Clear data when user changes
-        if (state.lastUserId !== userId) {
-          set({
-            lastUserId: userId,
-            managerReportsData: null,
-            currentFilters: null,
-            lastRefreshTimestamp: 0,
-            isRefetching: false,
-          })
-        } else {
-          set({ lastUserId: userId })
-        }
+      // ✅ ENHANCED: Initialize store with better cleanup
+      initializeStore: (userId: string) => {
+        set({
+          lastUserId: userId,
+          lastFiltersHash: null,
+          managerReportsData: null, // ✅ Always clear data on init
+          currentFilters: null,
+          lastRefreshTimestamp: 0,
+          isRefetching: false,
+          isInitialized: true,
+        }, false, 'initializeStore')
       },
 
-
+      // ✅ FIXED: Atomic data setting
       setManagerReportsData: (data, filters = null) => {
         const state = get()
 
         if (!state.lastUserId) {
-          console.warn('Cannot set manager reports data without a user ID')
+          console.warn('[AdminOverviewStore] Cannot set manager reports data without a user ID')
           return
         }
 
+        const filtersHash = createFiltersHash(filters || state.currentFilters)
+        
         set({
           managerReportsData: data,
           currentFilters: filters || state.currentFilters,
+          lastFiltersHash: filtersHash,
           lastRefreshTimestamp: Date.now(),
           isRefetching: false,
-        })
+        }, false, 'setManagerReportsData')
       },
 
-     
-
+      // ✅ FIXED: Clear with proper state reset
       clearManagerReportsData: () => {
         set({
           managerReportsData: null,
           currentFilters: null,
+          lastFiltersHash: null,
           lastRefreshTimestamp: 0,
           isRefetching: false,
-        })
+        }, false, 'clearManagerReportsData')
       },
 
-       // ✅ ENHANCED: Force refresh with better logging and state management
+      // ✅ FIXED: Force refresh with atomic state update
       forceRefresh: () => {
+        const state = get()
+        
         set({
           lastRefreshTimestamp: Date.now(),
           isRefetching: true,
-          managerReportsData: null, // ✅ Clear data to force refetch
-          currentFilters: null, // ✅ Clear filters to force refetch
-        })
-        
+          managerReportsData: null,
+          currentFilters: null,
+          lastFiltersHash: null,
+        }, false, 'forceRefresh')
       },
 
-      // ✅ ENHANCED: shouldRefetch with detailed logging for debugging
+      // ✅ CRITICAL FIX: Simplified shouldRefetch - always fetch if no data
       shouldRefetch: (userId: string, filters: any) => {
         const state = get()
         
-        // ✅ CRITICAL: Always refetch if data was cleared by forceRefresh
+        // ✅ Must have user
+        if (!userId) {
+          return false
+        }
+        
+        // ✅ CRITICAL: Always refetch if no data (for component mount cases)
         if (!state.managerReportsData) {
           return true
         }
         
-        // ✅ Refetch if user changed
+        // ✅ User changed
         if (state.lastUserId !== userId) {
           return true
         }
         
-        // ✅ Refetch if filters changed - More thorough comparison
-        if (!state.currentFilters || 
-            state.currentFilters.weekNumber !== filters?.weekNumber ||
-            state.currentFilters.year !== filters?.year ||
-            state.currentFilters.month !== filters?.month) {
+        // ✅ Check filters using stable hash
+        const currentFiltersHash = createFiltersHash(filters)
+        if (state.lastFiltersHash !== currentFiltersHash) {
+          return true
+        }
+        
+        // ✅ Data is too old (1 minute for component mount cases)
+        const dataAge = Date.now() - state.lastRefreshTimestamp
+        const isStale = dataAge > 1 * 60 * 1000 // Reduced to 1 minute
+        if (isStale) {
           return true
         }
         
         return false
       },
 
-      // ✅ FIXED: Add missing setRefreshing implementation (same as HierarchyStore)
+      // ✅ FIXED: Simple setRefreshing
       setRefreshing: (loading: boolean) => {
-        set({ isRefetching: loading })
+        set({ isRefetching: loading }, false, 'setRefreshing')
       },
 
-      // Reset all states - ✅ Updated
+      // ✅ FIXED: Complete state reset
       resetAllStates: () => {
         set({
           search: '',
           lastUserId: null,
+          lastFiltersHash: null,
           openEmployeeModal: false,
           selectedEmployeeDetail: null,
           weeklyReport: null,
           isSubmittingEvaluation: false,
-          isRefetching: false, // ✅ Use isRefetching instead of isRefreshing
+          isRefetching: false,
           managerReportsData: null,
           currentFilters: null,
           lastRefreshTimestamp: 0,
-        })
+          isInitialized: false,
+        }, false, 'resetAllStates')
       },
     }),
     {
@@ -193,11 +214,20 @@ const useAdminOverviewStore = create<AdminOverviewState>()(
   )
 )
 
-
-// ✅ Enhanced actions
+// ✅ Enhanced actions with safety checks
 export const adminOverviewStoreActions = {
-  forceRefresh: () => useAdminOverviewStore.getState().forceRefresh(),
+  forceRefresh: () => {
+    const state = useAdminOverviewStore.getState()
+    if (!state.isRefetching) { // Prevent multiple simultaneous refreshes
+      state.forceRefresh()
+    }
+  },
   clearAll: () => useAdminOverviewStore.getState().clearManagerReportsData(),
+  safeInitialize: (userId: string) => {
+    if (userId) {
+      useAdminOverviewStore.getState().initializeStore(userId)
+    }
+  }
 }
 
 export default useAdminOverviewStore

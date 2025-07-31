@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useMemo, type ReactNode } from "react"
+import { memo, useMemo, useEffect, useState, type ReactNode } from "react"
 import { motion, useReducedMotion } from "framer-motion"
 import { useTheme } from "next-themes"
 
@@ -16,6 +16,14 @@ interface FloatingParticle {
     shape: "circle" | "square" | "diamond"
 }
 
+interface GridPoint {
+    id: number
+    x: number
+    y: number
+    delay: number
+    intensity: number
+}
+
 interface ModernAnimatedBackgroundProps {
     particleCount?: number
     enableAnimation?: boolean
@@ -26,110 +34,157 @@ interface ModernAnimatedBackgroundProps {
     intensity?: "subtle" | "normal" | "vibrant"
 }
 
+// Performance detection hook
+const usePerformanceMode = () => {
+    const [isLowPerformance, setIsLowPerformance] = useState(false)
+    const [isMobile, setIsMobile] = useState(false)
+
+    useEffect(() => {
+        // Detect mobile devices
+        const mobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+        setIsMobile(mobile)
+
+        // Performance detection
+        const detectPerformance = () => {
+            // Check for low-end indicators
+            const isLowRAM = (navigator as any).deviceMemory && (navigator as any).deviceMemory < 4
+            const isSlowConnection = (navigator as any).connection && 
+                ((navigator as any).connection.effectiveType === 'slow-2g' || 
+                 (navigator as any).connection.effectiveType === '2g' ||
+                 (navigator as any).connection.effectiveType === '3g')
+            const isCPUThrottled = (navigator as any).hardwareConcurrency && (navigator as any).hardwareConcurrency < 4
+            const isBatteryLow = (navigator as any).getBattery && 
+                (navigator as any).getBattery().then((battery: any) => battery.level < 0.2)
+
+            setIsLowPerformance(mobile || isLowRAM || isSlowConnection || isCPUThrottled || !!isBatteryLow)
+        }
+
+        detectPerformance()
+    }, [])
+
+    return { isLowPerformance, isMobile }
+}
+
 const ModernAnimatedBackground = memo(
     ({
-        particleCount = 20,
+        particleCount = 8,
         enableAnimation = true,
         children,
         variant = "default",
         className = "",
         performanceMode = false,
-        intensity = "normal",
+        intensity = "subtle",
     }: ModernAnimatedBackgroundProps) => {
         const { theme, resolvedTheme } = useTheme()
         const currentTheme = resolvedTheme || theme || "dark"
         const shouldReduceMotion = useReducedMotion()
+        const { isLowPerformance, isMobile } = usePerformanceMode()
 
-        // Enhanced color schemes with green focus
+        // Auto-enable performance mode on mobile or low-end devices
+        const autoPerformanceMode = performanceMode || isLowPerformance || isMobile
+
+        // Enhanced color schemes with better contrast for light theme
         const variantColors = useMemo(() => {
-            const intensityMultiplier = {
-                subtle: 0.6,
-                normal: 1,
-                vibrant: 1.4,
-            }[intensity]
+            const baseIntensity = autoPerformanceMode ? 0.3 : 
+                { subtle: 0.4, normal: 0.6, vibrant: 0.8 }[intensity]
 
             const schemes = {
                 default: {
                     light: [
-                        `rgba(16, 185, 129, ${0.4 * intensityMultiplier})`, // Emerald
-                        `rgba(5, 150, 105, ${0.35 * intensityMultiplier})`, // Green
-                        `rgba(34, 197, 94, ${0.4 * intensityMultiplier})`, // Green-500
-                        `rgba(59, 130, 246, ${0.25 * intensityMultiplier})`, // Blue accent
-                        `rgba(168, 85, 247, ${0.3 * intensityMultiplier})`, // Purple accent
+                        `rgba(16, 185, 129, ${baseIntensity * 0.8})`, // Increased opacity
+                        `rgba(34, 197, 94, ${baseIntensity * 0.7})`,
+                        `rgba(5, 150, 105, ${baseIntensity * 0.6})`, // Darker green
                     ],
                     dark: [
-                        `rgba(52, 211, 153, ${0.6 * intensityMultiplier})`, // Emerald-400
-                        `rgba(16, 185, 129, ${0.5 * intensityMultiplier})`, // Emerald-500
-                        `rgba(34, 197, 94, ${0.6 * intensityMultiplier})`, // Green-500
-                        `rgba(59, 130, 246, ${0.4 * intensityMultiplier})`, // Blue accent
-                        `rgba(168, 85, 247, ${0.45 * intensityMultiplier})`, // Purple accent
+                        `rgba(52, 211, 153, ${baseIntensity * 0.7})`,
+                        `rgba(34, 197, 94, ${baseIntensity * 0.6})`,
+                        `rgba(59, 130, 246, ${baseIntensity * 0.4})`,
                     ],
-                    gradient:
-                        currentTheme === "dark"
-                            ? "from-emerald-500/20 via-green-500/15 to-emerald-600/20"
-                            : "from-emerald-500/10 via-green-500/8 to-emerald-600/10",
-                    mesh:
-                        currentTheme === "dark"
-                            ? "from-emerald-400/30 via-green-500/20 to-teal-500/25"
-                            : "from-emerald-400/15 via-green-500/10 to-teal-500/12",
+                    gradient: currentTheme === "dark" 
+                        ? "from-emerald-500/10 to-green-500/8"
+                        : "from-emerald-500/12 to-green-500/10", // Increased opacity
+                    grid: currentTheme === "dark"
+                        ? "rgba(52, 211, 153, 0.1)"
+                        : "rgba(16, 185, 129, 0.15)", // Increased opacity
+                    gridStrong: currentTheme === "dark"
+                        ? "rgba(52, 211, 153, 0.2)"
+                        : "rgba(5, 150, 105, 0.25)", // Darker and more opaque
                 },
                 login: {
                     light: [
-                        `rgba(16, 185, 129, ${0.5 * intensityMultiplier})`, // Primary emerald
-                        `rgba(5, 150, 105, ${0.4 * intensityMultiplier})`, // Darker green
-                        `rgba(34, 197, 94, ${0.45 * intensityMultiplier})`, // Green-500
-                        `rgba(6, 182, 212, ${0.3 * intensityMultiplier})`, // Cyan accent
+                        `rgba(16, 185, 129, ${baseIntensity * 0.9})`, // Higher opacity
+                        `rgba(34, 197, 94, ${baseIntensity * 0.8})`,
+                        `rgba(6, 182, 212, ${baseIntensity * 0.6})`,
                     ],
                     dark: [
-                        `rgba(52, 211, 153, ${0.7 * intensityMultiplier})`, // Primary emerald
-                        `rgba(16, 185, 129, ${0.6 * intensityMultiplier})`, // Emerald-500
-                        `rgba(34, 197, 94, ${0.65 * intensityMultiplier})`, // Green-500
-                        `rgba(6, 182, 212, ${0.5 * intensityMultiplier})`, // Cyan accent
+                        `rgba(52, 211, 153, ${baseIntensity * 0.8})`,
+                        `rgba(34, 197, 94, ${baseIntensity * 0.7})`,
+                        `rgba(6, 182, 212, ${baseIntensity * 0.5})`,
                     ],
-                    gradient:
-                        currentTheme === "dark"
-                            ? "from-emerald-500/25 via-green-500/20 to-teal-500/25"
-                            : "from-emerald-500/12 via-green-500/10 to-teal-500/12",
-                    mesh:
-                        currentTheme === "dark"
-                            ? "from-emerald-400/35 via-green-500/25 to-teal-500/30"
-                            : "from-emerald-400/18 via-green-500/12 to-teal-500/15",
+                    gradient: currentTheme === "dark"
+                        ? "from-emerald-500/12 to-green-500/10"
+                        : "from-emerald-500/15 to-green-500/12", // Increased opacity
+                    grid: currentTheme === "dark"
+                        ? "rgba(52, 211, 153, 0.12)"
+                        : "rgba(16, 185, 129, 0.18)", // Increased opacity
+                    gridStrong: currentTheme === "dark"
+                        ? "rgba(52, 211, 153, 0.25)"
+                        : "rgba(5, 150, 105, 0.3)", // Much stronger
                 },
                 hero: {
                     light: [
-                        `rgba(16, 185, 129, ${0.6 * intensityMultiplier})`, // Hero emerald
-                        `rgba(5, 150, 105, ${0.5 * intensityMultiplier})`, // Deep green
-                        `rgba(34, 197, 94, ${0.55 * intensityMultiplier})`, // Green-500
-                        `rgba(59, 130, 246, ${0.4 * intensityMultiplier})`, // Blue
-                        `rgba(168, 85, 247, ${0.45 * intensityMultiplier})`, // Purple
-                        `rgba(6, 182, 212, ${0.4 * intensityMultiplier})`, // Cyan
+                        `rgba(16, 185, 129, ${baseIntensity * 1.0})`, // Maximum opacity
+                        `rgba(34, 197, 94, ${baseIntensity * 0.9})`,
+                        `rgba(59, 130, 246, ${baseIntensity * 0.7})`,
+                        `rgba(168, 85, 247, ${baseIntensity * 0.6})`,
                     ],
                     dark: [
-                        `rgba(52, 211, 153, ${0.8 * intensityMultiplier})`, // Hero emerald
-                        `rgba(16, 185, 129, ${0.7 * intensityMultiplier})`, // Emerald-500
-                        `rgba(34, 197, 94, ${0.75 * intensityMultiplier})`, // Green-500
-                        `rgba(59, 130, 246, ${0.6 * intensityMultiplier})`, // Blue
-                        `rgba(168, 85, 247, ${0.65 * intensityMultiplier})`, // Purple
-                        `rgba(6, 182, 212, ${0.6 * intensityMultiplier})`, // Cyan
+                        `rgba(52, 211, 153, ${baseIntensity * 0.9})`,
+                        `rgba(34, 197, 94, ${baseIntensity * 0.8})`,
+                        `rgba(59, 130, 246, ${baseIntensity * 0.6})`,
+                        `rgba(168, 85, 247, ${baseIntensity * 0.5})`,
                     ],
-                    gradient:
-                        currentTheme === "dark"
-                            ? "from-emerald-500/30 via-green-500/25 to-emerald-600/30"
-                            : "from-emerald-500/15 via-green-500/12 to-emerald-600/15",
-                    mesh:
-                        currentTheme === "dark"
-                            ? "from-emerald-400/40 via-green-500/30 to-teal-500/35"
-                            : "from-emerald-400/20 via-green-500/15 to-teal-500/18",
+                    gradient: currentTheme === "dark"
+                        ? "from-emerald-500/15 to-green-500/12"
+                        : "from-emerald-500/20 to-green-500/16", // Much stronger
+                    grid: currentTheme === "dark"
+                        ? "rgba(52, 211, 153, 0.15)"
+                        : "rgba(16, 185, 129, 0.22)", // Stronger grid
+                    gridStrong: currentTheme === "dark"
+                        ? "rgba(52, 211, 153, 0.3)"
+                        : "rgba(5, 150, 105, 0.4)", // Very strong contrast
                 },
             }
             return schemes[variant]
-        }, [variant, currentTheme, intensity])
+        }, [variant, currentTheme, intensity, autoPerformanceMode])
+
+        // Generate grid intersection points for animation
+        const gridPoints = useMemo(() => {
+            if (shouldReduceMotion || !enableAnimation || autoPerformanceMode) return []
+            
+            const points: GridPoint[] = []
+            const gridSize = isMobile ? 80 : 60 // Larger grid on mobile for performance
+            const pointCount = isMobile ? 8 : 12
+            
+            for (let i = 0; i < pointCount; i++) {
+                points.push({
+                    id: i,
+                    x: (Math.floor(Math.random() * (100 / gridSize)) * gridSize) + (gridSize / 2),
+                    y: (Math.floor(Math.random() * (100 / gridSize)) * gridSize) + (gridSize / 2),
+                    delay: Math.random() * 2,
+                    intensity: Math.random() * 0.8 + 0.2,
+                })
+            }
+            
+            return points
+        }, [shouldReduceMotion, enableAnimation, autoPerformanceMode, isMobile])
 
         // Enhanced particles with more variety
         const particles = useMemo(() => {
+            if (shouldReduceMotion || !enableAnimation) return []
+            
             const colors = currentTheme === "dark" ? variantColors.dark : variantColors.light
-            const shapes: Array<"circle" | "square" | "diamond"> = ["circle", "square", "diamond"]
-            const adjustedCount = performanceMode ? Math.min(particleCount, 10) : particleCount
+            const adjustedCount = autoPerformanceMode ? Math.min(particleCount, 4) : Math.min(particleCount, 8)
 
             return Array.from(
                 { length: adjustedCount },
@@ -137,88 +192,135 @@ const ModernAnimatedBackground = memo(
                     id: i,
                     x: Math.random() * 100,
                     y: Math.random() * 100,
-                    size: Math.random() * 8 + 4,
-                    duration: Math.random() * 10 + 15,
-                    delay: Math.random() * 5,
-                    opacity: Math.random() * 0.8 + 0.3,
+                    size: autoPerformanceMode ? Math.random() * 4 + 3 : Math.random() * 6 + 4,
+                    duration: autoPerformanceMode ? Math.random() * 8 + 12 : Math.random() * 6 + 10,
+                    delay: Math.random() * 3,
+                    opacity: autoPerformanceMode ? Math.random() * 0.4 + 0.2 : Math.random() * 0.6 + 0.3,
                     color: colors[Math.floor(Math.random() * colors.length)],
-                    shape: shapes[Math.floor(Math.random() * shapes.length)],
+                    shape: ["circle", "square", "diamond"][Math.floor(Math.random() * 3)] as "circle" | "square" | "diamond",
                 }),
             )
-        }, [particleCount, currentTheme, variantColors, performanceMode])
+        }, [particleCount, currentTheme, variantColors, autoPerformanceMode, shouldReduceMotion, enableAnimation])
 
+        // Disable animations completely if reduced motion is preferred
         if (!enableAnimation || shouldReduceMotion) {
-            return children ? <div className={className}>{children}</div> : null
+            return children ? (
+                <div className={`min-h-screen relative ${className}`}>
+                    {/* Enhanced static grid background for light theme */}
+                    <div 
+                        className="absolute inset-0"
+                        style={{
+                            backgroundImage: `
+                                linear-gradient(${variantColors.grid} 1px, transparent 1px),
+                                linear-gradient(90deg, ${variantColors.grid} 1px, transparent 1px)
+                            `,
+                            backgroundSize: '40px 40px',
+                            opacity: currentTheme === "dark" ? 0.3 : 0.6, // Higher opacity for light
+                        }}
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-br from-green-50/50 to-emerald-50/40 dark:from-green-950/10 dark:to-emerald-950/5" />
+                    <div className="relative z-10">{children}</div>
+                </div>
+            ) : null
         }
 
         const Container = children ? "div" : "div"
         const containerProps = children
             ? {
                 className: `min-h-screen relative overflow-hidden ${className}`,
-                style: {
-                    background: `linear-gradient(135deg, ${variantColors.gradient
-                        .replace(/from-|via-|to-/g, "")
-                        .split(" ")
-                        .map((c) => `var(--${c.replace("/", "-")})`)
-                        .join(", ")})`,
-                },
             }
             : { className: `absolute inset-0 pointer-events-none overflow-hidden ${className}` }
 
         return (
             <Container {...containerProps}>
-                {/* Enhanced mesh gradient background */}
-                <div
-                    className="absolute inset-0 opacity-60"
+                {/* Enhanced Modern Grid Background with better light theme contrast */}
+                <div className="absolute inset-0">
+                    {/* Base grid pattern - stronger for light theme */}
+                    <div 
+                        className="absolute inset-0 transition-opacity duration-1000"
+                        style={{
+                            backgroundImage: `
+                                linear-gradient(${variantColors.grid} 1px, transparent 1px),
+                                linear-gradient(90deg, ${variantColors.grid} 1px, transparent 1px)
+                            `,
+                            backgroundSize: isMobile ? '60px 60px' : '40px 40px',
+                            opacity: autoPerformanceMode 
+                                ? (currentTheme === "dark" ? 0.3 : 0.5) 
+                                : (currentTheme === "dark" ? 0.5 : 0.7), // Much higher for light
+                        }}
+                    />
+                    
+                    {/* Accent grid lines - much stronger for light theme */}
+                    <div 
+                        className="absolute inset-0 transition-opacity duration-1000"
+                        style={{
+                            backgroundImage: `
+                                linear-gradient(${variantColors.gridStrong} 1px, transparent 1px),
+                                linear-gradient(90deg, ${variantColors.gridStrong} 1px, transparent 1px)
+                            `,
+                            backgroundSize: isMobile ? '240px 240px' : '160px 160px',
+                            opacity: autoPerformanceMode 
+                                ? (currentTheme === "dark" ? 0.2 : 0.4) 
+                                : (currentTheme === "dark" ? 0.4 : 0.8), // Much stronger for light
+                        }}
+                    />
+                    
+                    {/* Additional subtle pattern overlay for light theme depth */}
+                    {currentTheme === "light" && (
+                        <div 
+                            className="absolute inset-0 transition-opacity duration-1000"
+                            style={{
+                                backgroundImage: `radial-gradient(circle at 25% 25%, rgba(16, 185, 129, 0.1) 0%, transparent 50%), 
+                                                 radial-gradient(circle at 75% 75%, rgba(34, 197, 94, 0.08) 0%, transparent 50%)`,
+                                opacity: autoPerformanceMode ? 0.3 : 0.5,
+                            }}
+                        />
+                    )}
+                </div>
+
+                {/* Enhanced gradient overlay - stronger for light */}
+                <div 
+                    className={`absolute inset-0 bg-gradient-to-br ${variantColors.gradient} transition-opacity duration-1000`}
                     style={{
-                        background: `
-              radial-gradient(circle at 20% 50%, ${variantColors.mesh.split(" ")[0].replace("from-", "")} 0%, transparent 50%),
-              radial-gradient(circle at 80% 20%, ${variantColors.mesh.split(" ")[1].replace("via-", "")} 0%, transparent 50%),
-              radial-gradient(circle at 40% 80%, ${variantColors.mesh.split(" ")[2].replace("to-", "")} 0%, transparent 50%)
-            `,
+                        opacity: currentTheme === "dark" ? 1 : 1.2, // Slightly stronger for light
                     }}
                 />
 
-                {/* Animated grid pattern */}
-                <div className="absolute inset-0 bg-grid-green opacity-30" />
-
-                {/* Enhanced floating particles */}
-                {particles.map((particle) => {
+                {/* Enhanced floating particles - better visibility in light */}
+                {!autoPerformanceMode && particles.map((particle) => {
                     const shapeStyles = {
                         circle: "rounded-full",
                         square: "rounded-sm",
-                        diamond: "rounded-sm rotate-45",
+                        diamond: "rounded-sm transform rotate-45",
                     }
 
                     return (
                         <motion.div
                             key={particle.id}
-                            className={`absolute ${shapeStyles[particle.shape]} pointer-events-none shadow-lg`}
+                            className={`absolute ${shapeStyles[particle.shape]} pointer-events-none will-change-transform shadow-lg`}
                             style={{
                                 left: `${particle.x}%`,
                                 top: `${particle.y}%`,
                                 width: `${particle.size}px`,
                                 height: `${particle.size}px`,
-                                background:
-                                    currentTheme === "dark"
-                                        ? `radial-gradient(circle, ${particle.color} 0%, ${particle.color}80 70%, transparent 100%)`
-                                        : `linear-gradient(135deg, ${particle.color} 0%, ${particle.color}90 100%)`,
-                                boxShadow:
-                                    currentTheme === "dark"
-                                        ? `0 0 ${particle.size * 3}px ${particle.color}60`
-                                        : `0 4px ${particle.size * 2}px ${particle.color}40`,
-                                willChange: "transform, opacity",
+                                background: currentTheme === "dark"
+                                    ? `radial-gradient(circle, ${particle.color} 0%, ${particle.color}80 70%, transparent 100%)`
+                                    : `linear-gradient(135deg, ${particle.color} 0%, ${particle.color}95 100%)`, // Stronger for light
+                                boxShadow: currentTheme === "dark"
+                                    ? `0 0 ${particle.size * 2}px ${particle.color}40`
+                                    : `0 4px ${particle.size * 2}px ${particle.color}50, 0 0 ${particle.size}px ${particle.color}30`, // Enhanced shadow for light
+                                transform: "translateZ(0)",
                             }}
                             animate={{
-                                y: [0, -80, 0],
-                                x: [0, Math.random() * 60 - 30, 0],
-                                scale: [1, 1.6, 1],
+                                y: [0, -40, 0],
+                                x: [0, Math.random() * 30 - 15, 0],
+                                scale: [1, 1.2, 1],
                                 opacity: [particle.opacity, particle.opacity * 0.3, particle.opacity],
-                                rotate: particle.shape === "diamond" ? [45, 405, 45] : [0, 360, 0],
+                                rotate: particle.shape === "diamond" ? [45, 225, 45] : [0, 180, 0],
                             }}
                             transition={{
                                 duration: particle.duration,
-                                repeat: Number.POSITIVE_INFINITY,
+                                repeat: Infinity,
                                 delay: particle.delay,
                                 ease: "easeInOut",
                             }}
@@ -226,160 +328,168 @@ const ModernAnimatedBackground = memo(
                     )
                 })}
 
-                {/* Enhanced geometric shapes */}
-                {!performanceMode && (
+                {/* Enhanced grid intersection points - more visible in light */}
+                {!autoPerformanceMode && gridPoints.map((point) => (
+                    <motion.div
+                        key={point.id}
+                        className="absolute pointer-events-none"
+                        style={{
+                            left: `${point.x}%`,
+                            top: `${point.y}%`,
+                            transform: "translate(-50%, -50%)",
+                        }}
+                        animate={{
+                            scale: [1, 1.5, 1],
+                            opacity: [
+                                0.2 * point.intensity * (currentTheme === "dark" ? 1 : 1.5), 
+                                0.8 * point.intensity * (currentTheme === "dark" ? 1 : 1.3), 
+                                0.2 * point.intensity * (currentTheme === "dark" ? 1 : 1.5)
+                            ],
+                        }}
+                        transition={{
+                            duration: 3 + Math.random() * 2,
+                            repeat: Infinity,
+                            delay: point.delay,
+                            ease: "easeInOut",
+                        }}
+                    >
+                        <div
+                            className="w-2 h-2 rounded-full"
+                            style={{
+                                background: currentTheme === "dark"
+                                    ? `radial-gradient(circle, ${variantColors.gridStrong} 0%, transparent 70%)`
+                                    : `radial-gradient(circle, ${variantColors.gridStrong} 0%, ${variantColors.gridStrong}60 50%, transparent 80%)`, // Stronger gradient for light
+                                boxShadow: currentTheme === "dark" 
+                                    ? `0 0 10px ${variantColors.gridStrong}`
+                                    : `0 0 15px ${variantColors.gridStrong}, 0 2px 8px ${variantColors.gridStrong}30`, // Enhanced shadow for light
+                            }}
+                        />
+                    </motion.div>
+                ))}
+
+                {/* Enhanced geometric shapes - better visibility in light */}
+                {!autoPerformanceMode && !isMobile && (
                     <>
+                        {/* Rotating hexagon - enhanced for light */}
                         <motion.div
-                            className="absolute top-[120px] left-8 w-32 h-32 border-2 rounded-2xl glass-green"
-                            style={{ willChange: "transform" }}
-                            animate={{
+                            className="absolute top-[15%] left-[8%] w-20 h-20 border will-change-transform"
+                            style={{
+                                clipPath: "polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%)",
+                                background: currentTheme === "dark"
+                                    ? `linear-gradient(45deg, ${variantColors.gridStrong}, transparent)`
+                                    : `linear-gradient(45deg, ${variantColors.gridStrong}, ${variantColors.gridStrong}60, transparent)`, // Stronger for light
+                                borderColor: currentTheme === "dark" ? "rgba(34, 197, 94, 0.3)" : "rgba(16, 185, 129, 0.4)",
+                                boxShadow: currentTheme === "light" ? `0 4px 20px ${variantColors.gridStrong}30` : undefined,
+                            }}
+                            animate={{ 
                                 rotate: [0, 360],
-                                scale: [1, 1.3, 1],
-                                borderColor:
-                                    currentTheme === "dark"
-                                        ? ["rgba(52, 211, 153, 0.6)", "rgba(16, 185, 129, 0.6)", "rgba(52, 211, 153, 0.6)"]
-                                        : ["rgba(16, 185, 129, 0.4)", "rgba(5, 150, 105, 0.4)", "rgba(16, 185, 129, 0.4)"],
+                                scale: [1, 1.1, 1],
                             }}
                             transition={{
                                 duration: 25,
-                                repeat: Number.POSITIVE_INFINITY,
+                                repeat: Infinity,
                                 ease: "linear",
                             }}
                         />
 
+                        {/* Pulsing triangle - enhanced for light */}
                         <motion.div
-                            className="absolute bottom-1/3 right-12 w-28 h-28 border-2 rounded-full glass-green"
-                            style={{ willChange: "transform" }}
-                            animate={{
-                                rotate: [360, 0],
-                                scale: [1, 0.7, 1],
-                                borderColor:
-                                    currentTheme === "dark"
-                                        ? ["rgba(34, 197, 94, 0.6)", "rgba(6, 182, 212, 0.6)", "rgba(34, 197, 94, 0.6)"]
-                                        : ["rgba(34, 197, 94, 0.4)", "rgba(6, 182, 212, 0.4)", "rgba(34, 197, 94, 0.4)"],
+                            className="absolute bottom-[20%] right-[10%] w-16 h-16 will-change-transform"
+                            style={{
+                                clipPath: "polygon(50% 0%, 0% 100%, 100% 100%)",
+                                background: currentTheme === "dark"
+                                    ? `linear-gradient(135deg, ${variantColors.gridStrong}, transparent)`
+                                    : `linear-gradient(135deg, ${variantColors.gridStrong}, ${variantColors.gridStrong}70, transparent)`, // Stronger for light
+                                boxShadow: currentTheme === "light" ? `0 6px 25px ${variantColors.gridStrong}25` : undefined,
+                            }}
+                            animate={{ 
+                                scale: [1, 1.3, 1],
+                                rotate: [0, 180, 360],
                             }}
                             transition={{
                                 duration: 20,
-                                repeat: Number.POSITIVE_INFINITY,
-                                ease: "linear",
+                                repeat: Infinity,
+                                ease: "easeInOut",
                             }}
                         />
 
+                        {/* Floating line elements - enhanced for light */}
                         <motion.div
-                            className="absolute bottom-32 left-20 w-24 h-24 border-2 rounded-lg glass-green"
-                            style={{ willChange: "transform" }}
+                            className="absolute top-[40%] right-[15%] w-24 h-0.5"
+                            style={{
+                                background: currentTheme === "dark"
+                                    ? `linear-gradient(to right, transparent, ${variantColors.gridStrong}, transparent)`
+                                    : `linear-gradient(to right, transparent, ${variantColors.gridStrong}, ${variantColors.gridStrong}80, transparent)`, // Stronger for light
+                                boxShadow: currentTheme === "dark"
+                                    ? `0 0 10px ${variantColors.gridStrong}`
+                                    : `0 0 15px ${variantColors.gridStrong}, 0 2px 8px ${variantColors.gridStrong}30`, // Enhanced glow for light
+                            }}
                             animate={{
-                                rotate: [0, -360],
-                                scale: [1, 1.2, 1],
-                                x: [0, 20, 0],
+                                opacity: [0.3, 1, 0.3],
+                                scaleX: [1, 1.5, 1],
                             }}
                             transition={{
-                                duration: 18,
-                                repeat: Number.POSITIVE_INFINITY,
+                                duration: 4,
+                                repeat: Infinity,
                                 ease: "easeInOut",
                             }}
                         />
                     </>
                 )}
 
-                {/* Enhanced floating lines with glow */}
-                {!performanceMode && (
-                    <>
-                        <motion.div
-                            className="absolute top-1/4 left-1/3 h-px"
-                            style={{
-                                width: "10rem",
-                                background:
-                                    currentTheme === "dark"
-                                        ? "linear-gradient(to right, transparent, rgba(52, 211, 153, 0.8), transparent)"
-                                        : "linear-gradient(to right, transparent, rgba(16, 185, 129, 0.6), transparent)",
-                                boxShadow:
-                                    currentTheme === "dark" ? "0 0 20px rgba(52, 211, 153, 0.5)" : "0 0 15px rgba(16, 185, 129, 0.3)",
-                                willChange: "opacity, transform",
-                            }}
-                            animate={{
-                                opacity: [0.4, 1, 0.4],
-                                scaleX: [1, 2, 1],
-                            }}
-                            transition={{
-                                duration: 8,
-                                repeat: Number.POSITIVE_INFINITY,
-                                ease: "easeInOut",
-                            }}
-                        />
-
-                        <motion.div
-                            className="absolute bottom-1/3 right-1/4 h-px"
-                            style={{
-                                width: "8rem",
-                                background:
-                                    currentTheme === "dark"
-                                        ? "linear-gradient(to right, transparent, rgba(34, 197, 94, 0.8), transparent)"
-                                        : "linear-gradient(to right, transparent, rgba(34, 197, 94, 0.6), transparent)",
-                                boxShadow:
-                                    currentTheme === "dark" ? "0 0 20px rgba(34, 197, 94, 0.5)" : "0 0 15px rgba(34, 197, 94, 0.3)",
-                                willChange: "opacity, transform",
-                            }}
-                            animate={{
-                                opacity: [0.4, 0.9, 0.4],
-                                scaleX: [1, 1.8, 1],
-                            }}
-                            transition={{
-                                duration: 10,
-                                repeat: Number.POSITIVE_INFINITY,
-                                ease: "easeInOut",
-                                delay: 2,
-                            }}
-                        />
-                    </>
-                )}
-
-                {/* Enhanced corner accents with glow */}
+                {/* Enhanced corner accents - better visibility in light */}
                 <motion.div
-                    className="absolute top-8 right-8 w-40 h-40 rounded-full"
-                    style={{
-                        background:
-                            currentTheme === "dark"
-                                ? "radial-gradient(circle, rgba(52, 211, 153, 0.15) 0%, transparent 70%)"
-                                : "radial-gradient(circle, rgba(16, 185, 129, 0.1) 0%, transparent 70%)",
-                        boxShadow:
-                            currentTheme === "dark" ? "0 0 60px rgba(52, 211, 153, 0.2)" : "0 0 40px rgba(16, 185, 129, 0.15)",
-                        willChange: "transform, opacity",
-                    }}
+                    className="absolute top-6 right-6 w-32 h-32"
                     animate={{
-                        scale: [1, 1.4, 1],
-                        opacity: [0.5, 0.8, 0.5],
+                        scale: [1, 1.2, 1],
+                        opacity: currentTheme === "dark" ? [0.3, 0.6, 0.3] : [0.4, 0.7, 0.4], // Higher opacity for light
+                    }}
+                    transition={{
+                        duration: 8,
+                        repeat: Infinity,
+                        ease: "easeInOut",
+                    }}
+                >
+                    <div
+                        className="w-full h-full rounded-full"
+                        style={{
+                            background: currentTheme === "dark"
+                                ? `conic-gradient(from 0deg, ${variantColors.gridStrong}, transparent, ${variantColors.gridStrong})`
+                                : `conic-gradient(from 0deg, ${variantColors.gridStrong}, ${variantColors.gridStrong}60, transparent, ${variantColors.gridStrong})`, // Enhanced for light
+                            opacity: autoPerformanceMode ? (currentTheme === "dark" ? 0.3 : 0.4) : (currentTheme === "dark" ? 0.5 : 0.6),
+                            boxShadow: currentTheme === "light" ? `0 0 30px ${variantColors.gridStrong}20` : undefined,
+                        }}
+                    />
+                </motion.div>
+
+                <motion.div
+                    className="absolute bottom-6 left-6 w-24 h-24"
+                    animate={{
+                        scale: [1, 1.1, 1],
+                        rotate: [0, 90, 0],
+                        opacity: currentTheme === "dark" ? [0.3, 0.5, 0.3] : [0.4, 0.6, 0.4], // Higher opacity for light
                     }}
                     transition={{
                         duration: 12,
-                        repeat: Number.POSITIVE_INFINITY,
+                        repeat: Infinity,
                         ease: "easeInOut",
+                        delay: 2,
                     }}
-                />
+                >
+                    <div
+                        className="w-full h-full"
+                        style={{
+                            background: currentTheme === "dark"
+                                ? `linear-gradient(45deg, ${variantColors.gridStrong}, transparent, ${variantColors.gridStrong})`
+                                : `linear-gradient(45deg, ${variantColors.gridStrong}, ${variantColors.gridStrong}70, transparent, ${variantColors.gridStrong})`, // Enhanced for light
+                            clipPath: "polygon(50% 0%, 100% 50%, 50% 100%, 0% 50%)",
+                            opacity: autoPerformanceMode ? (currentTheme === "dark" ? 0.3 : 0.4) : (currentTheme === "dark" ? 0.4 : 0.5),
+                            boxShadow: currentTheme === "light" ? `0 0 25px ${variantColors.gridStrong}20` : undefined,
+                        }}
+                    />
+                </motion.div>
 
-                <motion.div
-                    className="absolute bottom-8 left-8 w-32 h-32 rounded-full"
-                    style={{
-                        background:
-                            currentTheme === "dark"
-                                ? "radial-gradient(circle, rgba(34, 197, 94, 0.15) 0%, transparent 70%)"
-                                : "radial-gradient(circle, rgba(34, 197, 94, 0.1) 0%, transparent 70%)",
-                        boxShadow: currentTheme === "dark" ? "0 0 50px rgba(34, 197, 94, 0.2)" : "0 0 35px rgba(34, 197, 94, 0.15)",
-                        willChange: "transform, opacity",
-                    }}
-                    animate={{
-                        scale: [1, 1.3, 1],
-                        opacity: [0.5, 0.7, 0.5],
-                    }}
-                    transition={{
-                        duration: 10,
-                        repeat: Number.POSITIVE_INFINITY,
-                        ease: "easeInOut",
-                        delay: 3,
-                    }}
-                />
-
-                {/* Render children if provided */}
+                {/* Render children */}
                 {children && <div className="relative z-10">{children}</div>}
             </Container>
         )

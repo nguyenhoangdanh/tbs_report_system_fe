@@ -329,39 +329,64 @@ function AdminOverview() {
   const { user: currentUser } = useAuth()
   const { filters, apiFilters, filterDisplayText, handleFiltersChange } = useAdminOverviewFilters()
   const [activeTab, setActiveTab] = useState<string>("overview")
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
+  const [isManualRefreshing, setIsManualRefreshing] = useState<boolean>(false)
   const { search, setSearch } = useAdminOverviewStore()
 
-  // ✅ EXACT COPY: Same as HierarchyDashboard
+  // ✅ FIXED: Better hook usage with stable references
   const {
     data: overview,
     isLoading: hierarchyLoading,
     error: hierarchyError,
-    refetch: refetchAdminOverview, // ✅ NOW: This will work with the fixed hook
+    refetch: refetchAdminOverview,
+    isStoreRefreshing,
   } = useAdminOverview(apiFilters)
 
-  // ✅ EXACT COPY: Same handlers as HierarchyDashboard
+  // ✅ NEW: Force refresh on component mount to ensure fresh data
+  useEffect(() => {
+    console.log('[AdminOverview] Component mounted, forcing refresh...')
+    // Small delay to ensure store is initialized
+    const timer = setTimeout(() => {
+      refetchAdminOverview()
+    }, 100)
+    
+    return () => clearTimeout(timer)
+  }, [refetchAdminOverview]) // Only run on mount
+
+  // ✅ DEBUG: Log data state for debugging
+  useEffect(() => {
+    console.log('[AdminOverview] Data state:', {
+      hasOverview: !!overview,
+      hierarchyLoading,
+      isStoreRefreshing,
+      isManualRefreshing,
+      apiFilters
+    })
+  }, [overview, hierarchyLoading, isStoreRefreshing, isManualRefreshing, apiFilters])
+
+  // ✅ FIXED: Stable handlers to prevent re-renders
   const handleFiltersChangeWithRefetch = useCallback(
     (newFilters: any) => {
       handleFiltersChange(newFilters)
-      setTimeout(() => {
-        refetchAdminOverview()
-      }, 100)
+      // ✅ REMOVED: Automatic refetch - let hook handle it
     },
-    [handleFiltersChange, refetchAdminOverview],
+    [handleFiltersChange],
   )
 
-  const handleRefresh = useCallback(() => {
-    refetchAdminOverview()
-    setIsRefreshing(true)
-    setTimeout(() => {
-      setIsRefreshing(false)
-    }, 1000)
-  }, [refetchAdminOverview, setIsRefreshing])
+  const handleRefresh = useCallback(async () => {
+    setIsManualRefreshing(true)
+    try {
+      await refetchAdminOverview()
+    } finally {
+      // ✅ OPTIMIZED: Shorter manual refresh state
+      setTimeout(() => {
+        setIsManualRefreshing(false)
+      }, 500)
+    }
+  }, [refetchAdminOverview])
 
-
-  // ✅ SAME: Transform and group logic (unchanged)
+  // ✅ STABLE: Memoized transforms to prevent unnecessary re-calculations
   const positionCards = useMemo(() => {
+    // ✅ KEEP ORIGINAL: Use overview.data instead of overview directly
     if (!overview) return []
     return transformManagerReportsToPositionCardFormat(overview)
   }, [overview])
@@ -370,7 +395,7 @@ function AdminOverview() {
     return groupPositionsForOverview(positionCards)
   }, [positionCards])
 
-  // Available tabs similar to HierarchyDashboard
+  // ✅ STABLE: Memoized tabs to prevent re-renders
   const availableTabs = useMemo(() => {
     const tabs: Array<{
       id: string
@@ -388,7 +413,6 @@ function AdminOverview() {
         },
       ]
 
-    // Add management tabs
     managementTabs.forEach(tab => {
       tabs.push({
         id: tab.id,
@@ -400,7 +424,6 @@ function AdminOverview() {
       })
     })
 
-    // Add job position tabs
     jobPositionTabs.forEach(tab => {
       tabs.push({
         id: tab.id,
@@ -415,7 +438,7 @@ function AdminOverview() {
     return tabs.filter(tab => tab.show)
   }, [managementTabs, jobPositionTabs])
 
-  // Current tab logic
+  // ✅ STABLE: Current tab logic
   const effectiveActiveTab = useMemo(() => {
     const availableTabIds = availableTabs.map((tab) => tab.id)
     if (!availableTabIds.includes(activeTab)) {
@@ -428,12 +451,12 @@ function AdminOverview() {
     return availableTabs.find((tab) => tab.id === effectiveActiveTab)
   }, [availableTabs, effectiveActiveTab])
 
-  // Handle back to overview
+  // ✅ STABLE: Callback handlers
   const handleBackToOverview = useCallback(() => {
     setActiveTab("overview")
   }, [])
 
-  // Filter by search
+  // ✅ STABLE: Filtered tabs for search
   const filteredManagementTabs = useMemo(() => {
     if (!search) return managementTabs
     return managementTabs.filter(tab =>
@@ -448,29 +471,59 @@ function AdminOverview() {
     )
   }, [jobPositionTabs, search])
 
-  // ✅ EXACT COPY: Same loading/error handling as HierarchyDashboard
-  if (hierarchyLoading || isRefreshing) {
-    return <ScreenLoading size="md" variant="bars" text="Đang tải tổng quan quản lý..." fullScreen />
+  // ✅ IMPROVED: Better loading state detection
+  const isActuallyLoading = hierarchyLoading || isStoreRefreshing || isManualRefreshing
+
+  // ✅ FIXED: Show loading only when really loading and no data
+  if (isActuallyLoading && !overview) {
+    return (
+      <ScreenLoading 
+        size="md" 
+        variant="corner-squares" 
+        text="Đang tải tổng quan quản lý..." 
+        fullScreen 
+      />
+    )
   }
 
-  if (hierarchyError) {
+  if (hierarchyError && !overview) { // ✅ Only show error if no cached data
     return (
       <div className="max-w-xl mx-auto mt-12 text-center py-8 bg-destructive/10 rounded-lg border border-destructive/20">
         <div className="text-destructive font-bold mb-2">Lỗi tải dữ liệu</div>
         <div className="text-muted-foreground">{String(hierarchyError)}</div>
-        <Button onClick={handleRefresh} className="mt-4">Thử lại</Button>
+        <Button onClick={handleRefresh} className="mt-4" disabled={isManualRefreshing}>
+          {isManualRefreshing ? "Đang thử lại..." : "Thử lại"}
+        </Button>
       </div>
     )
   }
 
-  if (!overview) {
-    return <ScreenLoading size="md" variant="corner-squares" text="Đang xử lý dữ liệu..." fullScreen />
+  // ✅ FIXED: Only show "no data" if not loading and really no data
+  if (!overview && !isActuallyLoading) {
+    return (
+      <div className="max-w-xl mx-auto mt-12 text-center py-8">
+        <div className="text-muted-foreground mb-4">Không có dữ liệu</div>
+        <Button onClick={handleRefresh} disabled={isManualRefreshing}>
+          {isManualRefreshing ? "Đang tải..." : "Tải lại"}
+        </Button>
+      </div>
+    )
   }
 
   return (
     <div className="space-y-4 sm:space-y-6 p-2 sm:p-4 lg:p-6">
-      {/* Remove all test buttons and debug panels */}
-      
+      {/* ✅ OPTIMIZED: Add loading overlay for better UX */}
+      {isManualRefreshing && (
+        <div className="fixed inset-0 bg-background/50 backdrop-blur-sm z-[60] flex items-center justify-center">
+          <ScreenLoading 
+            size="md" 
+            variant="dual-ring" 
+            text="Đang làm mới dữ liệu..." 
+            fullScreen={false}
+          />
+        </div>
+      )}
+
       <AdminOverviewHeader
         filterDisplayText={filterDisplayText}
         filters={filters}
@@ -478,19 +531,20 @@ function AdminOverview() {
         onRefresh={handleRefresh}
       />
 
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800">
+      {/* ✅ OPTIMIZED: Add smooth transitions */}
+      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800 transition-all duration-300">
         <CardHeader className="pb-3 sm:pb-4 px-3 sm:px-6">
           <div className="flex flex-col gap-3 sm:gap-4">
-            {/* Mobile: Stack vertically, Desktop: Side by side */}
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
               <div className="flex items-start sm:items-center gap-3 min-w-0">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0">
+                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-200">
                   <Users className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
                 </div>
                 <div className="min-w-0 flex-1">
                   <CardTitle className="text-base sm:text-lg lg:text-xl">
                     <div className="flex flex-col gap-1">
                       <span className="text-gray-900 dark:text-gray-100 text-sm sm:text-base">
+                        {/* ✅ KEEP ORIGINAL: Use overview.data not overview directly */}
                         {overview?.manager?.jobPosition?.position?.description || "No Position"}:
                       </span>
                       <span className="font-bold text-blue-600 dark:text-blue-400 truncate">
@@ -499,7 +553,7 @@ function AdminOverview() {
                     </div>
                   </CardTitle>
                   <div className="flex flex-col gap-2 mt-2">
-                    <Badge variant="outline" className="w-fit text-xs">
+                    <Badge variant="outline" className="w-fit text-xs transition-colors">
                       {overview?.manager?.office?.name || "No Office"}
                     </Badge>
                     <span className="text-xs sm:text-sm text-muted-foreground truncate">
@@ -509,9 +563,8 @@ function AdminOverview() {
                 </div>
               </div>
 
-              {/* Week badge - mobile friendly */}
               <div className="flex justify-end sm:justify-start">
-                <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-1">
+                <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-1 transition-colors">
                   <Calendar className="w-3 h-3" />
                   <span className="whitespace-nowrap">{filterDisplayText}</span>
                 </Badge>
@@ -521,13 +574,15 @@ function AdminOverview() {
         </CardHeader>
       </Card>
 
-      {/* Summary Cards - Mobile optimized grid */}
-      <div className="px-1 sm:px-0">
-        <HierarchySummaryCards summary={transformManagerReportsSummaryForCards(overview?.summary)} />
+      <div className="px-1 sm:px-0 transition-opacity duration-300" style={{ opacity: isStoreRefreshing ? 0.7 : 1 }}>
+        <HierarchySummaryCards 
+          // ✅ KEEP ORIGINAL: Use overview.data not overview directly
+          summary={transformManagerReportsSummaryForCards(overview?.summary)}
+        />
       </div>
 
-      {/* Main Content Card - Mobile optimized */}
-      <Card className="border-border/50 dark:border-border/90 shadow-green-glow/20">
+      {/* ✅ OPTIMIZED: Main content with smooth transitions */}
+      <Card className="border-border/50 dark:border-border/90 shadow-green-glow/20 transition-all duration-300">
         <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
           {effectiveActiveTab !== "overview" && (
             <div className="flex flex-col gap-3">
@@ -535,7 +590,7 @@ function AdminOverview() {
                 variant="ghost"
                 size="sm"
                 onClick={handleBackToOverview}
-                className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground w-fit text-sm"
+                className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground w-fit text-sm transition-all duration-200 hover:scale-[1.02]"
               >
                 <ArrowLeft className="w-4 h-4" />
                 <span className="hidden xs:inline">Quay lại tổng quan</span>
@@ -559,7 +614,7 @@ function AdminOverview() {
                     placeholder="Tìm kiếm..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="w-full text-sm"
+                    className="w-full text-sm transition-all duration-200 focus:ring-2 focus:ring-green-500/20"
                   />
                 </div>
               </div>
@@ -568,102 +623,98 @@ function AdminOverview() {
         </CardHeader>
 
         <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6">
-          {effectiveActiveTab === "overview" ? (
-            <div className="space-y-4 sm:space-y-6">
-              {/* Management positions - Mobile optimized */}
-              {filteredManagementTabs.length > 0 && (
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                    <div className="p-1.5 sm:p-2 rounded-lg bg-warm-gradient shadow-green-glow">
-                      <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+          <div className="transition-opacity duration-300" style={{ opacity: isStoreRefreshing ? 0.7 : 1 }}>
+            {effectiveActiveTab === "overview" ? (
+              <div className="space-y-4 sm:space-y-6">
+                {/* ✅ Rest of component unchanged but with optimized animations */}
+                {filteredManagementTabs.length > 0 && (
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                      <div className="p-1.5 sm:p-2 rounded-lg bg-warm-gradient shadow-green-glow transition-transform duration-200 hover:scale-105">
+                        <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      </div>
+                      <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Cấp quản lý</h3>
+                      <Badge variant="outline" className="glass-green border-green-500/30 text-xs transition-colors">
+                        {managementTabs.length}
+                      </Badge>
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Cấp quản lý</h3>
-                    <Badge variant="outline" className="glass-green border-green-500/30 text-xs">
-                      {managementTabs.length}
-                    </Badge>
-                  </div>
 
-                  {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                    {filteredManagementTabs.map((tab) => (
-                      <OverviewCard
-                        key={tab.id}
-                        title={tab.label}
-                        count={tab.positions?.length || 0}
-                        icon={Crown}
-                        onClick={() => setActiveTab(tab.id)}
-                        description="Cấp quản lý"
-                        variant="management"
-                        positions={tab.positions || []}
-                        isJobPosition={false}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Job positions - Mobile optimized */}
-              {filteredJobPositionTabs.length > 0 && (
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                    <div className="p-1.5 sm:p-2 rounded-lg bg-green-gradient shadow-green-glow">
-                      <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                      {filteredManagementTabs.map((tab) => (
+                        <OverviewCard
+                          key={tab.id}
+                          title={tab.label}
+                          count={tab.positions?.length || 0}
+                          icon={Crown}
+                          onClick={() => setActiveTab(tab.id)}
+                          description="Cấp quản lý"
+                          variant="management"
+                          positions={tab.positions || []}
+                          isJobPosition={false}
+                        />
+                      ))}
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Vị trí công việc</h3>
-                    <Badge variant="outline" className="glass-green border-green-500/30 text-xs">
-                      {jobPositionTabs.length}
-                    </Badge>
                   </div>
+                )}
 
-                  {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                    {filteredJobPositionTabs.map((tab) => (
-                      <OverviewCard
-                        key={tab.id}
-                        title={tab.label}
-                        count={tab.positions?.length || 0}
-                        icon={Users}
-                        onClick={() => setActiveTab(tab.id)}
-                        description="Vị trí công việc"
-                        variant="employee"
-                        positions={tab.positions || []}
-                        isJobPosition={true}
-                      />
-                    ))}
+                {filteredJobPositionTabs.length > 0 && (
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                      <div className="p-1.5 sm:p-2 rounded-lg bg-green-gradient shadow-green-glow transition-transform duration-200 hover:scale-105">
+                        <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      </div>
+                      <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Vị trí công việc</h3>
+                      <Badge variant="outline" className="glass-green border-green-500/30 text-xs transition-colors">
+                        {jobPositionTabs.length}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                      {filteredJobPositionTabs.map((tab) => (
+                        <OverviewCard
+                          key={tab.id}
+                          title={tab.label}
+                          count={tab.positions?.length || 0}
+                          icon={Users}
+                          onClick={() => setActiveTab(tab.id)}
+                          description="Vị trí công việc"
+                          variant="employee"
+                          positions={tab.positions || []}
+                          isJobPosition={true}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Empty state - Mobile optimized */}
-              {filteredManagementTabs.length === 0 && filteredJobPositionTabs.length === 0 && (
-                <div className="text-center py-8 sm:py-12 px-4">
-                  <Building2 className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground mx-auto mb-3 sm:mb-4" />
-                  <h3 className="text-base sm:text-lg font-semibold mb-2">
-                    {search ? "Không tìm thấy" : "Không có dữ liệu"}
-                  </h3>
-                  <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
-                    {search
-                      ? `Không tìm thấy vị trí phù hợp với "${search}"`
-                      : "Không có dữ liệu với bộ lọc hiện tại"
-                    }
-                  </p>
-                </div>
-              )}
-            </div>
-          ) : (
-            // Detail view - Mobile optimized spacing
-            <div className="space-y-3 sm:space-y-4">
-              <PositionGroupsList
-                positions={currentTab?.positions || []}
-                filterDisplayText={filterDisplayText}
-                isManagement={true}
-                weekNumber={apiFilters.weekNumber || filters.weekNumber}
-                year={filters.year || new Date().getFullYear()}
-                canEvaluation={currentUser?.isManager}
-                // onEvaluationChange={handleEvaluationChange}
-              />
-            </div>
-          )}
+                {filteredManagementTabs.length === 0 && filteredJobPositionTabs.length === 0 && (
+                  <div className="text-center py-8 sm:py-12 px-4">
+                    <Building2 className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                    <h3 className="text-base sm:text-lg font-semibold mb-2">
+                      {search ? "Không tìm thấy" : "Không có dữ liệu"}
+                    </h3>
+                    <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
+                      {search
+                        ? `Không tìm thấy vị trí phù hợp với "${search}"`
+                        : "Không có dữ liệu với bộ lọc hiện tại"
+                      }
+                    </p>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="space-y-3 sm:space-y-4">
+                <PositionGroupsList
+                  positions={currentTab?.positions || []}
+                  filterDisplayText={filterDisplayText}
+                  isManagement={true}
+                  weekNumber={apiFilters.weekNumber || filters.weekNumber}
+                  year={filters.year || new Date().getFullYear()}
+                  canEvaluation={currentUser?.isManager}
+                />
+              </div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </div>
@@ -672,10 +723,7 @@ function AdminOverview() {
 
 export default function AdminOverviewPage() {
   return (
-    <MainLayout
-    // showBreadcrumb
-    // breadcrumbItems={[{ label: "Trang chủ", href: "/dashboard" }, { label: "Quản lý người dùng" }]}
-    >
+    <MainLayout>
       <Suspense
         fallback={
           <ScreenLoading

@@ -308,10 +308,7 @@ export function hasJobPositions(data: any): boolean {
 
 // ✅ SIMPLE: Revert to simple approach like useManagerReports
 export function useAdminOverview(filters?: {
-  // weekNumber?: number
-  // year?: number
-  // userId?: string
-   weekNumber?: number
+  weekNumber?: number
   year?: number
   month?: number
 }) {
@@ -344,25 +341,31 @@ export function useAdminOverview(filters?: {
     setManagerReportsData,
     setRefreshing,
     shouldRefetch,
-    setLastUserId
+    initializeStore,
+    isInitialized
   } = useAdminOverviewStore()
 
   // Sync user to store
   useEffect(() => {
-    setLastUserId(user?.id || null)
-  }, [user?.id, setLastUserId])
+    if (user?.id) {
+      initializeStore(user.id)
+    }
+  }, [user?.id, initializeStore])
 
-  // ✅ CRITICAL FIX: Make shouldRefetchData work like needsRefetch in useMyHierarchyView
+  // ✅ CRITICAL FIX: Always enable query when user exists and store is initialized
   const shouldRefetchData = useMemo(() => {
-    if (!user?.id) return false
+    if (!user?.id || !isInitialized) return false
     
-    const shouldFetch = shouldRefetch(user.id, filters)
+    // ✅ FIXED: Always return true for first load or when shouldRefetch says so
+    const needsRefetch = shouldRefetch(user.id, filters)
     
-    return shouldFetch
-  }, [user?.id, filters?.weekNumber, filters?.year, filters?.month, !!managerReportsData, shouldRefetch])
+    // ✅ NEW: Also enable if we don't have data at all
+    const hasNoData = !managerReportsData
+    
+    return needsRefetch || hasNoData
+  }, [user?.id, isInitialized, shouldRefetch, filters, managerReportsData])
 
   const queryResult = useApiQuery({
-    // queryKey: ['admin-overview', 'manager-reports', user?.id || 'anonymous', JSON.stringify(safeFilters)],
     queryKey: QUERY_KEYS.hierarchy.managerReports(user?.id || 'anonymous', filters),
     queryFn: async () => {
       try {
@@ -370,7 +373,7 @@ export function useAdminOverview(filters?: {
 
         const result = await HierarchyService.getManagerReports(filters)
 
-       if (result?.success && result.data) {
+        if (result?.success && result.data) {
           setManagerReportsData(result.data, filters)
           setRefreshing(false)
           return result
@@ -385,14 +388,14 @@ export function useAdminOverview(filters?: {
         throw error
       }
     },
-    enabled: !!user?.id && shouldRefetchData,
-    cacheStrategy: 'realtime', // ✅ CRITICAL: Use fresh strategy for immediate updates
+    enabled: !!user?.id && shouldRefetchData && isInitialized,
+    cacheStrategy: 'realtime',
     throwOnError: false,
-    refetchOnMount: false, // ✅ CRITICAL: Don't auto refetch on mount
+    refetchOnMount: 'always', // ✅ CRITICAL: Always refetch on mount
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    staleTime: 5000, // ✅ Increase stale time to reduce refetches
-    gcTime: 10000, // ✅ Increase gc time
+    staleTime: 0, // ✅ CRITICAL: Always consider data stale
+    gcTime: 0, // ✅ CRITICAL: Don't cache data between mounts
   })
 
   const finalData = queryResult.data

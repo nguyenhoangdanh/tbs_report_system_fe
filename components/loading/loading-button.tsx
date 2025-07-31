@@ -10,7 +10,7 @@ import { LoadingSpinner } from "./loading-spinner"
 interface LoadingButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElement> {
     loading?: boolean
     loadingText?: string
-    loadingVariant?: "spin" | "dots" | "pulse"
+    loadingVariant?: "spin" | "ring" | "bars"
     children: React.ReactNode
     variant?: "default" | "destructive" | "outline" | "secondary" | "ghost" | "link"
     size?: "default" | "sm" | "lg" | "icon"

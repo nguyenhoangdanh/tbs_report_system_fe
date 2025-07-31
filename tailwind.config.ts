@@ -76,32 +76,36 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        // Optimized animations for loading components
+        "fade": {
+          "0%, 80%, 100%": { opacity: "0" },
+          "40%": { opacity: "1" },
+        },
+        "wave": {
+          "0%, 40%, 100%": { transform: "scaleY(0.4)" },
+          "20%": { transform: "scaleY(1)" },
+        },
+        // Simplified existing animations
         "float": {
           "0%, 100%": { transform: "translateY(0px)" },
           "50%": { transform: "translateY(-10px)" },
-        },
-        "float-slow": {
-          "0%, 100%": { transform: "translateY(0px) rotate(0deg)" },
-          "50%": { transform: "translateY(-20px) rotate(5deg)" },
         },
         "pulse-soft": {
           "0%, 100%": { opacity: "0.1" },
           "50%": { opacity: "0.3" },
         },
-        "gradient-shift": {
-          "0%, 100%": { backgroundPosition: "0% 50%" },
-          "50%": { backgroundPosition: "100% 50%" },
-        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        // Optimized loading animations
+        "fade": "fade 1s ease-in-out infinite",
+        "wave": "wave 0.8s ease-in-out infinite",
+        // Simplified existing animations
         "float": "float 3s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
-        "float-slow": "float-slow 6s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
         "pulse-soft": "pulse-soft 4s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
-        "gradient-shift": "gradient-shift 8s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
+        // High-performance spin
         "spin-smooth": "spin 1s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
-        "bounce-smooth": "bounce 1s cubic-bezier(0.4, 0.0, 0.2, 1) infinite",
       },
       backdropBlur: {
         xs: '2px',

@@ -28,7 +28,7 @@ export const ScreenLoading = memo(
                         color={color}
                         hollow={hollow}
                     >
-                        {hollow && (children || (showPercentage && progress !== undefined) || text) && (
+                        {hollow && (children || (showPercentage && progress !== undefined)) && (
                             <div className="text-center">
                                 {children ? (
                                     children
@@ -37,11 +37,7 @@ export const ScreenLoading = memo(
                                         <span className="text-lg font-bold">{Math.round(progress)}%</span>
                                         {text && <span className="text-xs opacity-75 mt-1">{text}</span>}
                                     </div>
-                                ) : (
-                                    <span className="text-xs font-semibold">
-                                        {variant === 'tsb-text' || variant === 'company-logo' ? 'TBS' : 'Loading'}
-                                    </span>
-                                )}
+                                ) : null}
                             </div>
                         )}
                     </LoadingSpinner>

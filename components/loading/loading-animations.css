@@ -1,4 +1,16 @@
-/* Custom loading animations */
+/* Essential loading animations - Optimized for performance */
+
+/* Basic spin animation - Tailwind's animate-spin */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Keep basic wave for bars */
 @keyframes wave {
     0%,
     40%,
@@ -9,8 +21,9 @@
       transform: scaleY(1);
     }
   }
-  
-  @keyframes fade {
+
+/* Keep fade for grid */
+@keyframes fade {
     0%,
     80%,
     100% {
@@ -20,384 +33,224 @@
       opacity: 1;
     }
   }
-  
-  @keyframes flip {
-    0%,
-    100% {
-      transform: rotateY(0deg);
-    }
-    50% {
-      transform: rotateY(180deg);
-    }
-  }
-  
-  @keyframes elastic {
-    0% {
-      transform: scale(1, 1);
-    }
-    25% {
-      transform: scale(1, 1.5);
-    }
-    50% {
-      transform: scale(1, 0.67);
-    }
-    75% {
-      transform: scale(1, 1);
-    }
-    100% {
-      transform: scale(1, 1);
-    }
-  }
-  
-  /* Square Split Animation - Your requested effect */
-@keyframes square-split {
-  0% {
-    transform: scale(1) rotate(0deg);
-  }
-  25% {
-    transform: scale(0.8) rotate(45deg);
-  }
-  50% {
-    transform: scale(1.2) rotate(90deg);
-  }
-  75% {
-    transform: scale(0.9) rotate(135deg);
-  }
-  100% {
-    transform: scale(1) rotate(180deg);
-  }
-}
 
-@keyframes square-quarter-1 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  25% { transform: translate(50%, -50%) rotate(90deg); }
-  50% { transform: translate(50%, 50%) rotate(180deg); }
-  75% { transform: translate(-50%, 50%) rotate(270deg); }
-}
-
-@keyframes square-quarter-2 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  25% { transform: translate(-50%, -50%) rotate(90deg); }
-  50% { transform: translate(-50%, 50%) rotate(180deg); }
-  75% { transform: translate(50%, 50%) rotate(270deg); }
-}
-
-@keyframes square-quarter-3 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  25% { transform: translate(-50%, 50%) rotate(90deg); }
-  50% { transform: translate(-50%, -50%) rotate(180deg); }
-  75% { transform: translate(50%, -50%) rotate(270deg); }
-}
-
-@keyframes square-quarter-4 {
-  0%, 100% { transform: translate(0, 0) rotate(0deg); }
-  25% { transform: translate(50%, 50%) rotate(90deg); }
-  50% { transform: translate(50%, -50%) rotate(180deg); }
-  75% { transform: translate(-50%, -50%) rotate(270deg); }
-}
-
-/* Triangle Spin */
-@keyframes triangle-spin {
-  0% { transform: rotate(0deg) scale(1); }
-  33% { transform: rotate(120deg) scale(0.8); }
-  66% { transform: rotate(240deg) scale(1.1); }
-  100% { transform: rotate(360deg) scale(1); }
-}
-
-/* Diamond Dance */
-@keyframes diamond-dance {
-  0%, 100% { transform: rotate(0deg) skew(0deg); }
-  25% { transform: rotate(45deg) skew(15deg); }
-  50% { transform: rotate(90deg) skew(0deg); }
-  75% { transform: rotate(135deg) skew(-15deg); }
-}
-
-/* Hexagon Morph */
-@keyframes hexagon-morph {
+/* Square Split Animation - CORRECTED: Splits into 4 pieces and moves apart */
+@keyframes square-split-1 {
   0%, 100% { 
-    clip-path: polygon(30% 0%, 70% 0%, 100% 50%, 70% 100%, 30% 100%, 0% 50%);
-    transform: rotate(0deg);
+    transform: translate(0%, 0%) scale(1);
+    opacity: 1;
   }
   50% { 
-    clip-path: polygon(50% 0%, 100% 25%, 100% 75%, 50% 100%, 0% 75%, 0% 25%);
-    transform: rotate(180deg);
+    transform: translate(-100%, -100%) scale(0.5);
+    opacity: 0.6;
   }
 }
 
-/* Line Wave */
-@keyframes line-wave {
-  0%, 100% { transform: scaleY(1) translateY(0); }
-  25% { transform: scaleY(2) translateY(-25%); }
-  50% { transform: scaleY(0.5) translateY(25%); }
-  75% { transform: scaleY(1.5) translateY(-10%); }
-}
-
-/* Circle Chase */
-@keyframes circle-chase-1 {
-  0% { transform: rotate(0deg) translateX(100%) rotate(0deg); }
-  100% { transform: rotate(360deg) translateX(100%) rotate(-360deg); }
-}
-
-@keyframes circle-chase-2 {
-  0% { transform: rotate(120deg) translateX(100%) rotate(-120deg); }
-  100% { transform: rotate(480deg) translateX(100%) rotate(-480deg); }
-}
-
-@keyframes circle-chase-3 {
-  0% { transform: rotate(240deg) translateX(100%) rotate(-240deg); }
-  100% { transform: rotate(600deg) translateX(100%) rotate(-600deg); }
-}
-
-/* Square Pulse */
-@keyframes square-pulse {
+@keyframes square-split-2 {
   0%, 100% { 
-    transform: scale(1) rotate(0deg);
-    border-radius: 0%;
-  }
-  25% { 
-    transform: scale(1.2) rotate(45deg);
-    border-radius: 25%;
+    transform: translate(0%, 0%) scale(1);
+    opacity: 1;
   }
   50% { 
-    transform: scale(0.8) rotate(90deg);
-    border-radius: 50%;
-  }
-  75% { 
-    transform: scale(1.1) rotate(135deg);
-    border-radius: 25%;
+    transform: translate(100%, -100%) scale(0.5);
+    opacity: 0.6;
   }
 }
 
-/* Infinity */
-@keyframes infinity {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
+@keyframes square-split-3 {
+  0%, 100% { 
+    transform: translate(0%, 0%) scale(1);
+    opacity: 1;
+  }
+  50% { 
+    transform: translate(-100%, 100%) scale(0.5);
+    opacity: 0.6;
+  }
 }
 
-/* Corner Squares Animation - Fixed to match exact behavior */
-@keyframes corner-squares {
+@keyframes square-split-4 {
+  0%, 100% { 
+    transform: translate(0%, 0%) scale(1);
+    opacity: 1;
+  }
+  50% { 
+    transform: translate(100%, 100%) scale(0.5);
+    opacity: 0.6;
+  }
+}
+
+/* Corner Squares Animation - CORRECTED: 4 squares rotate positions clockwise */
+@keyframes corner-squares-1 {
   0% { 
-    background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%;
-    background-size: 45% 45%;
-  }
-  25% { 
-    background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%;
-    background-size: 48% 48%;
-  }
-  50% { 
-    background-position: 25% 25%, 75% 25%, 75% 75%, 25% 75%;
-    background-size: 48% 48%;
-  }
-  75% { 
-    background-position: 100% 0%, 100% 100%, 0% 100%, 0% 0%;
-    background-size: 48% 48%;
-  }
-  100% { 
-    background-position: 100% 0%, 100% 100%, 0% 100%, 0% 0%;
-    background-size: 45% 45%;
-  }
-}
-
-/* Corner squares container - Faster animation */
-.corner-squares-container {
-  --corner-color: no-repeat linear-gradient(currentColor 0 0);
-  background: 
-    var(--corner-color),
-    var(--corner-color),
-    var(--corner-color),
-    var(--corner-color);
-  background-size: 45% 45%;
-  animation: corner-squares 1.5s ease-in-out infinite;
-  will-change: background-position, background-size;
-  backface-visibility: hidden;
-  transform: translateZ(0);
-}
-
-/* Alternative implementation using individual squares for better control - Faster */
-@keyframes corner-square-1 {
-  0%, 100% { transform: translate(0%, 0%); }
-  25% { transform: translate(0%, 0%); }
-  50% { transform: translate(50%, 50%); }
-  75% { transform: translate(100%, 0%); }
-}
-
-@keyframes corner-square-2 {
-  0%, 100% { transform: translate(0%, 0%); }
-  25% { transform: translate(0%, 0%); }
-  50% { transform: translate(-50%, 50%); }
-  75% { transform: translate(0%, 100%); }
-}
-
-@keyframes corner-square-3 {
-  0%, 100% { transform: translate(0%, 0%); }
-  25% { transform: translate(0%, 0%); }
-  50% { transform: translate(-50%, -50%); }
-  75% { transform: translate(-100%, 0%); }
-}
-
-@keyframes corner-square-4 {
-  0%, 100% { transform: translate(0%, 0%); }
-  25% { transform: translate(0%, 0%); }
-  50% { transform: translate(50%, -50%); }
-  75% { transform: translate(0%, -100%); }
-}
-
-.corner-squares-individual {
-  position: relative;
-  will-change: transform;
-  backface-visibility: hidden;
-  transform: translateZ(0);
-}
-
-.corner-square {
-  position: absolute;
-  background: currentColor;
-  will-change: transform;
-  backface-visibility: hidden;
-  transform: translateZ(0);
-}
-
-/* Conic Loader Animation - From your second CSS example */
-@keyframes conic-rotate {
-  33%  { inset: -10px; transform: rotate(0deg); }
-  66%  { inset: -10px; transform: rotate(90deg); }
-  100% { inset: 0; transform: rotate(90deg); }
-}
-
-/* TSB Text Animation */
-@keyframes tsb-text {
-  0%, 100% { 
-    transform: scale(1) rotateY(0deg);
+    transform: translate(0%, 0%) rotate(0deg) scale(1);
     opacity: 1;
   }
   25% { 
-    transform: scale(1.1) rotateY(15deg);
+    transform: translate(100%, 0%) rotate(90deg) scale(0.8);
     opacity: 0.8;
   }
   50% { 
-    transform: scale(0.9) rotateY(-15deg);
+    transform: translate(100%, 100%) rotate(180deg) scale(0.6);
+    opacity: 0.6;
+  }
+  75% { 
+    transform: translate(0%, 100%) rotate(270deg) scale(0.8);
+    opacity: 0.8;
+  }
+  100% { 
+    transform: translate(0%, 0%) rotate(360deg) scale(1);
     opacity: 1;
   }
-  75% { 
-    transform: scale(1.05) rotateY(10deg);
-    opacity: 0.9;
-  }
 }
 
-@keyframes tsb-letter-1 {
-  0%, 100% { transform: translateY(0) rotate(0deg); color: currentColor; }
-  33% { transform: translateY(-10px) rotate(5deg); color: hsl(var(--primary)); }
-  66% { transform: translateY(5px) rotate(-3deg); color: hsl(var(--success)); }
-}
-
-@keyframes tsb-letter-2 {
-  0%, 100% { transform: translateY(0) rotate(0deg); color: currentColor; }
-  33% { transform: translateY(10px) rotate(-5deg); color: hsl(var(--success)); }
-  66% { transform: translateY(-5px) rotate(3deg); color: hsl(var(--warning)); }
-}
-
-@keyframes tsb-letter-3 {
-  0%, 100% { transform: translateY(0) rotate(0deg); color: currentColor; }
-  33% { transform: translateY(-5px) rotate(3deg); color: hsl(var(--warning)); }
-  66% { transform: translateY(8px) rotate(-2deg); color: hsl(var(--primary)); }
-}
-
-/* Company Logo Animation */
-@keyframes company-logo {
-  0%, 100% { 
-    transform: scale(1) rotate(0deg);
-    filter: hue-rotate(0deg);
+@keyframes corner-squares-2 {
+  0% { 
+    transform: translate(0%, 0%) rotate(0deg) scale(1);
+    opacity: 1;
   }
   25% { 
-    transform: scale(1.1) rotate(90deg);
-    filter: hue-rotate(90deg);
+    transform: translate(0%, 100%) rotate(90deg) scale(0.8);
+    opacity: 0.8;
   }
   50% { 
-    transform: scale(0.9) rotate(180deg);
-    filter: hue-rotate(180deg);
+    transform: translate(-100%, 100%) rotate(180deg) scale(0.6);
+    opacity: 0.6;
   }
   75% { 
-    transform: scale(1.05) rotate(270deg);
-    filter: hue-rotate(270deg);
+    transform: translate(-100%, 0%) rotate(270deg) scale(0.8);
+    opacity: 0.8;
+  }
+  100% { 
+    transform: translate(0%, 0%) rotate(360deg) scale(1);
+    opacity: 1;
   }
 }
 
-/* Optimized animations for better performance */
+@keyframes corner-squares-3 {
+  0% { 
+    transform: translate(0%, 0%) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  25% { 
+    transform: translate(-100%, 0%) rotate(90deg) scale(0.8);
+    opacity: 0.8;
+  }
+  50% { 
+    transform: translate(-100%, -100%) rotate(180deg) scale(0.6);
+    opacity: 0.6;
+  }
+  75% { 
+    transform: translate(0%, -100%) rotate(270deg) scale(0.8);
+    opacity: 0.8;
+  }
+  100% { 
+    transform: translate(0%, 0%) rotate(360deg) scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes corner-squares-4 {
+  0% { 
+    transform: translate(0%, 0%) rotate(0deg) scale(1);
+    opacity: 1;
+  }
+  25% { 
+    transform: translate(0%, -100%) rotate(90deg) scale(0.8);
+    opacity: 0.8;
+  }
+  50% { 
+    transform: translate(100%, -100%) rotate(180deg) scale(0.6);
+    opacity: 0.6;
+  }
+  75% { 
+    transform: translate(100%, 0%) rotate(270deg) scale(0.8);
+    opacity: 0.8;
+  }
+  100% { 
+    transform: translate(0%, 0%) rotate(360deg) scale(1);
+    opacity: 1;
+  }
+}
+
+/* Optimized performance classes */
 .loading-optimized {
     will-change: transform, opacity;
     backface-visibility: hidden;
-    perspective: 1000px;
-    transform-style: preserve-3d;
-    isolation: isolate;
-  }
-  
-  .loading-gpu-accelerated {
+    transform: translateZ(0);
+    contain: layout style paint;
+}
+
+.loading-gpu-accelerated {
     transform: translateZ(0);
     will-change: transform, opacity;
     backface-visibility: hidden;
     contain: layout style paint;
-  }
-  
-  /* Smooth animation utilities */
-.loading-smooth {
-  animation-fill-mode: both;
-  animation-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
+    animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
-/* Reduced motion support */
-  @media (prefers-reduced-motion: reduce) {
-    .loading-optimized,
-    .loading-optimized * {
-      animation-duration: 0.01ms !important;
-      animation-iteration-count: 1 !important;
-      transition-duration: 0.01ms !important;
-    }
-  }
-  
-  /* High contrast mode support */
-  @media (prefers-contrast: high) {
-    .loading-spinner {
-      border-width: 3px;
-    }
-  }
-  
-  /* Dark mode optimizations */
-  @media (prefers-color-scheme: dark) {
-    .loading-backdrop {
-      backdrop-filter: blur(8px);
-    }
-  }
-  
-  /* Hollow effect support */
-.loading-hollow {
-  position: relative;
+.corner-squares-container {
+    position: relative;
+    will-change: transform;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    contain: layout style paint;
 }
 
-.loading-hollow::before {
-  content: '';
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: hsl(var(--background));
-  border-radius: inherit;
-  z-index: 1;
+.corner-square {
+    position: absolute;
+    background: currentColor;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    contain: layout style paint;
+    animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
-.loading-hollow-content {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 2;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+.split-square {
+    position: absolute;
+    background: currentColor;
+    will-change: transform, opacity;
+    backface-visibility: hidden;
+    transform: translateZ(0);
+    contain: layout style paint;
+    animation-fill-mode: both;
+    animation-timing-function: cubic-bezier(0.4, 0.0, 0.2, 1);
 }
 
-/* Responsive text sizing */
-.tsb-text-xs { font-size: 0.75rem; font-weight: 700; }
-.tsb-text-sm { font-size: 0.875rem; font-weight: 700; }
-.tsb-text-md { font-size: 1rem; font-weight: 700; }
-.tsb-text-lg { font-size: 1.25rem; font-weight: 700; }
-.tsb-text-xl { font-size: 1.5rem; font-weight: 700; }
+/* Performance optimizations */
+@media (prefers-reduced-motion: reduce) {
+  .loading-optimized,
+  .loading-optimized *,
+  .loading-gpu-accelerated,
+  .loading-gpu-accelerated * {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    will-change: auto !important;
+  }
+}
+
+/* Cleanup will-change after animation */
+.loading-optimized:not(:focus):not(:hover):not(:active) {
+  will-change: auto;
+}
+
+.loading-gpu-accelerated:not(:focus):not(:hover):not(:active) {
+  will-change: auto;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .loading-spinner {
+    border-width: 3px;
+  }
+}
+
+/* Dark mode optimizations */
+@media (prefers-color-scheme: dark) {
+  .loading-backdrop {
+    backdrop-filter: blur(6px);
+  }
+}
