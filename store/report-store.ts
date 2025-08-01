@@ -131,6 +131,7 @@ const useReportStore = create<ReportState>()(
         },
 
         // Report management
+        // ✅ ENHANCED: Better debugging for sync with safeguards
         syncReportToStore: (report: WeeklyReport | null) => {
           const state = get()
           
@@ -141,6 +142,22 @@ const useReportStore = create<ReportState>()(
           }
           
           if (report) {
+            // ✅ ENHANCED: Validate report data before syncing
+            if (!report.id) {
+              console.error('❌ Invalid report data - missing id:', report);
+              return;
+            }
+            
+            // ✅ ENHANCED: Validate report matches current context before syncing
+            const isMatchingWeek = report.weekNumber === state.currentWeekNumber && report.year === state.currentYear
+            
+            if (!isMatchingWeek && (state.currentWeekNumber && state.currentYear)) {
+              console.warn('⚠️ Report week mismatch, updating context to match report:', {
+                reportWeek: `${report.weekNumber}/${report.year}`,
+                currentWeek: `${state.currentWeekNumber}/${state.currentYear}`
+              })
+            }
+            
             set({
               selectedReport: report,
               currentTasks: report.tasks || [],
@@ -148,11 +165,15 @@ const useReportStore = create<ReportState>()(
               currentYear: report.year,
             })
           } else {
-            set({
-              selectedReport: null,
-              currentTasks: [],
-              // Don't clear week info when clearing report
-            })
+            // ✅ ENHANCED: Only clear if we're not in a save operation
+            if (!state.isSaving) {
+              set({
+                selectedReport: null,
+                currentTasks: [],
+                // Don't clear week info when clearing report unless specified
+              })
+            } else {
+            }
           }
         },
 

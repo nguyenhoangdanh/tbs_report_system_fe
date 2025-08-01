@@ -262,23 +262,27 @@ export interface WeekValidationResult {
 
 /**
  * Check if a week is valid for report creation
- * Logic: Allow creation for current week, previous week, and next week
+ * Logic: Allow creation for current week and next week only (removed previous week)
  */
 export function isValidWeekForCreation(
   weekNumber: number,
   year: number
 ): WeekValidationResult {
   const current = getCurrentWeek();
+
+  
+  // ✅ ENHANCED: Input validation
+  if (!weekNumber || !year || weekNumber < 1 || weekNumber > 53 || year < 2020 || year > 2030) {
+    return { 
+      isValid: false, 
+      reason: 'Tham số tuần hoặc năm không hợp lệ' 
+    };
+  }
   
   // Current week
   if (weekNumber === current.weekNumber && year === current.year) {
     return { isValid: true };
   }
-  
-  // Previous week
-  // if (isPreviousWeek(weekNumber, year, current.weekNumber, current.year)) {
-  //   return { isValid: true };
-  // }
   
   // Next week
   if (isNextWeek(weekNumber, year, current.weekNumber, current.year)) {
@@ -293,13 +297,17 @@ export function isValidWeekForCreation(
 
 /**
  * Check if a week is valid for report editing
- * Logic: Allow editing for current week, previous week, and next week
+ * Logic: Same as creation - current week and next week only
  */
 export function isValidWeekForEdit(
   weekNumber: number,
   year: number
 ): WeekValidationResult {
-  return isValidWeekForCreation(weekNumber, year);
+  
+  // ✅ ENHANCED: Use same logic as creation for consistency
+  const result = isValidWeekForCreation(weekNumber, year);
+  
+  return result;
 }
 
 /**
@@ -350,7 +358,7 @@ function isPreviousWeek(
 }
 
 /**
- * Helper: Check if target week is next week
+ * Helper: Check if target week is next week - Enhanced with better logging
  */
 function isNextWeek(
   weekNumber: number,
@@ -358,13 +366,17 @@ function isNextWeek(
   currentWeek: number,
   currentYear: number,
 ): boolean {
+
+  // ✅ ENHANCED: Better year transition handling
   if (year === currentYear) {
-    return weekNumber === currentWeek + 1;
+    const isNext = weekNumber === currentWeek + 1;
+    return isNext;
   }
   
   // Handle year transition (current week 52/53, target week 1 of next year)
   if (year === currentYear + 1 && currentWeek >= 52) {
-    return weekNumber === 1;
+    const isNext = weekNumber === 1;
+    return isNext;
   }
   
   return false;

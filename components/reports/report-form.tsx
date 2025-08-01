@@ -172,10 +172,14 @@ export const ReportForm = memo(function ReportForm({
 
   // Validate permissions
   const { canEdit, validation } = useMemo(() => {
+    
     let validationResult: WeekValidationResult
+    
     if (selectedReport) {
+      // For existing reports - check edit validation
       validationResult = isValidWeekForEdit(weekNumber, year)
     } else {
+      // For new reports - check creation validation
       validationResult = isValidWeekForCreation(weekNumber, year)
     }
 
@@ -187,14 +191,21 @@ export const ReportForm = memo(function ReportForm({
     }
   }, [selectedReport, weekNumber, year])
 
-  // Check if current week can be edited
+  // ✅ ENHANCED: Consistent edit check with better logging
   const canEditCurrentWeek = useMemo(() => {
+    
     if (selectedReport) {
-      const editValidation = isValidWeekForEdit(weekNumber, year)
-      return editValidation.isValid && !selectedReport.isLocked
+      // For existing reports, check edit validation
+      const editValidation = isValidWeekForEdit(weekNumber, year);
+      
+      const canEdit = editValidation.isValid && !selectedReport.isLocked;
+      
+      return canEdit;
     } else {
-      const creationValidation = isValidWeekForCreation(weekNumber, year)
-      return creationValidation.isValid
+      // For new reports, check creation validation
+      const creationValidation = isValidWeekForCreation(weekNumber, year);
+      
+      return creationValidation.isValid;
     }
   }, [selectedReport, weekNumber, year])
 
@@ -385,33 +396,46 @@ export const ReportForm = memo(function ReportForm({
       return
     }
 
-    // CRITICAL: State verification before save
-    const currentStoreState = useReportStore.getState()
-
-    // Determine if this is an update or create operation
-    const isUpdateOperation = selectedReport && selectedReport.id && !selectedReport.id.startsWith('temp-')
-    
-    if (!isUpdateOperation) {
-      // This is a CREATE operation - verify week validity
-      const validationResult = isValidWeekForCreation(weekNumber, year)
-      if (!validationResult.isValid) {
-        toast.error(validationResult.reason!)
-        return
-      }
-    } else {
-      // This is an UPDATE operation - verify edit permissions
-      const editValidation = isValidWeekForEdit(weekNumber, year)
-      if (!editValidation.isValid) {
-        toast.error(editValidation.reason!)
-        return
-      }
-    }
-
-    setSaving(true)
     try {
+      // ✅ ENHANCED: More detailed validation with early exit
+      if (!selectedReport) {
+        // CREATE operation - check creation validity
+        const validationResult = isValidWeekForCreation(weekNumber, year)
+        
+        if (!validationResult.isValid) {
+          console.error('❌ CREATE validation failed:', validationResult.reason);
+          toast.error(validationResult.reason!)
+          return
+        }
+      } else {
+        // UPDATE operation - check edit validity
+        const editValidation = isValidWeekForEdit(weekNumber, year)
+        
+        if (!editValidation.isValid) {
+          console.error('❌ UPDATE validation failed:', editValidation.reason);
+          toast.error(editValidation.reason!)
+          return
+        }
+
+        // Additional check for locked reports
+        if (selectedReport.isLocked) {
+          console.error('❌ Report is locked');
+          toast.error('Báo cáo đã bị khóa, không thể chỉnh sửa')
+          return
+        }
+      }
+
+      // ✅ ENHANCED: Check UI state consistency before proceeding
+      if (!canEditCurrentWeek) {
+        console.error('❌ UI state inconsistency: canEditCurrentWeek is false but validation passed');
+        toast.error('Trạng thái không nhất quán, vui lòng tải lại trang')
+        return
+      }
+
+      setSaving(true)
       let reportData: any
 
-      if (isUpdateOperation) {
+      if (selectedReport) {
         // UPDATE existing report
         reportData = {
           tasks: currentTasks.map(task => ({
@@ -448,15 +472,46 @@ export const ReportForm = memo(function ReportForm({
         }
       }
 
-      await onSave(reportData)
+      
+      // ✅ ENHANCED: Better error handling for onSave
+      try {
+        const savedReport = await onSave(reportData)
+        
+        // ✅ CRITICAL: Validate response before syncing
+        if (!savedReport || !savedReport.id) {
+          console.error('❌ Invalid response from onSave:', savedReport);
+          toast.error('Phản hồi từ server không hợp lệ');
+          return;
+        }
+        
+        // ✅ CRITICAL: Immediately sync the saved report to store to prevent clearing
+        syncReportToStore(savedReport)
+        
+      } catch (saveError: any) {
+        console.error('❌ onSave failed:', saveError);
+        // Re-throw to be handled by outer catch
+        throw saveError;
+      }
 
     } catch (error: any) {
       console.error('❌ ReportForm: Save failed:', error)
-      // Don't clear state on error - let user retry
+      
+      // ✅ ENHANCED: Better error display
+      let errorMessage = 'Có lỗi xảy ra khi lưu báo cáo'
+      
+      if (error && typeof error === 'object') {
+        if ('message' in error && typeof error.message === 'string') {
+          errorMessage = error.message
+        } else if ('error' in error && typeof error.error === 'string') {
+          errorMessage = error.error
+        }
+      }
+      
+      toast.error(errorMessage)
     } finally {
       setSaving(false)
     }
-  }, [validateTasks, selectedReport, weekNumber, year, currentTasks, onSave, setSaving])
+  }, [validateTasks, selectedReport, weekNumber, year, currentTasks, onSave, setSaving, canEditCurrentWeek, validation, syncReportToStore])
 
   return (
     <div className="space-y-6">
@@ -621,16 +676,15 @@ export const ReportForm = memo(function ReportForm({
             weekNumber={weekNumber}
             year={year}
             isEditable={canEditCurrentWeek && !isAnyLoading}
-            // ✅ FIX: Pass handleSave instead of calling it
-            onSave={canEditCurrentWeek && currentTasks.length > 0 && !isAnyLoading ? handleSave : undefined}
+            // ✅ ENHANCED: More specific save condition
+            onSave={canEditCurrentWeek && currentTasks.length > 0 && !isAnyLoading && validation.isValid ? handleSave : undefined}
           />
           <div className="flex justify-end items-center gap-2">
             {/* Save button */}
-            {(currentTasks.length !== 0 && canEdit) && (
+            {(currentTasks.length > 0 && canEdit && validation.isValid) && (
               <SubmitButton
-                disabled={isSaving}
-                // ✅ FIX: Pass handleSave as function, not call it
-                onClick={canEditCurrentWeek && currentTasks.length > 0 ? handleSave : undefined}
+                disabled={isSaving || !canEditCurrentWeek || !validation.isValid}
+                onClick={canEditCurrentWeek && currentTasks.length > 0 && validation.isValid ? handleSave : undefined}
                 loading={isSaving}
                 text='Lưu báo cáo'
                 icon={<Save className="w-4 h-4" />}

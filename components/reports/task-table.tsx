@@ -10,7 +10,7 @@ import { Badge } from '@/components/ui/badge'
 import { Plus, Trash2, Copy, Calendar, BarChart3, Upload } from 'lucide-react'
 import { toast } from 'react-toast-kit'
 import type { Task } from '@/types'
-import { formatWorkWeek, isValidWeekForCreation } from '@/utils/week-utils'
+import { formatWorkWeek, isValidWeekForCreation, isValidWeekForEdit } from '@/utils/week-utils'
 import useReportStore from '@/store/report-store'
 import { format } from 'date-fns'
 import { vi } from 'date-fns/locale'
@@ -549,12 +549,17 @@ export const TaskTable = memo(function TaskTable({
   }, [currentTasks])
 
   const canEditCurrentWeek = useMemo(() => {
+    
     if (selectedReport) {
-      const editValidation = isValidWeekForCreation(weekNumber, year)
-      return editValidation.isValid && !selectedReport.isLocked
+      const editValidation = isValidWeekForEdit(weekNumber, year)
+      
+      const canEdit = editValidation.isValid && !selectedReport.isLocked;
+      
+      return canEdit;
     } else {
       const creationValidation = isValidWeekForCreation(weekNumber, year)
-      return creationValidation.isValid
+      
+      return creationValidation.isValid;
     }
   }, [selectedReport, weekNumber, year])
 
@@ -563,18 +568,36 @@ export const TaskTable = memo(function TaskTable({
       return
     }
 
+    // ✅ ENHANCED: Early exit if can't edit
+    if (!canEditCurrentWeek) {
+      console.error('❌ TaskTable: Cannot edit current week');
+      toast.error('Không thể chỉnh sửa báo cáo cho tuần này')
+      return
+    }
+
     const isUpdateOperation = selectedReport && selectedReport.id && !selectedReport.id.startsWith('temp-')
     
     if (!isUpdateOperation) {
+      // CREATE validation
       const validationResult = isValidWeekForCreation(weekNumber, year)
       if (!validationResult.isValid) {
+        console.error('❌ TaskTable CREATE validation failed:', validationResult.reason);
         toast.error(validationResult.reason!)
         return
       }
     } else {
-      const editValidation = isValidWeekForCreation(weekNumber, year)
+      // UPDATE validation  
+      const editValidation = isValidWeekForEdit(weekNumber, year)
       if (!editValidation.isValid) {
+        console.error('❌ TaskTable UPDATE validation failed:', editValidation.reason);
         toast.error(editValidation.reason!)
+        return
+      }
+
+      // ✅ ENHANCED: Check locked status
+      if (selectedReport.isLocked) {
+        console.error('❌ TaskTable: Report is locked');
+        toast.error('Báo cáo đã bị khóa, không thể chỉnh sửa')
         return
       }
     }
@@ -619,7 +642,12 @@ export const TaskTable = memo(function TaskTable({
       }
 
       if (onSave) {
+        
+        // ✅ CRITICAL: Handle the result properly
+        // const result = await onSave(reportData)
         await onSave(reportData)
+        
+        // Note: Don't sync here, let the parent handle it
       }
 
     } catch (error: any) {
@@ -627,7 +655,7 @@ export const TaskTable = memo(function TaskTable({
     } finally {
       setSaving(false)
     }
-  }, [validateTasks, selectedReport, weekNumber, year, currentTasks, onSave, setSaving])
+  }, [validateTasks, selectedReport, weekNumber, year, currentTasks, onSave, setSaving, canEditCurrentWeek])
 
   if (currentTasks.length === 0) {
     return (

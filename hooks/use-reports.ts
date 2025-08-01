@@ -172,13 +172,38 @@ export function useCreateWeeklyReport() {
     optimisticUpdate: {
       queryKey: QUERY_KEYS.reports.myReports(user?.id || 'anonymous', 1, 10),
       updater: (old: any, variables) => {
+        
         const optimisticReport = {
           id: `temp-${Date.now()}`,
           ...variables,
           createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          user: user,
+          tasks: variables.tasks || [],
           status: 'pending'
         }
-        return old ? [optimisticReport, ...old.data] : [optimisticReport]
+        
+        // ✅ FIXED: Handle different data structures properly
+        if (!old) {
+          return { data: [optimisticReport], total: 1 }
+        }
+        
+        // If old.data exists and is an array
+        if (old.data && Array.isArray(old.data)) {
+          return {
+            ...old,
+            data: [optimisticReport, ...old.data],
+            total: (old.total || old.data.length) + 1
+          }
+        }
+        
+        // If old is directly an array
+        if (Array.isArray(old)) {
+          return [optimisticReport, ...old]
+        }
+        
+        // Fallback: create new structure
+        return { data: [optimisticReport], total: 1 }
       }
     },
     onMutate: async (newReport) => {
@@ -189,9 +214,18 @@ export function useCreateWeeklyReport() {
       if (!user?.id) return
       
       
-      // ✅ ENHANCED: Update store with the ACTUAL response data
+      // ✅ CRITICAL: Validate the response structure
+      if (!newReport || !newReport.id) {
+        console.error('❌ useCreateWeeklyReport: Invalid response structure:', newReport);
+        toast.error('Phản hồi từ server không hợp lệ');
+        return;
+      }
+      
+      // ✅ ENHANCED: Update store with the ACTUAL response data IMMEDIATELY
       const cacheKey = `${newReport.weekNumber}-${newReport.year}`
       setCachedReport(cacheKey, newReport)
+      
+      // ✅ CRITICAL: Sync immediately to prevent clearing
       syncReportToStore(newReport)
       
       // Update React Query cache
@@ -222,11 +256,25 @@ export function useCreateWeeklyReport() {
       
       toast.success('Tạo báo cáo thành công!')
     },
-    onError: (error) => {
-      console.error('❌ Create report failed:', error)
-      handleError(error, 'Không thể tạo báo cáo')
+    onError: (error, variables, context) => {
+      console.error('❌ useCreateWeeklyReport: Create report failed:', error)
+      console.error('❌ Variables:', variables)
+      console.error('❌ Context:', context)
+      
+      // ✅ ENHANCED: Better error handling
+      let errorMessage = 'Không thể tạo báo cáo'
+      
+      if (error && typeof error === 'object') {
+        if ('message' in error && typeof error.message === 'string') {
+          errorMessage = error.message
+        } else if ('error' in error && typeof error.error === 'string') {
+          errorMessage = error.error
+        }
+      }
+      
+      handleError(error, errorMessage)
     },
-    onSettled: () => {
+    onSettled: (data, error, variables, context) => {
       setSaving(false)
     },
     retry: 1,
@@ -248,9 +296,11 @@ export function useUpdateReport() {
       if (!user?.id) return
       
       
-      // ✅ ENHANCED: Update store with the ACTUAL response data
+      // ✅ ENHANCED: Update store with the ACTUAL response data IMMEDIATELY
       const cacheKey = `${updatedReport.weekNumber}-${updatedReport.year}`
       setCachedReport(cacheKey, updatedReport)
+      
+      // ✅ CRITICAL: Sync immediately to prevent clearing
       syncReportToStore(updatedReport)
       
       // Update React Query cache
