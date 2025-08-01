@@ -4,7 +4,7 @@ export default function Loading() {
   return (
     <ScreenLoading
       size="lg"
-      variant="corner-squares"
+      variant="grid"
       fullScreen
       backdrop
     />

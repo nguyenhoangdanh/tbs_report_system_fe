@@ -55,6 +55,21 @@ export default function AllLoadingExample() {
                     </CardContent>
                 </Card>
 
+                <Card>
+                    <CardHeader>
+                        <CardTitle>Loading Spinner with Custom Content</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="relative w-8 h-8 flex items-center justify-center">
+                            <div className="absolute w-6 h-6 border-2 border-blue-500 border-dashed rounded-full animate-dual-gear"></div>
+                            <div
+                                className="absolute w-4 h-4 border-2 border-purple-500 border-dotted rounded-full animate-dual-gear"
+                                style={{ animationDirection: "reverse", animationDuration: "1.5s" }}
+                            />
+                        </div>
+                    </CardContent>
+                </Card>
+
                 {/* Different Colors */}
                 <Card>
                     <CardHeader>

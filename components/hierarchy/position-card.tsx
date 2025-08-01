@@ -1,7 +1,7 @@
 "use client"
 
 import React, { memo } from "react"
-import { motion } from "framer-motion"
+import { motion, useReducedMotion } from "framer-motion"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { PositionUsersTable } from "./position-users-table"
@@ -53,6 +53,8 @@ interface PositionCardProps {
 }
 
 export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }: PositionCardProps) => {
+  const shouldReduceMotion = useReducedMotion()
+
   const positionInfo = {
     id: position.position?.id || position.jobPosition?.id || "",
     name: position.position?.name || position.jobPosition?.jobName || "Vị trí không xác định",
@@ -125,12 +127,12 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
   return (
     <motion.div
       className="w-full"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-      whileHover={{ y: -5 }}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }} // Reduced from y: 20
+      animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+      transition={shouldReduceMotion ? {} : { duration: 0.2 }} // Reduced from 0.5
+      whileHover={shouldReduceMotion ? {} : { y: -2 }} // Reduced from -5
     >
-      <Card className="glass-green border-green-500/20 hover:shadow-green-glow transition-all duration-300">
+      <Card className="glass-green border-green-500/20 hover:shadow-green-glow transition-all duration-200"> {/* Reduced from 300 */}
         {/* Main Card Content */}
         <CardContent className="p-4 sm:p-6">
           {/* Desktop Layout */}
@@ -140,7 +142,6 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="font-semibold text-lg text-green-700 dark:text-green-300 truncate">
-                    {/* {positionInfo.name} */}
                     {positionInfo?.description || positionInfo.name} - {positionInfo.jobName}
                     {positionInfo.departmentName && (
                       <p className="text-xs text-muted-foreground mt-1">
@@ -185,11 +186,17 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
             {/* Right Side - Quick Stats */}
             <div className="flex items-center gap-6">
               <div className="grid grid-cols-2 gap-4 text-center">
-                <motion.div whileHover={{ scale: 1.05 }}>
+                <motion.div 
+                  whileHover={shouldReduceMotion ? {} : { scale: 1.02 }} // Reduced from 1.05
+                  transition={shouldReduceMotion ? {} : { duration: 0.1 }}
+                >
                   <div className="text-lg font-bold text-green-600">{position.stats.totalUsers}</div>
                   <div className="text-xs text-muted-foreground">Tổng NV</div>
                 </motion.div>
-                <motion.div whileHover={{ scale: 1.05 }}>
+                <motion.div 
+                  whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                  transition={shouldReduceMotion ? {} : { duration: 0.1 }}
+                >
                   <div className="text-lg font-bold text-emerald-600">{position.stats.usersWithReports}</div>
                   <div className="text-xs text-muted-foreground">Đã nộp</div>
                 </motion.div>
@@ -222,18 +229,30 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
 
             <div className="flex items-center justify-between gap-4">
               <div className="flex flex-col gap-1">
-                <motion.div className="text-center" whileHover={{ scale: 1.05 }}>
+                <motion.div 
+                  className="text-center" 
+                  whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                  transition={shouldReduceMotion ? {} : { duration: 0.1 }}
+                >
                   <div className="text-lg font-bold text-green-600">{position.stats.totalUsers}</div>
                   <div className="text-xs text-muted-foreground">Tổng NV</div>
                 </motion.div>
-                <motion.div className="text-center" whileHover={{ scale: 1.05 }}>
+                <motion.div 
+                  className="text-center" 
+                  whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                  transition={shouldReduceMotion ? {} : { duration: 0.1 }}
+                >
                   <div className="text-sm font-bold text-emerald-600">{position.stats.usersWithReports}</div>
                   <div className="text-xs text-muted-foreground">Đã nộp</div>
                 </motion.div>
               </div>
 
               <div className="flex flex-col gap-1">
-                <motion.div className="text-center" whileHover={{ scale: 1.05 }}>
+                <motion.div 
+                  className="text-center" 
+                  whileHover={shouldReduceMotion ? {} : { scale: 1.02 }}
+                  transition={shouldReduceMotion ? {} : { duration: 0.1 }}
+                >
                   <div className="text-lg font-bold" style={{ color: positionClassification.color }}>
                     {Math.round(completionRate)}%
                   </div>
@@ -264,8 +283,8 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
                   <motion.div
                     key={index}
                     className="text-center p-3 glass-green rounded-lg border border-green-500/20"
-                    whileHover={{ scale: 1.05 }}
-                    transition={{ type: "spring", stiffness: 300 }}
+                    whileHover={shouldReduceMotion ? {} : { scale: 1.02 }} // Reduced from 1.05
+                    transition={shouldReduceMotion ? {} : { type: "spring", stiffness: 400, damping: 25 }} // Faster spring
                   >
                     <div className={`text-2xl font-bold ${stat.color}`}>{stat.value}</div>
                     <div className="text-xs text-muted-foreground">{stat.label}</div>
@@ -374,9 +393,9 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
               {transformedUsers.length === 0 && (
                 <motion.div
                   className="text-center py-8 text-muted-foreground"
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
+                  initial={shouldReduceMotion ? false : { opacity: 0 }}
+                  animate={shouldReduceMotion ? false : { opacity: 1 }}
+                  transition={shouldReduceMotion ? {} : { delay: 0.2 }} // Reduced delay
                 >
                   <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-green-100 dark:bg-green-900/30 flex items-center justify-center">
                     <span className="text-green-600 text-xl">👥</span>

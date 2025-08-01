@@ -89,25 +89,33 @@ export function useMyHierarchyView(filters?: {
   const {
     hierarchyData,
     isRefreshing,
-    setCurrentUser,
     setHierarchyData,
     setRefreshing,
-    shouldRefetch
+    shouldRefetch,
+    initializeStore,
+    isInitialized
   } = useHierarchyStore()
 
   // Sync user to store
+  // useEffect(() => {
+  //   setCurrentUser(user?.id || null)
+  // }, [user?.id, setCurrentUser])
   useEffect(() => {
-    setCurrentUser(user?.id || null)
-  }, [user?.id, setCurrentUser])
+    if (user?.id) {
+      initializeStore(user.id)
+    }
+  }, [user?.id, initializeStore])
 
   // ✅ FIXED: Stable needsRefetch that doesn't change constantly
   const needsRefetch = useMemo(() => {
-    if (!user?.id) return false
+    if (!user?.id || !isInitialized) return false
     
     const shouldFetch = shouldRefetch(user.id, filters)
+
+    const hasNoData = !hierarchyData
     
-    return shouldFetch
-  }, [user?.id, filters?.weekNumber, filters?.year, filters?.month, !!hierarchyData, shouldRefetch])
+    return shouldFetch || hasNoData
+  }, [user?.id, filters, hierarchyData, shouldRefetch, isInitialized])
 
   const queryResult = useApiQuery({
     queryKey: QUERY_KEYS.hierarchy.myView(user?.id || 'anonymous', filters),
@@ -133,14 +141,22 @@ export function useMyHierarchyView(filters?: {
         throw error
       }
     },
-    enabled: !!user?.id && needsRefetch,
+     enabled: !!user?.id && needsRefetch && isInitialized,
     cacheStrategy: 'realtime',
     throwOnError: false,
-    refetchOnMount: false, // ✅ CRITICAL: Don't auto refetch on mount
+    refetchOnMount: 'always', // ✅ CRITICAL: Always refetch on mount
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    staleTime: 5000, // ✅ Increase stale time to reduce refetches
-    gcTime: 10000, // ✅ Increase gc time
+    staleTime: 0, // ✅ CRITICAL: Always consider data stale
+    gcTime: 0, // ✅ CRITICAL: Don't cache data between mounts
+    // enabled: !!user?.id && needsRefetch && isInitialized,
+    // cacheStrategy: 'realtime',
+    // throwOnError: false,
+    // refetchOnMount: false, // ✅ CRITICAL: Don't auto refetch on mount
+    // refetchOnWindowFocus: false,
+    // refetchOnReconnect: true,
+    // staleTime: 5000, // ✅ Increase stale time to reduce refetches
+    // gcTime: 10000, // ✅ Increase gc time
   })
 
   const finalData = queryResult.data;

@@ -113,7 +113,7 @@ function DashboardPage() {
 
     // Handle authentication and loading states
     if (!isAuthenticated || !user) {
-        return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
+        return <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
     }
 
     if (isDashboardLoading || !workWeekInfo) {
@@ -121,7 +121,7 @@ function DashboardPage() {
             <MainLayout>
                 <div className="max-w-8xl mx-auto py-6 sm:px-6 lg:px-8">
                     <div className="px-4 sm:px-6 py-6">
-                        <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
+                        <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
                     </div>
                 </div>
             </MainLayout>

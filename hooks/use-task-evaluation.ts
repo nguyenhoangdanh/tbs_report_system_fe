@@ -45,19 +45,12 @@ export function useCreateTaskEvaluation() {
     mutationFn: async (data: CreateEvaluationDto) => await TaskEvaluationsService.createTaskEvaluation(data),
     onSuccess: (newEvaluation, variables) => {
       
-      // ✅ SIMPLE: Just broadcast like HierarchyDashboard
+      // ✅ KEEP: Only broadcast for real-time updates, don't invalidate queries
       broadcastEvaluationChange()
       
-      // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses
+      // ✅ REMOVED: Don't invalidate queries immediately - let dialog close handle it
       // queryClient.invalidateQueries({
       //   queryKey: ['admin-overview', 'manager-reports'],
-      //   exact: false,
-      //   refetchType: 'all'
-      // })
-      
-      // // ✅ Also invalidate hierarchy queries for HierarchyDashboard
-      // queryClient.invalidateQueries({
-      //   queryKey: ['hierarchy'],
       //   exact: false,
       //   refetchType: 'all'
       // })
@@ -72,7 +65,6 @@ export function useCreateTaskEvaluation() {
   })
 }
 
-// ✅ SAME: Update and Delete mutations with simple broadcast
 export function useUpdateTaskEvaluation() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
@@ -80,23 +72,17 @@ export function useUpdateTaskEvaluation() {
   return useApiMutation<TaskEvaluation, { evaluationId: string; data: UpdateEvaluationDto }, Error>({
     mutationFn: async ({ evaluationId, data }) => await TaskEvaluationsService.updateTaskEvaluation(evaluationId, data),
     onSuccess: (updatedEvaluation, variables) => {
+      // ✅ KEEP: Only broadcast for real-time updates, don't invalidate queries
       broadcastEvaluationChange()
 
-      // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses
+      // ✅ REMOVED: Don't invalidate queries immediately - let dialog close handle it
       // queryClient.invalidateQueries({
       //   queryKey: ['admin-overview', 'manager-reports'],
       //   exact: false,
       //   refetchType: 'all'
       // })
       
-      // // ✅ Also invalidate hierarchy queries for HierarchyDashboard  
-      // queryClient.invalidateQueries({
-      //   queryKey: ['hierarchy'],
-      //   exact: false,
-      //   refetchType: 'all'
-      // })
-      
-      toast.success("Cập nhật đánh giá thành công!")
+      // toast.success("Cập nhật đánh giá thành công!")
     },
     onError: (error) => {
       console.error('❌ UPDATE evaluation FAILED:', error)
@@ -113,18 +99,12 @@ export function useDeleteTaskEvaluation() {
   return useApiMutation<{ message: string }, string, Error>({
     mutationFn: async (evaluationId: string) => await TaskEvaluationsService.deleteTaskEvaluation(evaluationId),
     onSuccess: (result, deletedId) => {
+      // ✅ KEEP: Only broadcast for real-time updates, don't invalidate queries
       broadcastEvaluationChange()
       
-      // ✅ COMPREHENSIVE: Invalidate EXACT query keys that AdminOverview uses
+      // ✅ REMOVED: Don't invalidate queries immediately - let dialog close handle it
       // queryClient.invalidateQueries({
       //   queryKey: ['admin-overview', 'manager-reports'],
-      //   exact: false,
-      //   refetchType: 'all'
-      // })
-      
-      // // ✅ Also invalidate hierarchy queries for HierarchyDashboard
-      // queryClient.invalidateQueries({
-      //   queryKey: ['hierarchy'],
       //   exact: false,
       //   refetchType: 'all'
       // })

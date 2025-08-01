@@ -20,7 +20,7 @@ export const ScreenLoading = memo(
         showPercentage = false,
     }: ScreenLoadingProps) => {
         const content = (
-            <div className="flex flex-col items-center justify-center space-y-6 p-8">
+            <div className="flex flex-col items-center justify-center space-y-6 p-8 h-screen">
                 <div className="relative">
                     <LoadingSpinner
                         size={size}
@@ -67,7 +67,7 @@ export const ScreenLoading = memo(
             return (
                 <div
                     className={cn(
-                        "fixed inset-0 z-50 flex items-center justify-center",
+                        "fixed inset-0 z-50 flex items-center justify-center h-screen",
                         backdrop && "bg-background/80 backdrop-blur-sm",
                         className,
                     )}

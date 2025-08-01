@@ -1,15 +1,15 @@
 'use client'
 
-import { useState, memo, useMemo, useCallback } from 'react'
-import { motion } from 'framer-motion'
+import { memo, useState, useCallback, useMemo } from 'react'
+import { motion, useReducedMotion } from 'framer-motion'
+import { formatDistanceToNow } from 'date-fns'
+import { vi } from 'date-fns/locale'
+import type { WeeklyReport } from '@/types'
+import { getCurrentWeek } from '@/utils/week-utils'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Eye, Trash2, Calendar, Clock, CheckCircle2, XCircle, AlertTriangle } from 'lucide-react'
-import { formatDistanceToNow } from 'date-fns'
-import { vi } from 'date-fns/locale'
-import { getCurrentWeek } from '@/utils/week-utils'
-import type { WeeklyReport } from '@/types'
 import { toast } from 'react-toast-kit'
 
 // Helper function to get next week
@@ -60,6 +60,8 @@ const ReportCard = memo(function ReportCard({
   onDelete?: (report: WeeklyReport, e: React.MouseEvent) => void
   canDelete: boolean
 }) {
+  const shouldReduceMotion = useReducedMotion()
+
   // Memoize calculations
   const stats = useMemo(() => {
     const completedTasks = report.tasks?.filter(task => task.isCompleted).length || 0
@@ -97,28 +99,27 @@ const ReportCard = memo(function ReportCard({
   const handleDeleteClick = useCallback((e: React.MouseEvent) => {
     e.stopPropagation()
 
-    // ✅ NEW: Check for evaluations before allowing delete
     if (stats.hasEvaluations) {
-      toast.error(
-        `Không thể xóa báo cáo do có ${stats.totalEvaluations} đánh giá trên ${stats.evaluatedTasksCount} công việc`,
-      )
+      // Show warning about evaluations
       return
     }
 
     if (onDelete) {
       onDelete(report, e)
     }
-  }, [onDelete, report, stats.hasEvaluations, stats.totalEvaluations, stats.evaluatedTasksCount])
+  }, [onDelete, report, stats.hasEvaluations])
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
+      className="cursor-pointer"
+      onClick={handleClick}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }}
+      animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+      whileHover={shouldReduceMotion ? {} : { scale: 1.01, y: -2 }}
+      transition={shouldReduceMotion ? {} : { duration: 0.2 }}
     >
       <Card 
-        className="hover:shadow-md transition-shadow cursor-pointer"
-        onClick={handleClick}
+        className="hover:shadow-md transition-shadow"
       >
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -224,6 +225,7 @@ export const ReportsList = memo(function ReportsList({
   onDeleteReport,
   isLoading = false
 }: ReportsListProps) {
+  const shouldReduceMotion = useReducedMotion()
   const [showDeleteDialog, setShowDeleteDialog] = useState(false)
   const [reportToDelete, setReportToDelete] = useState<WeeklyReport | null>(null)
   const [isDeleting, setIsDeleting] = useState(false)
@@ -312,20 +314,15 @@ export const ReportsList = memo(function ReportsList({
 
   if (isLoading) {
     return (
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {Array.from({ length: 6 }, (_, index) => (
-          <Card key={index} className="animate-pulse">
-            <CardHeader>
-              <div className="h-4 bg-gray-200 rounded w-3/4" />
-              <div className="h-3 bg-gray-200 rounded w-1/2" />
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2">
-                <div className="h-3 bg-gray-200 rounded" />
-                <div className="h-3 bg-gray-200 rounded w-2/3" />
-              </div>
-            </CardContent>
-          </Card>
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <motion.div
+            key={i}
+            className="h-48 bg-gray-200 dark:bg-gray-700 rounded-lg animate-pulse"
+            initial={shouldReduceMotion ? false : { opacity: 0 }}
+            animate={shouldReduceMotion ? false : { opacity: 1 }}
+            transition={shouldReduceMotion ? {} : { delay: i * 0.05 }}
+          />
         ))}
       </div>
     )
@@ -346,7 +343,12 @@ export const ReportsList = memo(function ReportsList({
   }
 
   return (
-    <>
+    <motion.div
+      className="space-y-6"
+      initial={shouldReduceMotion ? false : { opacity: 0 }}
+      animate={shouldReduceMotion ? false : { opacity: 1 }}
+      transition={shouldReduceMotion ? {} : { duration: 0.2 }}
+    >
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
         {validReports.map((report) => (
           <ReportCard
@@ -437,7 +439,7 @@ export const ReportsList = memo(function ReportsList({
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </motion.div>
   )
 })
 

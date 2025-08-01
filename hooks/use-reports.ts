@@ -11,6 +11,7 @@ import type { ApiResult, ProjectApiError  } from '@/lib/api'
 import { QUERY_KEYS, INVALIDATION_PATTERNS } from './query-key'
 import { hierarchyStoreActions } from '@/store/hierarchy-store'
 import { adminOverviewStoreActions } from '@/store/admin-overview-store'
+import { useCallback } from 'react'
 
 // Clear user caches
 export const clearUserCaches = (queryClient: any, userId?: string) => {
@@ -443,6 +444,37 @@ export function useDeleteReport() {
   })
 }
 
+// ✅ NEW: Function to invalidate hierarchy queries when dialog closes
+export function useInvalidateHierarchyQueries() {
+  const queryClient = useQueryClient()
+  const { user } = useAuth()
+
+  const invalidateHierarchyQueries = useCallback(() => {
+    if (!user?.id) return
+
+    console.log('🔄 Invalidating hierarchy queries after dialog close...')
+
+    setTimeout(() => {
+      queryClient.invalidateQueries({ 
+        queryKey: INVALIDATION_PATTERNS.adminOverview.all(),
+        exact: false,
+        refetchType: 'all'
+      })
+      
+      queryClient.invalidateQueries({ 
+        queryKey: INVALIDATION_PATTERNS.reports.userSpecific(user.id),
+        exact: false,
+        refetchType: 'all'
+      })
+      
+      hierarchyStoreActions.forceRefresh()
+      adminOverviewStoreActions.forceRefresh()
+    }, 50)
+  }, [queryClient, user?.id])
+
+  return { invalidateHierarchyQueries }
+}
+
 export function useApproveTask() {
   const queryClient = useQueryClient()
   const { user } = useAuth()
@@ -453,11 +485,10 @@ export function useApproveTask() {
       if (!user?.id) return
     },
     onSuccess: (result, taskId) => {
-
       if (!user?.id) return
       
-      // ✅ TARGETED: Use invalidation patterns for consistency
-      setTimeout(() => {
+      // ✅ REMOVED: Don't invalidate queries immediately - wait for dialog close
+      // setTimeout(() => {
         queryClient.invalidateQueries({ 
           queryKey: INVALIDATION_PATTERNS.adminOverview.all(),
           exact: false,
@@ -472,9 +503,9 @@ export function useApproveTask() {
         
         hierarchyStoreActions.forceRefresh()
         adminOverviewStoreActions.forceRefresh()
-      }, 50)
+      // }, 50)
       
-      toast.success('Task approved successfully!')
+      // toast.success('Task approved successfully!')
     },
     onError: (error) => {
       console.error('❌ Approve task failed:', error)
@@ -496,8 +527,8 @@ export function useRejectTask() {
     onSuccess: (result, taskId) => {
       if (!user?.id) return
 
-      // ✅ TARGETED: Use invalidation patterns for consistency
-      setTimeout(() => {
+      // ✅ REMOVED: Don't invalidate queries immediately - wait for dialog close
+      // setTimeout(() => {
         queryClient.invalidateQueries({ 
           queryKey: INVALIDATION_PATTERNS.adminOverview.all(),
           exact: false,
@@ -512,9 +543,9 @@ export function useRejectTask() {
         
         hierarchyStoreActions.forceRefresh()
         adminOverviewStoreActions.forceRefresh()
-      }, 50)
+      // }, 50)
       
-      toast.success('Task rejected successfully!')
+      // toast.success('Task rejected successfully!')
     },
     onError: (error) => {
       console.error('❌ Reject task failed:', error)

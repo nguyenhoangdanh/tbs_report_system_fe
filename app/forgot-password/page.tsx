@@ -118,7 +118,7 @@ function ForgotPasswordContent() {
   const { enableAnimation, particleCount, canAnimate, performanceMode } = useThemeBackground();
 
   if (isLoading) {
-    return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
+    return <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
   }
 
   return (
@@ -468,7 +468,7 @@ function ForgotPasswordContent() {
 export default function ForgotPasswordPage() {
   return (
     <Suspense fallback={
-      <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
+      <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
     }>
       <ForgotPasswordContent />
     </Suspense>

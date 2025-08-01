@@ -16,6 +16,7 @@ import { PositionGroupsList } from "./position-groups-list"
 import { HierarchyHeader } from "./hierarchy-header"
 import { AlertTriangle, BarChart3, Crown, Users, ArrowLeft, ChevronRight } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
+import { OverviewCard } from "./hierarchy-overview-card"
 
 interface TabConfig {
   id: string
@@ -25,173 +26,6 @@ interface TabConfig {
   positions?: PositionData[]
   isManagement?: boolean
 }
-
-interface OverviewCardProps {
-  title: string
-  count: number
-  icon: any
-  onClick: () => void
-  description?: string
-  variant?: "management" | "employee"
-  positions?: PositionData[]
-  isJobPosition?: boolean
-}
-
-export const OverviewCard = memo(
-  ({
-    title,
-    count,
-    icon: Icon,
-    onClick,
-    description,
-    variant = "management",
-    positions = [],
-    isJobPosition = false,
-  }: OverviewCardProps) => {
-    const shouldReduceMotion = useReducedMotion()
-
-    const stats = useMemo(() => {
-      if (isJobPosition) {
-        let totalEmployees = 0
-        let totalFilled = 0
-        let totalPending = 0
-        let submissionRate = 0
-
-        positions.forEach((pos) => {
-          const users = pos.users || []
-          const userCount = users.length
-
-          totalEmployees += userCount
-          totalFilled += pos.stats?.usersWithReports || 0
-          submissionRate = pos.stats?.submissionRate || 0
-          totalPending += userCount - (pos.stats?.usersWithReports || 0)
-        })
-
-        return {
-          totalEmployees,
-          totalFilled,
-          totalPending,
-          submissionRate,
-        }
-      } else {
-        let totalEmployees = 0
-        let totalFilled = 0
-        let totalPending = 0
-        let submissionRate = 0
-
-        positions.forEach((pos) => {
-          const users = pos.users || []
-          const userCount = users.length
-          totalEmployees += userCount
-          totalFilled += pos.stats?.usersWithReports || 0
-          submissionRate = pos.stats?.submissionRate || 0
-          totalPending += userCount - (pos.stats?.usersWithReports || 0)
-        })
-
-        return {
-          totalEmployees,
-          totalFilled,
-          totalPending,
-          submissionRate,
-        }
-      }
-    }, [positions, isJobPosition])
-
-    return (
-      <motion.div
-        whileHover={{ scale: shouldReduceMotion ? 1 : 1.02, y: shouldReduceMotion ? 0 : -5 }}
-        whileTap={{ scale: shouldReduceMotion ? 1 : 0.98 }}
-        transition={{ type: "spring", stiffness: 300, damping: 20 }}
-      >
-        <Card
-          className="border-border/50 dark:border-border/90 hover:shadow-green-glow transition-all duration-300 cursor-pointer group"
-          onClick={onClick}
-        >
-          <CardContent className="p-3 sm:p-4 lg:p-6">
-            <div className="space-y-3 sm:space-y-4">
-              {/* Header - Mobile optimized */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-1">
-                  <div
-                    className={`p-2 sm:p-3 rounded-xl shadow-lg flex-shrink-0
-                      ${variant === "management"
-                        ? "bg-warm-gradient shadow-green-glow"
-                        : "bg-green-gradient shadow-emerald-glow"}
-                      `}
-                  >
-                    <Icon className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <h3 className="font-semibold text-sm sm:text-base text-green-700 dark:text-green-300 truncate">
-                      {title}
-                    </h3>
-                    {description && (
-                      <p className="text-xs text-muted-foreground hidden sm:block">{description}</p>
-                    )}
-                  </div>
-                </div>
-                <ChevronRight className="w-4 h-4 text-muted-foreground group-hover:text-green-600 transition-colors flex-shrink-0" />
-              </div>
-
-              {/* Statistics - Mobile responsive grid */}
-              <div className="grid grid-cols-2 gap-2 sm:gap-4 text-xs sm:text-sm">
-                <div className="space-y-1 sm:space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">NV:</span>
-                    <span className="font-medium">{stats.totalEmployees}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Đã nộp:</span>
-                    <span className="font-medium text-green-600">{stats.totalFilled}</span>
-                  </div>
-                </div>
-                <div className="space-y-1 sm:space-y-2">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground hidden sm:inline">Tỷ lệ:</span>
-                    <span className="text-muted-foreground sm:hidden">TL:</span>
-                    <span
-                      className={`font-medium ${stats.submissionRate > 80
-                        ? "text-green-600"
-                        : stats.submissionRate > 50
-                          ? "text-yellow-600"
-                          : "text-red-600"
-                        }`}
-                    >
-                      {stats.submissionRate}%
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground hidden sm:inline">Chưa nộp:</span>
-                    <span className="text-muted-foreground sm:hidden">Chưa:</span>
-                    <span className="font-medium text-red-600">{stats.totalPending}</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Progress bar */}
-              <div className="space-y-2">
-                <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-1.5 sm:h-2">
-                  <motion.div
-                    className={`h-1.5 sm:h-2 rounded-full ${stats.submissionRate > 80
-                      ? "bg-green-500"
-                      : stats.submissionRate > 50
-                        ? "bg-yellow-500"
-                        : "bg-red-500"
-                      }`}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${stats.submissionRate}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    )
-  },
-)
-
-OverviewCard.displayName = "OverviewCard"
 
 const HierarchyDashboard = memo(() => {
   const { user } = useAuth()
@@ -370,9 +204,9 @@ const HierarchyDashboard = memo(() => {
   if (!userPermissions.canViewPositions && !userPermissions.canViewJobPositions) {
     return (
       <motion.div
-        initial={{ opacity: 0, scale: 0.9 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.5 }}
+        initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.95 }} // Reduced scale
+        animate={shouldReduceMotion ? false : { opacity: 1, scale: 1 }}
+        transition={shouldReduceMotion ? {} : { duration: 0.2 }} // Reduced duration
         className="p-2 sm:p-4"
       >
         <Card className="glass-green border-green-500/20">
@@ -392,9 +226,9 @@ const HierarchyDashboard = memo(() => {
   return (
     <motion.div
       className="space-y-4 sm:space-y-6 p-2 sm:p-0"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }} // Reduced from y: 20
+      animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+      transition={shouldReduceMotion ? {} : { duration: 0.2 }} // Reduced duration
     >
       <HierarchyHeader
         filterDisplayText={filterDisplayText}
@@ -410,16 +244,20 @@ const HierarchyDashboard = memo(() => {
           {effectiveActiveTab !== "overview" && (
             <motion.div
               className="flex flex-col gap-3"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.3 }}
+              initial={shouldReduceMotion ? false : { opacity: 0, x: -15 }} // Reduced from x: -20
+              animate={shouldReduceMotion ? false : { opacity: 1, x: 0 }}
+              transition={shouldReduceMotion ? {} : { duration: 0.15 }} // Reduced duration
             >
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <motion.div 
+                whileHover={shouldReduceMotion ? {} : { scale: 1.02 }} // Reduced from 1.05
+                whileTap={shouldReduceMotion ? {} : { scale: 0.98 }} // Reduced from 0.95
+                transition={shouldReduceMotion ? {} : { duration: 0.1 }}
+              >
                 <Button
                   variant="ghost"
                   size="sm"
                   onClick={handleBackToOverview}
-                  className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground w-fit text-sm"
+                  className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground w-fit text-sm transition-colors duration-150" // Reduced transition
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span className="hidden xs:inline">Quay lại tổng quan</span>
@@ -433,9 +271,9 @@ const HierarchyDashboard = memo(() => {
         <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6">
           {effectiveActiveTab === "overview" ? (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }} // Reduced from y: 20
+              animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+              transition={shouldReduceMotion ? {} : { duration: 0.15 }} // Reduced duration
               className="space-y-4 sm:space-y-6"
             >
               {/* Management positions cards - Mobile optimized */}
@@ -506,9 +344,9 @@ const HierarchyDashboard = memo(() => {
               {managementTabs.length === 0 && employeeJobPositions.length === 0 && (
                 <motion.div
                   className="text-center py-8 sm:py-12 px-4"
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ duration: 0.5 }}
+                  initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.95 }} // Reduced scale
+                  animate={shouldReduceMotion ? false : { opacity: 1, scale: 1 }}
+                  transition={shouldReduceMotion ? {} : { duration: 0.2 }} // Reduced duration
                 >
                   <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground mx-auto mb-3 sm:mb-4" />
                   <h3 className="text-base sm:text-lg font-semibold mb-2">Không có dữ liệu</h3>
@@ -520,9 +358,9 @@ const HierarchyDashboard = memo(() => {
             </motion.div>
           ) : (
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3 }}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }} // Reduced from y: 20
+              animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+              transition={shouldReduceMotion ? {} : { duration: 0.15 }} // Reduced duration
               className="space-y-3 sm:space-y-4"
             >
               {/* Detail view for management positions */}

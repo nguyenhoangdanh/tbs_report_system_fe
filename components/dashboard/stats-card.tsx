@@ -274,7 +274,7 @@ const StatsCard = memo(function StatsCard({
             </Button>
           </Link>
           
-          {transformedReasons.length > 0 && (
+          {/* {transformedReasons.length > 0 && (
             <IncompleteReasonsDialog
               title={`Phân tích lý do - ${title}`}
               period={period}
@@ -291,7 +291,7 @@ const StatsCard = memo(function StatsCard({
                 <span className="truncate">Phân tích</span>
               </Button>
             </IncompleteReasonsDialog>
-          )}
+          )} */}
         </div>
       </CardContent>
     </Card>

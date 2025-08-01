@@ -10,7 +10,7 @@ type HierarchyData = HierarchyResponse | null
 interface HierarchyState {
   // Current user context
   currentUserId: string | null
-  
+
   // Hierarchy data cache
   hierarchyData: HierarchyData
   
@@ -28,7 +28,7 @@ interface HierarchyState {
   isRefreshing: boolean
   
   // Actions
-  setCurrentUser: (userId: string | null) => void
+  // setCurrentUser: (userId: string | null) => void
   setHierarchyData: (data: HierarchyData, filters?: any) => void
   clearHierarchyData: () => void
   forceRefresh: () => void
@@ -36,6 +36,16 @@ interface HierarchyState {
   
   // Helper methods
   shouldRefetch: (userId: string, filters: any) => boolean
+
+  lastFiltersHash: string | null  
+  isInitialized: boolean
+  initializeStore: (userId: string) => void
+}
+
+const createFiltersHash = (filters: any): string => {
+  if (!filters) return 'null'
+  const { weekNumber, year, month } = filters
+  return `${weekNumber || 'null'}-${year || 'null'}-${month || 'null'}`
 }
 
 const useHierarchyStore = create<HierarchyState>()(
@@ -47,23 +57,38 @@ const useHierarchyStore = create<HierarchyState>()(
       currentFilters: null,
       lastRefreshTimestamp: 0,
       isRefreshing: false,
+      lastFiltersHash: null,
+      isInitialized: false,
 
       // User management
-      setCurrentUser: (userId: string | null) => {
-        const state = get()
+      // setCurrentUser: (userId: string | null) => {
+      //   const state = get()
         
-        // Clear data when user changes
-        if (state.currentUserId !== userId) {
-          set({
-            currentUserId: userId,
-            hierarchyData: null,
-            currentFilters: null,
-            lastRefreshTimestamp: 0,
-            isRefreshing: false,
-          })
-        } else {
-          set({ currentUserId: userId })
-        }
+      //   // Clear data when user changes
+      //   if (state.currentUserId !== userId) {
+      //     set({
+      //       currentUserId: userId,
+      //       hierarchyData: null,
+      //       currentFilters: null,
+      //       lastRefreshTimestamp: 0,
+      //       isRefreshing: false,
+      //     })
+      //   } else {
+      //     set({ currentUserId: userId })
+      //   }
+      // },
+
+      // Initialization store with better state management
+      initializeStore: (userId: string) => {
+        set({
+          currentUserId: userId,
+          lastFiltersHash: null,
+          hierarchyData: null,
+          currentFilters: null,
+          lastRefreshTimestamp: 0,
+          isRefreshing: false,
+          isInitialized: true,
+        }, false, 'initializeStore')
       },
 
       // Data management
@@ -74,10 +99,13 @@ const useHierarchyStore = create<HierarchyState>()(
           console.warn('⚠️ HierarchyStore: No current user, skipping data set')
           return
         }
+
+        const filtersHash = createFiltersHash(filters || state.currentFilters)
         
         set({
           hierarchyData: data,
           currentFilters: filters || state.currentFilters,
+          lastFiltersHash: filtersHash,
           lastRefreshTimestamp: Date.now(),
           isRefreshing: false,
         })
@@ -88,22 +116,23 @@ const useHierarchyStore = create<HierarchyState>()(
           hierarchyData: null,
           currentFilters: null,
           lastRefreshTimestamp: 0,
+          lastFiltersHash: null,
           isRefreshing: false,
-        })
+        }, false, 'clearHierarchyData')
       },
 
       forceRefresh: () => {
         set({
           lastRefreshTimestamp: Date.now(),
           isRefreshing: true,
-          // ✅ CRITICAL: Clear existing data to force complete refetch
           hierarchyData: null,
-          currentFilters: null, // ✅ Also clear filters to force fresh fetch
-        })
+          currentFilters: null, 
+          lastFiltersHash: null,
+        }, false, 'forceRefresh')
       },
 
       setRefreshing: (refreshing: boolean) => {
-        set({ isRefreshing: refreshing })
+        set({ isRefreshing: refreshing }, false, 'setRefreshing')
       },
 
       // Helper method to determine if we should refetch
@@ -119,14 +148,26 @@ const useHierarchyStore = create<HierarchyState>()(
         if (state.currentUserId !== userId) {
           return true
         }
-        
-        // Refetch if filters changed significantly
-        if (!state.currentFilters || 
-            state.currentFilters.weekNumber !== filters?.weekNumber ||
-            state.currentFilters.year !== filters?.year ||
-            state.currentFilters.month !== filters?.month) {
+
+        const currentFiltersHash = createFiltersHash(filters)
+        if (state.lastFiltersHash !== currentFiltersHash) {
           return true
         }
+
+         // ✅ Data is too old (1 minute for component mount cases)
+        const dataAge = Date.now() - state.lastRefreshTimestamp
+        const isStale = dataAge > 1 * 60 * 1000 // Reduced to 1 minute
+        if (isStale) {
+          return true
+        }
+        
+        // // Refetch if filters changed significantly
+        // if (!state.currentFilters || 
+        //     state.currentFilters.weekNumber !== filters?.weekNumber ||
+        //     state.currentFilters.year !== filters?.year ||
+        //     state.currentFilters.month !== filters?.month) {
+        //   return true
+        // }
         
         return false
       }
@@ -138,7 +179,18 @@ const useHierarchyStore = create<HierarchyState>()(
 // Export actions for use in components
 export const hierarchyStoreActions = {
   clearAll: () => useHierarchyStore.getState().clearHierarchyData(),
-  forceRefresh: () => useHierarchyStore.getState().forceRefresh(),
+  // forceRefresh: () => useHierarchyStore.getState().forceRefresh(),
+  forceRefresh: () => {
+    const state = useHierarchyStore.getState()
+    if(!state.isRefreshing) {
+      state.forceRefresh()
+    }
+  },
+safeInitialize: (userId: string) => {
+    if (userId) {
+      useHierarchyStore.getState().initializeStore(userId)
+    }
+  }
 }
 
 export default useHierarchyStore

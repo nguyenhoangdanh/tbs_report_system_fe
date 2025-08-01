@@ -130,7 +130,7 @@ function ProfileContent() {
   }, [changePassword])
 
   if (isLoading) {
-    return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
+    return <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
   }
 
   if (!user) {
@@ -233,7 +233,7 @@ function ProfileContent() {
 export default function ProfilePage() {
   return (
     <Suspense fallback={
-      <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
+      <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
     }>
       <ProfileContent />
     </Suspense>

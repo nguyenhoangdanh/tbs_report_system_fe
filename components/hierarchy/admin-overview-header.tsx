@@ -1,7 +1,7 @@
 "use client"
 
 import { memo, useCallback, useState } from "react"
-import { motion } from "framer-motion"
+import { motion, useReducedMotion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
@@ -28,6 +28,7 @@ export const AdminOverviewHeader = memo(({
   onFiltersChange, 
   onRefresh 
 }: AdminOverviewHeaderProps) => {
+  const shouldReduceMotion = useReducedMotion()
   const [isRefreshing, setIsRefreshing] = useState(false)
   const currentWeek = getCurrentWeek()
   const currentYear = new Date().getFullYear()
@@ -37,7 +38,7 @@ export const AdminOverviewHeader = memo(({
     try {
       onRefresh()
     } finally {
-      setTimeout(() => setIsRefreshing(false), 1000)
+      setTimeout(() => setIsRefreshing(false), 500) // Reduced timeout
     }
   }, [onRefresh])
 
@@ -63,22 +64,25 @@ export const AdminOverviewHeader = memo(({
 
   // Generate options
   const yearOptions = Array.from({ length: 4 }, (_, i) => currentYear - 1 + i)
-//   const monthOptions = Array.from({ length: 12 }, (_, i) => ({ value: i + 1, label: `Tháng ${i + 1}` }))
   const weekOptions = Array.from({ length: 53 }, (_, i) => ({ value: i + 1, label: `Tuần ${i + 1}` }))
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: -20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      initial={shouldReduceMotion ? false : { opacity: 0, y: -15 }} // Reduced from -20
+      animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+      transition={shouldReduceMotion ? {} : { duration: 0.2 }} // Reduced duration
     >
       <Card className="glass-green border-green-500/20 shadow-green-glow/30">
         <CardHeader className="pb-4">
           <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
+              <motion.div 
+                className="p-2 rounded-lg bg-green-gradient shadow-green-glow"
+                whileHover={shouldReduceMotion ? {} : { scale: 1.05, rotate: 2 }} // Reduced rotation
+                transition={shouldReduceMotion ? {} : { duration: 0.1 }}
+              >
                 <TrendingUp className="w-5 h-5 text-white" />
-              </div>
+              </motion.div>
               <div>
                 <CardTitle className="text-xl text-green-gradient">
                   Quản lý người dùng
@@ -94,13 +98,17 @@ export const AdminOverviewHeader = memo(({
                 <Calendar className="w-3 h-3 mr-1" />
                 {filterDisplayText}
               </Badge>
-              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+              <motion.div 
+                whileHover={shouldReduceMotion ? {} : { scale: 1.02 }} // Reduced scale
+                whileTap={shouldReduceMotion ? {} : { scale: 0.98 }}
+                transition={shouldReduceMotion ? {} : { duration: 0.1 }}
+              >
                 <Button
                   onClick={handleRefresh}
                   disabled={isRefreshing}
                   variant="outline"
                   size="sm"
-                  className="flex items-center gap-2 hover:bg-green-500/10 glass-green border-green-500/30"
+                  className="flex items-center gap-2 hover:bg-green-500/10 glass-green border-green-500/30 transition-all duration-150" // Reduced duration
                 >
                   <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
                   <span className="hidden sm:inline">Làm mới</span>
@@ -118,24 +126,6 @@ export const AdminOverviewHeader = memo(({
             </div>
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-3 flex-1">
-              {/* Period selector */}
-              {/* <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground whitespace-nowrap">Thời gian:</span>
-                <Select
-                  value={filters.period}
-                  onValueChange={(value) => handleFilterChange('period', value)}
-                >
-                  <SelectTrigger className="w-28">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="week">Tuần</SelectItem>
-                    <SelectItem value="month">Tháng</SelectItem>
-                    <SelectItem value="year">Năm</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div> */}
-
               {/* Week selector */}
               {filters.period === 'week' && (
                 <div className="flex items-center gap-2">
@@ -144,7 +134,7 @@ export const AdminOverviewHeader = memo(({
                     value={filters.weekNumber?.toString()}
                     onValueChange={(value) => handleFilterChange('weekNumber', parseInt(value))}
                   >
-                    <SelectTrigger className="w-28">
+                    <SelectTrigger className="w-28 transition-all duration-150">
                       <SelectValue />
                     </SelectTrigger>
                     <SelectContent className="z-[9999] max-h-[400px] overflow-y-auto">
@@ -158,28 +148,6 @@ export const AdminOverviewHeader = memo(({
                 </div>
               )}
 
-              {/* Month selector */}
-              {/* {filters.period === 'month' && (
-                <div className="flex items-center gap-2">
-                  <span className="text-sm text-muted-foreground whitespace-nowrap">Tháng:</span>
-                  <Select
-                    value={filters.month?.toString()}
-                    onValueChange={(value) => handleFilterChange('month', parseInt(value))}
-                  >
-                    <SelectTrigger className="w-32">
-                      <SelectValue placeholder="Tháng" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {monthOptions.map((month) => (
-                        <SelectItem key={month.value} value={month.value.toString()}>
-                          {month.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )} */}
-
               {/* Year selector */}
               <div className="flex items-center gap-2">
                 <span className="text-sm text-muted-foreground whitespace-nowrap">Năm:</span>
@@ -187,7 +155,7 @@ export const AdminOverviewHeader = memo(({
                   value={filters.year.toString()}
                   onValueChange={(value) => handleFilterChange('year', parseInt(value))}
                 >
-                  <SelectTrigger className="w-24">
+                  <SelectTrigger className="w-24 transition-all duration-150">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>

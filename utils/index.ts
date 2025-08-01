@@ -58,7 +58,7 @@ export const exportToExcel = async (report: WeeklyReport) => {
 
     // Try to add logo image, fallback to text if image not available
     try {
-      const response = await fetch("/images/logo.png")
+      const response = await fetch("/images/remove-bg-logo.png")
       if (response.ok) {
         const imageBuffer = await response.arrayBuffer()
         const imageId = workbook.addImage({
@@ -68,13 +68,13 @@ export const exportToExcel = async (report: WeeklyReport) => {
 
         worksheet.addImage(imageId, {
           tl: { col: 1, row: 0 },
-          ext: { width: 100, height: 25 },
+          ext: { width: 100, height: 40 },
           editAs: "oneCell",
         })
 
-        worksheet.getCell("B1").style = {
-          fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF90EE90" } },
-        }
+        // worksheet.getCell("B1").style = {
+        //   fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF90EE90" } },
+        // }
       } else {
         throw new Error("Logo not found")
       }
@@ -83,19 +83,19 @@ export const exportToExcel = async (report: WeeklyReport) => {
       worksheet.getCell("B1").value = "TBS"
       worksheet.getCell("B1").style = {
         font: { bold: true, color: { argb: "FFFFFFFF" } },
-        alignment: { horizontal: "center", vertical: "middle" },
-        fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF90EE90" } },
+        alignment: { horizontal: "left", vertical: "middle" },
+        // fill: { type: "pattern", pattern: "solid", fgColor: { argb: "FF90EE90" } },
       }
     }
 
     // Row 1: Title (B1:L1)
-    worksheet.getCell("B1").value = `KQ CÔNG VIỆC CHI TIẾT NGÀY - TUẦN ${report.weekNumber}`
-    worksheet.mergeCells("B1:K1")
+    worksheet.getCell("C1").value = `KQ CÔNG VIỆC CHI TIẾT NGÀY - TUẦN ${report.weekNumber}`
+    worksheet.mergeCells("C1:K1")
 
-    worksheet.getCell("B1").style = {
-      font: { bold: true, size: 14 },
-      alignment: { horizontal: "center", vertical: "middle" },
-      fill: { type: "pattern", pattern: "solid" },
+    worksheet.getCell("C1").style = {
+      font: { bold: true, size: 16 },
+      alignment: { horizontal: "left", vertical: "middle" },
+      // fill: { type: "pattern", pattern: "solid" },
     }
 
     worksheet.getRow(1).height = 40
@@ -206,10 +206,10 @@ export const exportToExcel = async (report: WeeklyReport) => {
         }
 
         if (colNumber === 9 && cell.value === "x") {
-          cellStyle.fill = { type: "pattern", pattern: "solid" }
+          // cellStyle.fill = { type: "pattern", pattern: "solid" }
           cellStyle.font = { ...cellStyle.font, bold: true, color: { argb: "FF006400" } }
         } else if (colNumber === 10 && cell.value === "x") {
-          cellStyle.fill = { type: "pattern", pattern: "solid" }
+          // cellStyle.fill = { type: "pattern", pattern: "solid" }
           cellStyle.font = { ...cellStyle.font, bold: true, color: { argb: "FF8B0000" } }
         }
 

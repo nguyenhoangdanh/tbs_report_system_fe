@@ -12,40 +12,53 @@ body {
     text-wrap: balance;
   }
 
-  /* Glass effects with improved performance and reduced complexity */
+  .animate-dual-gear {
+    animation: dualGear 2s linear infinite;
+    will-change: transform;
+  }
+
+  .animate-comet-spinner {
+    animation: cometSpinner 1.5s linear infinite;
+    will-change: transform, opacity;
+  }
+
+  /* Performance-optimized glass effects with device-specific optimizations */
   .glass-green {
     background: rgba(34, 197, 94, 0.06);
-    backdrop-filter: blur(8px); /* Reduced blur for better performance */
+    backdrop-filter: blur(4px); /* Reduced from 8px for better mobile performance */
     border: 1px solid rgba(34, 197, 94, 0.12);
-    box-shadow: 0 2px 4px -1px rgba(34, 197, 94, 0.08);
-    will-change: auto; /* Only animate when needed */
+    box-shadow: 0 1px 3px rgba(34, 197, 94, 0.06); /* Reduced shadow complexity */
+    will-change: auto;
+    transform: translateZ(0); /* Force GPU acceleration */
   }
 
   .dark .glass-green {
     background: rgba(52, 211, 153, 0.08);
     border: 1px solid rgba(52, 211, 153, 0.18);
-    box-shadow: 0 2px 4px -1px rgba(52, 211, 153, 0.12);
+    box-shadow: 0 1px 3px rgba(52, 211, 153, 0.08);
   }
 
   .glass-primary {
     background: hsla(var(--primary), 0.06);
-    backdrop-filter: blur(8px);
+    backdrop-filter: blur(4px); /* Reduced */
     border: 1px solid hsla(var(--primary), 0.12);
-    box-shadow: 0 2px 4px -1px hsla(var(--primary), 0.08);
+    box-shadow: 0 1px 3px hsla(var(--primary), 0.06); /* Reduced */
     will-change: auto;
+    transform: translateZ(0);
   }
 
   .dark .glass-primary {
     background: hsla(var(--primary), 0.08);
     border: 1px solid hsla(var(--primary), 0.18);
-    box-shadow: 0 2px 4px -1px hsla(var(--primary), 0.12);
+    box-shadow: 0 1px 3px hsla(var(--primary), 0.08);
   }
 
   .glass-sage {
     background: hsla(var(--sage), 0.4);
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(3px); /* Reduced from 6px */
     border: 1px solid hsla(var(--sage-foreground), 0.08);
     will-change: auto;
+    transform: translateZ(0);
   }
 
   .dark .glass-sage {
@@ -55,9 +68,10 @@ body {
 
   .glass-muted {
     background: hsla(var(--muted-foreground), 0.03);
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(3px); /* Reduced from 6px */
     border: 1px solid hsla(var(--border), 0.4);
     will-change: auto;
+    transform: translateZ(0);
   }
 
   .dark .glass-muted {
@@ -65,21 +79,25 @@ body {
     border: 1px solid hsla(var(--border), 0.6);
   }
 
-  /* Optimized gradient utilities */
+  /* Optimized gradient utilities with GPU acceleration */
   .bg-green-gradient {
     background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--teal)) 100%);
+    transform: translateZ(0);
   }
 
   .bg-sage-gradient {
     background: linear-gradient(135deg, hsl(var(--sage)) 0%, hsl(var(--primary) / 0.1) 100%);
+    transform: translateZ(0);
   }
 
   .bg-primary-gradient {
     background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--success)) 100%);
+    transform: translateZ(0);
   }
 
   .bg-warm-gradient {
     background: linear-gradient(135deg, hsl(var(--primary)) 0%, hsl(var(--warning)) 100%);
+    transform: translateZ(0);
   }
 
   /* Performance-optimized text gradients */
@@ -88,7 +106,8 @@ body {
     -webkit-background-clip: text;
     background-clip: text;
     -webkit-text-fill-color: transparent;
-    background-size: 100% 100%; /* Fixed size for better performance */
+    background-size: 100% 100%;
+    transform: translateZ(0);
   }
 
   .text-primary-gradient {
@@ -97,27 +116,28 @@ body {
     background-clip: text;
     -webkit-text-fill-color: transparent;
     background-size: 100% 100%;
+    transform: translateZ(0);
   }
 
-  /* Reduced shadow effects for performance */
+  /* Simplified shadow effects for better performance */
   .shadow-green-glow {
-    box-shadow: 0 0 15px hsla(var(--primary), 0.12), 0 2px 4px -1px hsla(var(--primary), 0.08);
+    box-shadow: 0 0 8px hsla(var(--primary), 0.08), 0 1px 3px hsla(var(--primary), 0.06); /* Reduced complexity */
   }
 
   .shadow-primary-glow {
-    box-shadow: 0 0 15px hsla(var(--primary), 0.12), 0 2px 4px -1px hsla(var(--primary), 0.08);
+    box-shadow: 0 0 8px hsla(var(--primary), 0.08), 0 1px 3px hsla(var(--primary), 0.06);
   }
 
   .shadow-success-glow {
-    box-shadow: 0 0 12px hsla(var(--success), 0.12);
+    box-shadow: 0 0 6px hsla(var(--success), 0.08); /* Reduced */
   }
 
   .shadow-sage-glow {
-    box-shadow: 0 0 10px hsla(var(--sage-foreground), 0.08);
+    box-shadow: 0 0 5px hsla(var(--sage-foreground), 0.06); /* Reduced */
   }
 
   .shadow-warm-glow {
-    box-shadow: 0 0 15px hsla(var(--warning), 0.12);
+    box-shadow: 0 0 8px hsla(var(--warning), 0.08); /* Reduced */
   }
 
   /* Status color utilities */
@@ -185,55 +205,54 @@ body {
     @apply grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4;
   }
 
-  /* Modern grid pattern utilities */
+  /* Simplified grid patterns for better performance */
   .bg-grid-pattern {
     background-image: 
-      linear-gradient(rgba(16, 185, 129, 0.15) 1px, transparent 1px), /* Increased opacity */
-      linear-gradient(90deg, rgba(16, 185, 129, 0.15) 1px, transparent 1px);
-    background-size: 40px 40px;
+      linear-gradient(rgba(16, 185, 129, 0.08) 1px, transparent 1px), /* Reduced opacity */
+      linear-gradient(90deg, rgba(16, 185, 129, 0.08) 1px, transparent 1px);
+    background-size: 50px 50px; /* Increased size for fewer elements */
   }
 
   .dark .bg-grid-pattern {
     background-image: 
-      linear-gradient(rgba(52, 211, 153, 0.1) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(52, 211, 153, 0.1) 1px, transparent 1px);
+      linear-gradient(rgba(52, 211, 153, 0.06) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(52, 211, 153, 0.06) 1px, transparent 1px);
   }
 
   .bg-grid-green {
     background-image: 
-      linear-gradient(rgba(5, 150, 105, 0.18) 1px, transparent 1px), /* Darker and more opaque */
-      linear-gradient(90deg, rgba(5, 150, 105, 0.18) 1px, transparent 1px);
-    background-size: 30px 30px;
+      linear-gradient(rgba(5, 150, 105, 0.1) 1px, transparent 1px), /* Reduced opacity */
+      linear-gradient(90deg, rgba(5, 150, 105, 0.1) 1px, transparent 1px);
+    background-size: 40px 40px; /* Increased size */
   }
 
   .dark .bg-grid-green {
     background-image: 
-      linear-gradient(rgba(52, 211, 153, 0.12) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(52, 211, 153, 0.12) 1px, transparent 1px);
+      linear-gradient(rgba(52, 211, 153, 0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(52, 211, 153, 0.08) 1px, transparent 1px);
   }
 
   .bg-dot-pattern {
-    background-image: radial-gradient(circle, rgba(16, 185, 129, 0.25) 1px, transparent 1px); /* Increased opacity */
-    background-size: 20px 20px;
+    background-image: radial-gradient(circle, rgba(16, 185, 129, 0.12) 1px, transparent 1px); /* Reduced opacity */
+    background-size: 30px 30px; /* Increased size */
   }
 
   .dark .bg-dot-pattern {
-    background-image: radial-gradient(circle, rgba(52, 211, 153, 0.2) 1px, transparent 1px);
+    background-image: radial-gradient(circle, rgba(52, 211, 153, 0.1) 1px, transparent 1px);
   }
 
-  /* Enhanced mesh gradient with better light theme visibility */
+  /* Simplified mesh gradient for better performance */
   .bg-mesh-gradient {
     background: 
-      radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.15) 0%, transparent 50%), /* Increased */
-      radial-gradient(circle at 80% 20%, rgba(34, 197, 94, 0.12) 0%, transparent 50%),
-      radial-gradient(circle at 40% 80%, rgba(6, 182, 212, 0.1) 0%, transparent 50%);
+      radial-gradient(circle at 20% 50%, rgba(16, 185, 129, 0.08) 0%, transparent 50%), /* Reduced opacity */
+      radial-gradient(circle at 80% 20%, rgba(34, 197, 94, 0.06) 0%, transparent 50%);
+    /* Removed third gradient for better performance */
   }
 
   .dark .bg-mesh-gradient {
     background: 
-      radial-gradient(circle at 20% 50%, rgba(52, 211, 153, 0.15) 0%, transparent 50%),
-      radial-gradient(circle at 80% 20%, rgba(34, 197, 94, 0.15) 0%, transparent 50%),
-      radial-gradient(circle at 40% 80%, rgba(6, 182, 212, 0.15) 0%, transparent 50%);
+      radial-gradient(circle at 20% 50%, rgba(52, 211, 153, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 20%, rgba(34, 197, 94, 0.08) 0%, transparent 50%);
   }
 
   /* Performance optimization utilities */
@@ -263,41 +282,55 @@ body {
     contain: style;
   }
 
-  /* GPU acceleration for frequently animated elements - Simplified */
-  .animate-spin {
-    transform: translateZ(0);
-    will-change: transform;
-    animation-duration: 1s;
-  }
-
-  /* Performance hint for container queries */
-  @container (max-width: 640px) {
-    .container-optimized {
-      contain: layout style paint;
-    }
-  }
-
-  /* Mobile optimizations for better performance */
-  @media (max-width: 640px) {
-    /* Further reduce backdrop blur on mobile */
+  /* Mobile-first optimizations - More aggressive */
+  @media (max-width: 768px) {
+    /* Disable backdrop blur completely on mobile for better performance */
     .glass-green,
     .glass-primary,
     .glass-sage,
     .glass-muted {
-      backdrop-filter: blur(2px);
+      backdrop-filter: none;
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .dark .glass-green,
+    .dark .glass-primary,
+    .dark .glass-sage,
+    .dark .glass-muted {
+      background: rgba(52, 211, 153, 0.12);
+      border: 1px solid rgba(52, 211, 153, 0.25);
+    }
+
+    /* Disable complex patterns on mobile */
+    .bg-grid-pattern,
+    .bg-grid-green,
+    .bg-dot-pattern,
+    .bg-mesh-gradient {
+      background: transparent;
     }
 
     /* Simplify all animations on mobile */
     * {
-      animation-duration: 0.15s !important;
+      animation-duration: 0.1s !important;
+      transition-duration: 0.1s !important;
     }
     
     .loading-optimized {
-      animation-duration: 0.8s !important;
+      animation-duration: 0.5s !important;
+    }
+
+    /* Remove shadows on mobile for better performance */
+    .shadow-green-glow,
+    .shadow-primary-glow,
+    .shadow-success-glow,
+    .shadow-sage-glow,
+    .shadow-warm-glow {
+      box-shadow: none;
     }
   }
 
-  /* Performance-first: Reduce motion for accessibility and low-end devices */
+  /* Enhanced reduced motion support */
   @media (prefers-reduced-motion: reduce) {
     *,
     *::before,
@@ -309,7 +342,7 @@ body {
       will-change: auto !important;
     }
 
-    /* Remove complex effects that impact performance */
+    /* Remove ALL complex effects for reduced motion */
     .glass-green,
     .glass-primary,
     .glass-sage,
@@ -318,6 +351,21 @@ body {
       background: hsl(var(--card) / 0.95);
       border: 1px solid hsl(var(--border));
     }
+
+    .bg-grid-pattern,
+    .bg-grid-green,
+    .bg-dot-pattern,
+    .bg-mesh-gradient {
+      background: transparent;
+    }
+
+    .shadow-green-glow,
+    .shadow-primary-glow,
+    .shadow-success-glow,
+    .shadow-sage-glow,
+    .shadow-warm-glow {
+      box-shadow: none;
+    }
   }
 
   /* High contrast mode support */
@@ -325,7 +373,7 @@ body {
     .glass-green {
       background: hsla(var(--primary), 0.15);
       border: 2px solid hsl(var(--primary));
-      backdrop-filter: none; /* Remove blur for clarity */
+      backdrop-filter: none;
     }
 
     .glass-primary {
@@ -340,38 +388,26 @@ body {
       backdrop-filter: none;
     }
 
-    /* Enhanced selection for high contrast */
     ::selection {
       background: hsl(var(--primary)) !important;
       color: hsl(var(--primary-foreground)) !important;
     }
   }
 
-  /* Battery optimization for mobile devices */
-  @media (prefers-reduced-motion: no-preference) {
-    @supports (battery-level: 0.5) {
-      /* Reduce animations when battery is low */
-      * {
-        animation-duration: 0.15s !important;
-        transition-duration: 0.15s !important;
-      }
-    }
-  }
-
-  /* Performance-optimized smooth transitions */
+  /* Ultra-fast transitions for better perceived performance */
   button,
   a,
   input,
   textarea,
   select {
-    transition: all 0.15s ease; /* Reduced from 0.2s for snappier feel */
+    transition: all 0.1s ease; /* Reduced from 0.15s */
   }
 
   /* Optimized focus states */
   *:focus-visible {
     outline: 2px solid hsl(var(--ring));
     outline-offset: 2px;
-    transition: outline-color 0.1s ease;
+    transition: outline-color 0.05s ease; /* Ultra-fast focus */
   }
 }
 
@@ -505,11 +541,11 @@ body {
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "rlig" 1, "calt" 1;
-    transition: background-color 0.2s ease, color 0.2s ease; /* Reduced transition time */
+    transition: background-color 0.1s ease, color 0.1s ease; /* Faster theme transitions */
   }
 }
 
-/* Performance optimizations */
+/* Enhanced performance optimizations */
 * {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -520,49 +556,9 @@ html {
   scroll-behavior: smooth;
 }
 
-/* Enhanced text selection visibility */
-::selection {
-  background: hsl(142 69% 42% / 0.3) !important;
-  color: hsl(0 0% 3.9%) !important;
-  text-shadow: none !important;
-}
-
-::-moz-selection {
-  background: hsl(142 69% 42% / 0.3) !important;
-  color: hsl(0 0% 3.9%) !important;
-  text-shadow: none !important;
-}
-
-.dark ::selection {
-  background: hsl(142 65% 48% / 0.4) !important;
-  color: hsl(0 0% 98%) !important;
-  text-shadow: none !important;
-}
-
-.dark ::-moz-selection {
-  background: hsl(142 65% 48% / 0.4) !important;
-  color: hsl(0 0% 98%) !important;
-  text-shadow: none !important;
-}
-
-/* Enhanced text selection for inputs */
-input::selection,
-textarea::selection,
-[contenteditable]::selection {
-  background: hsl(142 69% 42% / 0.35) !important;
-  color: hsl(0 0% 3.9%) !important;
-}
-
-.dark input::selection,
-.dark textarea::selection,
-.dark [contenteditable]::selection {
-  background: hsl(142 65% 48% / 0.45) !important;
-  color: hsl(0 0% 98%) !important;
-}
-
-/* Optimized scrollbar styling */
+/* Simplified scrollbar styling for better performance */
 ::-webkit-scrollbar {
-  width: 6px; /* Reduced width for mobile performance */
+  width: 4px; /* Reduced width */
 }
 
 ::-webkit-scrollbar-track {
@@ -571,14 +567,22 @@ textarea::selection,
 
 ::-webkit-scrollbar-thumb {
   @apply bg-border rounded-full;
-  transition: background-color 0.15s ease; /* Reduced transition time */
+  transition: background-color 0.1s ease; /* Faster transition */
 }
 
 ::-webkit-scrollbar-thumb:hover {
   background: hsl(var(--primary) / 0.6);
 }
 
-/* Mobile optimizations for better performance */
+/* Performance-first: GPU acceleration for frequently animated elements */
+.animate-spin,
+.animate-pulse,
+.animate-bounce {
+  transform: translateZ(0);
+  will-change: transform;
+}
+
+/* Aggressive mobile optimizations */
 @media (max-width: 640px) {
   input,
   textarea,
@@ -591,124 +595,40 @@ textarea::selection,
     min-width: 44px;
   }
 
-  /* Further reduce backdrop blur on mobile */
-  .glass-green,
-  .glass-primary,
-  .glass-sage,
-  .glass-muted {
-    backdrop-filter: blur(2px);
-  }
+  /* Force hardware acceleration on mobile */
+  /* body {
+    transform: translateZ(0);
+    -webkit-overflow-scrolling: touch;
+  } */
 
-  /* Simplify all animations on mobile */
+  /* Reduce paint complexity on mobile */
   * {
-    animation-duration: 0.15s !important;
-  }
-  
-  .loading-optimized {
-    animation-duration: 0.8s !important;
+    text-shadow: none !important;
   }
 }
 
-/* Performance-first: Reduce motion for accessibility and low-end devices */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-    will-change: auto !important;
-  }
-
-  /* Remove complex effects that impact performance */
+/* Battery optimization hint */
+@media (max-width: 768px) and (max-resolution: 150dpi) {
+  /* Low-end mobile devices - ultra-minimal styling */
   .glass-green,
   .glass-primary,
   .glass-sage,
   .glass-muted {
-    backdrop-filter: none;
-    background: hsl(var(--card) / 0.95);
+    background: hsl(var(--card));
     border: 1px solid hsl(var(--border));
-  }
-}
-
-/* High contrast mode support */
-@media (prefers-contrast: high) {
-  .glass-green {
-    background: hsla(var(--primary), 0.15);
-    border: 2px solid hsl(var(--primary));
-    backdrop-filter: none; /* Remove blur for clarity */
-  }
-
-  .glass-primary {
-    background: hsla(var(--primary), 0.15);
-    border: 2px solid hsl(var(--primary));
     backdrop-filter: none;
   }
 
-  .glass-muted {
-    background: hsla(var(--muted-foreground), 0.1);
-    border: 2px solid hsl(var(--border));
-    backdrop-filter: none;
-  }
-
-  /* Enhanced selection for high contrast */
-  ::selection {
-    background: hsl(var(--primary)) !important;
-    color: hsl(var(--primary-foreground)) !important;
+  .shadow-green-glow,
+  .shadow-primary-glow,
+  .shadow-success-glow,
+  .shadow-sage-glow,
+  .shadow-warm-glow {
+    box-shadow: none;
   }
 }
 
-/* Battery optimization for mobile devices */
-@media (prefers-reduced-motion: no-preference) {
-  @supports (battery-level: 0.5) {
-    /* Reduce animations when battery is low */
-    * {
-      animation-duration: 0.15s !important;
-      transition-duration: 0.15s !important;
-    }
-  }
-}
-
-/* Performance-optimized smooth transitions */
-button,
-a,
-input,
-textarea,
-select {
-  transition: all 0.15s ease; /* Reduced from 0.2s for snappier feel */
-}
-
-/* Optimized focus states */
-*:focus-visible {
-  outline: 2px solid hsl(var(--ring));
-  outline-offset: 2px;
-  transition: outline-color 0.1s ease;
-}
-
-/* GPU acceleration for frequently animated elements */
-.animate-spin,
-.animate-pulse,
-.animate-bounce {
-  transform: translateZ(0);
-  will-change: transform;
-}
-
-/* Performance hint for container queries */
-@container (max-width: 640px) {
-  .container-optimized {
-    contain: layout style paint;
-  }
-}
-
-/* Dark mode performance optimization */
-@media (prefers-color-scheme: dark) {
-  .loading-backdrop {
-    backdrop-filter: blur(6px); /* Reduced from 8px */
-  }
-}
-
-/* Print styles for better performance */
+/* Print optimizations */
 @media print {
   *,
   *::before,
@@ -718,5 +638,14 @@ select {
     box-shadow: none !important;
     text-shadow: none !important;
     backdrop-filter: none !important;
+  }
+}
+
+@keyframes dualGear {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
   }
 }

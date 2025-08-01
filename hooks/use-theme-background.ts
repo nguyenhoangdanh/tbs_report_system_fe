@@ -17,13 +17,13 @@ export const useThemeBackground = () => {
 
   const [settings, setSettings] = useState<BackgroundSettings>({
     enableAnimation: true,
-    particleCount: 20, // Increased for better visual impact
+    particleCount: 8, // Reduced from 20 for better mobile performance
     reducedMotion: false,
     performanceMode: false,
-    intensity: "normal",
+    intensity: "subtle", // Default to subtle for better performance
   })
 
-  // Enhanced performance detection
+  // Enhanced performance detection with stricter thresholds
   useEffect(() => {
     const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)")
 
@@ -32,12 +32,17 @@ export const useThemeBackground = () => {
       const deviceMemory = (navigator as any).deviceMemory
       const hardwareConcurrency = navigator.hardwareConcurrency || 4
 
-      return (
-        (deviceMemory && deviceMemory < 4) ||
-        (connection && (connection.effectiveType === "2g" || connection.effectiveType === "3g")) ||
-        hardwareConcurrency < 4 ||
-        /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      // More aggressive performance detection
+      const isMobile = /Android|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent)
+      const isSlowConnection = connection && (
+        connection.effectiveType === "2g" || 
+        connection.effectiveType === "3g" || 
+        connection.effectiveType === "slow-2g"
       )
+      const isLowMemory = deviceMemory && deviceMemory < 6 // Increased threshold
+      const isLowCPU = hardwareConcurrency < 6 // Increased threshold
+
+      return isMobile || isSlowConnection || isLowMemory || isLowCPU
     }
 
     const handleChange = (e: MediaQueryListEvent) => {
@@ -53,10 +58,10 @@ export const useThemeBackground = () => {
     setSettings((prev) => ({
       ...prev,
       reducedMotion: mediaQuery.matches,
-      enableAnimation: !mediaQuery.matches && prev.enableAnimation,
+      enableAnimation: !mediaQuery.matches && !performanceMode, // Disable on low perf devices
       performanceMode,
-      particleCount: performanceMode ? 10 : currentTheme === "dark" ? 20 : 16,
-      intensity: performanceMode ? "subtle" : "normal",
+      particleCount: performanceMode ? 3 : (currentTheme === "dark" ? 8 : 5), // Heavily reduced
+      intensity: performanceMode ? "subtle" : "normal", // Never use vibrant on low perf
     }))
 
     mediaQuery.addEventListener("change", handleChange)
@@ -66,21 +71,21 @@ export const useThemeBackground = () => {
   const toggleAnimation = useCallback(() => {
     setSettings((prev) => ({
       ...prev,
-      enableAnimation: !prev.enableAnimation && !prev.reducedMotion,
+      enableAnimation: !prev.enableAnimation && !prev.reducedMotion && !prev.performanceMode,
     }))
   }, [])
 
   const updateParticleCount = useCallback((count: number) => {
     setSettings((prev) => ({
       ...prev,
-      particleCount: Math.max(5, Math.min(prev.performanceMode ? 15 : 30, count)),
+      particleCount: Math.max(2, Math.min(prev.performanceMode ? 5 : 12, count)), // Reduced limits
     }))
   }, [])
 
   const updateIntensity = useCallback((intensity: "subtle" | "normal" | "vibrant") => {
     setSettings((prev) => ({
       ...prev,
-      intensity: prev.performanceMode && intensity === "vibrant" ? "normal" : intensity,
+      intensity: prev.performanceMode ? "subtle" : (intensity === "vibrant" ? "normal" : intensity), // Prevent vibrant on low perf
     }))
   }, [])
 
@@ -90,6 +95,6 @@ export const useThemeBackground = () => {
     toggleAnimation,
     updateParticleCount,
     updateIntensity,
-    canAnimate: !settings.reducedMotion,
+    canAnimate: !settings.reducedMotion && !settings.performanceMode,
   }
 }

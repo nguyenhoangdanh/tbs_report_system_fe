@@ -582,7 +582,7 @@ function ReportsPage() {
 
   // Loading states
   if (authLoading) {
-    return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
+    return <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
   }
 
   if (!isAuthenticated || !user) {
@@ -597,11 +597,11 @@ function ReportsPage() {
 
   return (
     <MainLayout
-      showBreadcrumb
-      breadcrumbItems={[
-        { label: 'Dashboard', href: '/dashboard' },
-        { label: 'Báo cáo của tôi', href: '/reports' }
-      ]}
+      // showBreadcrumb
+      // breadcrumbItems={[
+      //   { label: 'Dashboard', href: '/dashboard' },
+      //   { label: 'Báo cáo của tôi', href: '/reports' }
+      // ]}
     >
       <div className="max-w-8xl mx-auto px-2 sm:px-4 lg:px-6 py-4 sm:py-6 lg:py-8">
         {/* Add operation loading overlay */}

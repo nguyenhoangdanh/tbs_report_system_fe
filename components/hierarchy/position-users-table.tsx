@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { memo, useState } from "react"
+import { memo, useState, useCallback } from "react"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils"
 import { ScreenLoading } from "@/components/loading/screen-loading"
 import type { PositionUser } from "@/types/hierarchy"
 import { useUserDetails } from "@/hooks/use-hierarchy"
+import { useInvalidateHierarchyQueries } from "@/hooks/use-reports"
 
 interface PositionUsersTableProps {
   users: PositionUser[]
@@ -87,7 +88,7 @@ export const PositionUsersTable = memo(
     const [expandedUsers, setExpandedUsers] = useState<Set<string>>(new Set())
     const [selectedUser, setSelectedUser] = useState<PositionUser | null>(null)
     const [dialogOpen, setDialogOpen] = useState(false)
-
+    const { invalidateHierarchyQueries } = useInvalidateHierarchyQueries()
     // Use hook to always get fresh user details (like AdminOverview)
     const userDetails = useUserDetails(
       selectedUser?.id || "",
@@ -136,6 +137,23 @@ export const PositionUsersTable = memo(
       setSelectedUser(user)
       setDialogOpen(true)
     }
+
+    // ✅ NEW: Controlled dialog close handler - prevents closing on outside click
+    const handleDialogOpenChange = useCallback((open: boolean) => {
+      // Only allow closing when explicitly set to false
+      // This prevents closing when clicking outside or pressing Escape
+      if (!open) {
+        // Don't close automatically - only close via buttons
+        return;
+      }
+      setDialogOpen(open);
+    }, []);
+
+    // ✅ NEW: Explicit close handler for buttons
+    const handleCloseDialog = useCallback(() => {
+      // invalidateHierarchyQueries() // Invalidate queries when closing
+      setDialogOpen(false);
+    }, [invalidateHierarchyQueries]);
 
     if (!users || users.length === 0) {
       return (
@@ -251,23 +269,23 @@ export const PositionUsersTable = memo(
           })}
         </div>
 
-        {/* Report Dialog - Fixed positioning to avoid header overlap */}
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+        {/* ✅ UPDATED: Report Dialog with controlled closing */}
+        <Dialog open={dialogOpen} onOpenChange={handleDialogOpenChange}>
           <DialogContent
             className="w-full h-full sm:max-w-7xl sm:w-[95vw] sm:h-[75vh] bg-white dark:bg-gray-900 rounded-none sm:rounded-xl p-0 m-0 sm:mt-4 sm:mb-4"
             style={{
               position: "fixed",
-              top: "15vh",
+              top: "10vh",
               left: "0",
               right: "0",
               bottom: "0",
               transform: "none",
-              maxHeight: "75vh",
+              maxHeight: "80vh",
               display: "flex",
               flexDirection: "column",
               overflow: "hidden",
               ...(window.innerWidth >= 640 && {
-                top: "10vh",
+                top: "10%",
                 left: "50%",
                 right: "auto",
                 bottom: "auto",
@@ -289,11 +307,12 @@ export const PositionUsersTable = memo(
                   {selectedUser?.office?.name}
                 </DialogDescription>
               </DialogHeader>
+              {/* ✅ UPDATED: Use explicit close handler */}
               <button
                 type="button"
                 className="ml-2 rounded-full p-1.5 sm:p-2 hover:bg-muted transition flex-shrink-0"
                 aria-label="Đóng"
-                onClick={() => setDialogOpen(false)}
+                onClick={handleCloseDialog}
               >
                 <X className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
               </button>

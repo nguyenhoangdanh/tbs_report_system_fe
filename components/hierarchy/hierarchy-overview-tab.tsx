@@ -1,7 +1,7 @@
 "use client"
 
 import { memo, useMemo } from "react"
-import { motion } from "framer-motion"
+import { motion, useReducedMotion, type Variants } from "framer-motion"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Crown, Users, AlertTriangle } from 'lucide-react'
@@ -14,24 +14,30 @@ interface OverviewTabProps {
   filterDisplayText: string
 }
 
-const containerVariants = {
+const containerVariants: Variants = {
   initial: { opacity: 0 },
   animate: {
     opacity: 1,
     transition: {
-      duration: 0.5,
-      staggerChildren: 0.1,
+      duration: 0.2,
+      staggerChildren: 0.05,
     },
   },
 }
 
-const itemVariants = {
-  initial: { opacity: 0, y: 20 },
-  animate: { opacity: 1, y: 0 },
+const itemVariants: Variants = {
+  initial: { opacity: 0, y: 15 },
+  animate: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.15 }
+  },
 }
 
 export const OverviewTab = memo(
   ({ positions, jobPositions, userPermissions, filterDisplayText }: OverviewTabProps) => {
+    const shouldReduceMotion = useReducedMotion()
+
     const managementPositions = useMemo(() => {
       return positions.filter((pos) => pos.position?.isManagement === true)
     }, [positions])
@@ -39,12 +45,12 @@ export const OverviewTab = memo(
     return (
       <motion.div
         className="space-y-6"
-        variants={containerVariants}
-        initial="initial"
-        animate="animate"
+        variants={shouldReduceMotion ? undefined : containerVariants}
+        initial={shouldReduceMotion ? false : "initial"}
+        animate={shouldReduceMotion ? false : "animate"}
       >
         {managementPositions.length > 0 && userPermissions.canViewPositions && (
-          <motion.div variants={itemVariants}>
+          <motion.div variants={shouldReduceMotion ? undefined : itemVariants}>
             <div className="flex items-center gap-2 mb-4">
               <div className="p-2 rounded-lg bg-green-gradient shadow-green-glow">
                 <Crown className="w-5 h-5 text-white" />
@@ -62,11 +68,11 @@ export const OverviewTab = memo(
                 return (
                   <motion.div
                     key={position.position?.id || `mgmt-${index}`}
-                    variants={itemVariants}
-                    whileHover={{ scale: 1.02, y: -5 }}
-                    transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                    variants={shouldReduceMotion ? undefined : itemVariants}
+                    whileHover={shouldReduceMotion ? undefined : { scale: 1.01, y: -3 }}
+                    transition={shouldReduceMotion ? undefined : { type: "spring", stiffness: 400, damping: 25 }}
                   >
-                    <Card className="border-l-4 border-l-green-500 glass-green hover:shadow-green-glow transition-all duration-300">
+                    <Card className="border-l-4 border-l-green-500 glass-green hover:shadow-green-glow transition-all duration-200"> {/* Reduced duration */}
                       <CardContent className="p-4">
                         <div className="flex items-center justify-between mb-2">
                           <h4 className="font-medium text-sm text-green-700 dark:text-green-300">
@@ -110,7 +116,7 @@ export const OverviewTab = memo(
         )}
 
         {jobPositions.length > 0 && userPermissions.canViewJobPositions && (
-          <motion.div variants={itemVariants}>
+          <motion.div variants={shouldReduceMotion ? undefined : itemVariants}>
             <div className="flex items-center gap-2 mb-4">
               <div className="p-2 rounded-lg bg-primary-gradient shadow-green-glow">
                 <Users className="w-5 h-5 text-white" />
@@ -124,10 +130,10 @@ export const OverviewTab = memo(
               {jobPositions.map((jobPos, index) => (
                 <motion.div
                   key={jobPos.jobPosition?.id || `job-${index}`}
-                  className="p-4 border rounded-lg glass-green hover:shadow-green-glow transition-all duration-300"
-                  variants={itemVariants}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                  transition={{ type: "spring", stiffness: 300, damping: 20 }}
+                  className="p-4 border rounded-lg glass-green hover:shadow-green-glow transition-all duration-200"
+                  variants={shouldReduceMotion ? undefined : itemVariants}
+                  whileHover={shouldReduceMotion ? undefined : { scale: 1.01, y: -3 }}
+                  transition={shouldReduceMotion ? undefined : { type: "spring", stiffness: 400, damping: 25 }}
                 >
                   <div className="flex items-center justify-between mb-2">
                     <h4 className="font-medium truncate text-sm text-green-700 dark:text-green-300">
@@ -153,10 +159,10 @@ export const OverviewTab = memo(
         {positions.length === 0 && jobPositions.length === 0 && (
           <motion.div
             className="text-center py-12"
-            variants={itemVariants}
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.5 }}
+            variants={shouldReduceMotion ? undefined : itemVariants}
+            initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.95 }}
+            animate={shouldReduceMotion ? false : { opacity: 1, scale: 1 }}
+            transition={shouldReduceMotion ? undefined : { duration: 0.2 }}
           >
             <AlertTriangle className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
             <h3 className="text-lg font-semibold mb-2">Không có dữ liệu</h3>

@@ -12,13 +12,11 @@ import {
   useCreateTaskEvaluation,
   useUpdateTaskEvaluation,
   useDeleteTaskEvaluation,
-  broadcastEvaluationChange, // ✅ Use simplified version
 } from "@/hooks/use-task-evaluation"
 import { AnimatedButton } from "../ui/animated-button"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useApproveTask, useRejectTask } from "@/hooks/use-reports"
 import { toast } from "react-toast-kit"
-import { useQueryClient } from "@tanstack/react-query"
 import { ConvertEvaluationTypeToVietNamese, exportToExcel } from "@/utils"
 import { Badge } from "../ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "../ui/select"
@@ -77,7 +75,7 @@ const EvaluationTypeBadge = ({ type }: { type: EvaluationType }) => {
 
 // Extracted component for evaluation display
 const EvaluationDisplay = ({ evaluations, currentUserId }: { evaluations: TaskEvaluation[], currentUserId?: string }) => {
-  const sortedEvaluations = useMemo(() => 
+  const sortedEvaluations = useMemo(() =>
     evaluations.sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
     [evaluations]
   )
@@ -160,7 +158,6 @@ const EvaluationDisplay = ({ evaluations, currentUserId }: { evaluations: TaskEv
 export function ReportTemplate({ report, className = "", canEvaluation }: ReportTemplateProps) {
   const user = report.user
   const tasks = report.tasks || []
-  const queryClient = useQueryClient()
   const { user: currentUser } = useAuth()
 
   // State management
@@ -174,6 +171,10 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
   const deleteEval = useDeleteTaskEvaluation()
   const approveTask = useApproveTask()
   const rejectTask = useRejectTask()
+
+  // ✅ NEW: Hook for invalidating hierarchy queries
+  // const { invalidateHierarchyQueries } = useInvalidateHierarchyQueries()
+
   // Form setup
   const form = useForm<EvaluationFormData>({
     resolver: zodResolver(evaluationSchema),
@@ -186,7 +187,7 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
 
   // Memoized calculations
   const { displayInfo } = useMemo(() => getWorkWeekRange(report.weekNumber, report.year), [report.weekNumber, report.year])
-  
+
   const stats = useMemo(() => {
     const totalTasks = tasks.length
     const completedTasks = tasks.filter((task) => task.isCompleted).length
@@ -228,16 +229,32 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
   }, [currentUser?.id, form]
   )
 
+  // ✅ NEW: Add controlled dialog close handler
+  const handleDialogOpenChange = useCallback((open: boolean) => {
+    // Only allow closing when explicitly set to false
+    // This prevents closing when clicking outside or pressing Escape
+    if (!open) {
+      // Don't close automatically - only close via buttons
+      return;
+    }
+    setOpenEvalModal(open);
+  }, []);
+
+  // // ✅ NEW: Explicit close handler for buttons
+  // const handleCloseDialog = useCallback(() => {
+  //   console.log('🔄 Dialog closing - invalidating hierarchy queries...')
+
+  //   // ✅ CRITICAL: Invalidate queries when dialog closes
+  //   invalidateHierarchyQueries()
+
+  //   setOpenEvalModal(false);
+  // }, [invalidateHierarchyQueries]);
+
   const handleSubmitEval = useCallback(async (data: EvaluationFormData) => {
     if (!selectedTask) return
 
     try {
       const originalIsCompleted = selectedTask.isCompleted
-
-      // // ✅ STEP 1: Preemptively remove admin-overview cache
-      // await Promise.all([
-      //   queryClient.removeQueries({ queryKey: ["hierarchy", "manager-reports"] }),
-      // ])
 
       if (editEvaluation) {
         await updateEval.mutateAsync({
@@ -251,46 +268,34 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
         })
       }
 
-      // ✅ Handle task approval/rejection if manager
-      // if (currentUser?.isManager && data.evaluatedIsCompleted !== originalIsCompleted) {
-        if (data.evaluatedIsCompleted) {
-          await approveTask.mutateAsync(selectedTask.id)
-        } else {
-          await rejectTask.mutateAsync(selectedTask.id)
-        }
-      // }
+      if (data.evaluatedIsCompleted) {
+        await approveTask.mutateAsync(selectedTask.id)
+      } else {
+        await rejectTask.mutateAsync(selectedTask.id)
+      }
 
+      // ✅ KEEP: Use explicit close handler (which will invalidate queries)
+      // handleCloseDialog()
       setOpenEvalModal(false)
-      
-      // ✅ STEP 2: Force invalidation after success (backup)
-      // setTimeout(async () => {
-      //   await Promise.all([
-      //     queryClient.invalidateQueries({
-      //       queryKey: ['hierarchy', 'manager-reports'],
-      //       refetchType: 'all'
-      //     }),
-      //   ])
-      // }, 100)
-      
+
     } catch (error) {
       console.error("❌ ReportTemplate: Error submitting evaluation:", error)
-      // toast.error("Có lỗi xảy ra khi gửi đánh giá. Vui lòng thử lại!")
     }
-  }, [selectedTask, editEvaluation, updateEval, createEval, currentUser?.isManager, approveTask, rejectTask, queryClient])
+  }, [selectedTask, editEvaluation, updateEval, createEval, approveTask, rejectTask, setOpenEvalModal])
 
   const handleDeleteEval = useCallback(async () => {
     if (!editEvaluation) return
 
     try {
-      
       await deleteEval.mutateAsync(editEvaluation.id)
-      
+
+      // ✅ KEEP: Use explicit close handler (which will invalidate queries)
       setOpenEvalModal(false)
     } catch (error) {
       console.error("❌ ReportTemplate: Error deleting evaluation:", error)
       toast.error("Có lỗi xảy ra khi xóa đánh giá. Vui lòng thử lại!")
     }
-  }, [editEvaluation, deleteEval])
+  }, [editEvaluation, deleteEval, setOpenEvalModal])
 
   const handleCompletionStatusChange = useCallback((value: string) => {
     const isCompleted = value === "true"
@@ -300,6 +305,10 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
       form.setValue("evaluatorComment", "")
     }
   }, [form])
+
+  const handleCloseDialog = useCallback(() => {
+    setOpenEvalModal(false)
+  }, []);
 
   return (
     <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-lg overflow-hidden ${className}`}>
@@ -466,9 +475,9 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
                       </td>
                       <td className="border border-gray-300 dark:border-gray-600 px-2 sm:px-3 py-2 sm:py-3 text-xs sm:text-sm text-gray-900 dark:text-gray-100">
                         {task?.evaluations && task?.evaluations.length > 0 ? (
-                          <EvaluationDisplay 
-                            evaluations={task.evaluations} 
-                            currentUserId={currentUser?.id} 
+                          <EvaluationDisplay
+                            evaluations={task.evaluations}
+                            currentUserId={currentUser?.id}
                           />
                         ) : (
                           <div className="text-center py-2">
@@ -481,11 +490,10 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
                             <Button
                               variant="outline"
                               size="sm"
-                              className={`w-full text-xs ${
-                                myEval
+                              className={`w-full text-xs ${myEval
                                   ? "bg-orange-50 hover:bg-orange-100 dark:bg-orange-900/20 dark:hover:bg-orange-900/30 border-orange-200 dark:border-orange-700 text-orange-700 dark:text-orange-300"
                                   : "bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/30 border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300"
-                              }`}
+                                }`}
                               onClick={() => handleOpenEval(task)}
                             >
                               {myEval ? "Chỉnh sửa đánh giá" : "Đánh giá"}
@@ -503,24 +511,35 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
       </div>
 
       {/* Evaluation Modal */}
-      <Dialog open={openEvalModal} onOpenChange={setOpenEvalModal}>
+      <Dialog open={openEvalModal} onOpenChange={handleDialogOpenChange}>
+        {/* <DialogContent className="max-w-4xl max-h-[80vh] sm:max-h-[70vh] overflow-y-auto"> */}
         <DialogContent className="max-w-4xl max-h-[80vh] sm:max-h-[70vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle className="text-lg font-bold">
-              {editEvaluation ? "Chỉnh sửa đánh giá của bạn" : "Đánh giá công việc"}
-            </DialogTitle>
-            <div className="text-sm text-gray-600 mt-2">
-              <span className="font-medium">Công việc:</span> {selectedTask?.taskName}
-            </div>
-          </DialogHeader>
+          <div className="sticky top-0  border-b flex items-center justify-between flex-shrink-0 rounded-sm">
+            <DialogHeader className="flex-1 min-w-0">
+              <DialogTitle className="text-base sm:text-lg font-semibold truncate">
+                {editEvaluation ? "Chỉnh sửa đánh giá của bạn" : "Đánh giá công việc"}
+              </DialogTitle>
+              <div className="text-sm text-gray-600 mt-2">
+                <span className="font-medium">Công việc:</span> {selectedTask?.taskName}
+              </div>
+            </DialogHeader>
+            <button
+              type="button"
+              className="ml-2 rounded-full p-1.5 sm:p-2 hover:bg-muted transition flex-shrink-0"
+              aria-label="Đóng"
+              onClick={handleCloseDialog}
+            >
+              <X className="w-4 h-4 sm:w-5 sm:h-5 text-muted-foreground" />
+            </button>
+          </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             {/* Form đánh giá */}
             <div className="space-y-4">
               {editEvaluation && (
-                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4">
+                <div className="bg-orange-50 border border-orange-200 rounded-lg p-3 mb-4 dark:bg-orange-900/20 dark:border-orange-700">
                   <div className="flex items-center justify-between mb-2">
-                    <span className="font-medium text-orange-800">
+                    <span className="font-medium text-orange-800 dark:text-orange-300">
                       Đánh giá hiện tại của bạn:
                     </span>
                     <EvaluationTypeBadge type={editEvaluation.evaluationType} />
@@ -529,10 +548,12 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
                     {editEvaluation.evaluatorComment && (
                       <div>
                         <span className="font-medium">Nhận xét:</span>
-                        <p className="bg-white p-2 rounded mt-1">{editEvaluation.evaluatorComment}</p>
+                        <p className="bg-white p-2 rounded mt-1 text-gray-800 dark:bg-gray-800 dark:text-gray-200">
+                          {editEvaluation.evaluatorComment}
+                        </p>
                       </div>
                     )}
-                    <div className="text-xs text-gray-500">
+                    <div className="text-xs text-gray-500 dark:text-gray-400 pt-1 border-t">
                       Cập nhật: {format(new Date(editEvaluation.updatedAt), "dd/MM/yyyy HH:mm", { locale: vi })}
                     </div>
                   </div>
@@ -589,6 +610,7 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
                   />
 
                   <div className="flex justify-end gap-3 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    {/* ✅ KEEP: Use explicit close handler */}
                     <Button variant="outline" type="button" onClick={() => setOpenEvalModal(false)}>
                       Hủy
                     </Button>
@@ -611,7 +633,7 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
 
             {/* Danh sách đánh giá khác để tham khảo */}
             <div className="space-y-4">
-              <h3 className="font-semibold text-gray-900 border-b pb-2">
+              <h3 className="font-semibold text-gray-900 border-b pb-2 dark:text-gray-100">
                 {`Đánh giá khác để tham khảo (${selectedTask?.evaluations?.filter((ev) => ev.evaluatorId !== currentUser?.id).length || 0})`}
               </h3>
 
@@ -620,7 +642,7 @@ export function ReportTemplate({ report, className = "", canEvaluation }: Report
                   selectedTask.evaluations
                     .filter((evalItem) => evalItem.evaluatorId !== currentUser?.id)
                     .map((evalItem) => (
-                      <div key={evalItem.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3">
+                      <div key={evalItem.id} className="bg-gray-50 border border-gray-200 rounded-lg p-3 dark:bg-gray-800 dark:border-gray-600">
                         <div className="flex items-center justify-between mb-2">
                           <div className="flex items-center gap-2">
                             <span className="font-semibold text-blue-600">

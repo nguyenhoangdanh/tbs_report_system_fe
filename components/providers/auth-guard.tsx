@@ -26,6 +26,7 @@ const ROLE_ROUTES = {
     "/profile",
     "/images",
     "/loading",
+    "/public"
   ],
   USER: ["/dashboard", "/reports", "/profile", "/images", "/admin/overview", "/loading"],
 }
@@ -191,7 +192,7 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
   }
 
   if (isLoading || !initialLoadComplete || isNavigating || (isAuthenticated && !user && !error)) {
-    return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
+    return <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
   }
 
   if (!isAuthenticated && isPublicRoute) {
@@ -223,7 +224,7 @@ function AuthGuardLogic({ children }: AuthGuardProps) {
     return <>{children}</>
   }
 
-  return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
+  return <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
 }
 
 export function AuthGuard({ children }: AuthGuardProps) {

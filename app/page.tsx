@@ -192,7 +192,7 @@ export default function HomePage() {
 
   return (
     <Suspense fallback={
-      <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop />
+      <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
     }>
       <MainLayout 
         title={undefined} 

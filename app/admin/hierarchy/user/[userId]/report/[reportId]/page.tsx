@@ -29,7 +29,7 @@ function ReportDetailsContent() {
   const { data: reportData, isLoading, error } = useReportDetailsForAdmin(userId, reportId)
 
   if (!currentUser) {
-    return <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop text="Đang xác thực..." />
+    return <ScreenLoading size="lg" variant="grid" fullScreen backdrop text="Đang xác thực..." />
   }
 
   const allowedRoles = ["SUPERADMIN", "ADMIN", "OFFICE_MANAGER", "OFFICE_ADMIN"]
@@ -392,7 +392,7 @@ export default function ReportDetailsPage() {
       fallback={
         <MainLayout>
           <div className="max-w-8xl mx-auto p-responsive">
-            <ScreenLoading size="lg" variant="corner-squares" fullScreen backdrop text="Đang tải dữ liệu..." />
+            <ScreenLoading size="lg" variant="grid" fullScreen backdrop text="Đang tải dữ liệu..." />
           </div>
         </MainLayout>
       }

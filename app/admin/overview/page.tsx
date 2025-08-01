@@ -9,7 +9,6 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { MainLayout } from "@/components/layout/main-layout"
-import { OverviewCard } from "@/components/hierarchy/hierarchy-dashboard"
 import {
   Users,
   Building2,
@@ -23,6 +22,7 @@ import { Input } from "@/components/ui/input"
 import { AdminOverviewHeader } from "@/components/hierarchy/admin-overview-header"
 import { PositionGroupsList } from "@/components/hierarchy/position-groups-list"
 import useAdminOverviewStore from "@/store/admin-overview-store"
+import { OverviewCard } from "@/components/hierarchy/hierarchy-overview-card"
 
 // REWRITE: Transform ManagerReports data để tương thích với PositionCard
 function transformManagerReportsToPositionCardFormat(overview: any) {
@@ -343,7 +343,6 @@ function AdminOverview() {
 
   // ✅ NEW: Force refresh on component mount to ensure fresh data
   useEffect(() => {
-    console.log('[AdminOverview] Component mounted, forcing refresh...')
     // Small delay to ensure store is initialized
     const timer = setTimeout(() => {
       refetchAdminOverview()
@@ -351,17 +350,6 @@ function AdminOverview() {
     
     return () => clearTimeout(timer)
   }, [refetchAdminOverview]) // Only run on mount
-
-  // ✅ DEBUG: Log data state for debugging
-  useEffect(() => {
-    console.log('[AdminOverview] Data state:', {
-      hasOverview: !!overview,
-      hierarchyLoading,
-      isStoreRefreshing,
-      isManualRefreshing,
-      apiFilters
-    })
-  }, [overview, hierarchyLoading, isStoreRefreshing, isManualRefreshing, apiFilters])
 
   // ✅ FIXED: Stable handlers to prevent re-renders
   const handleFiltersChangeWithRefetch = useCallback(
@@ -479,7 +467,7 @@ function AdminOverview() {
     return (
       <ScreenLoading 
         size="md" 
-        variant="corner-squares" 
+        variant="grid"
         text="Đang tải tổng quan quản lý..." 
         fullScreen 
       />
@@ -532,7 +520,7 @@ function AdminOverview() {
       />
 
       {/* ✅ OPTIMIZED: Add smooth transitions */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800 transition-all duration-300">
+      {/* <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800 transition-all duration-300">
         <CardHeader className="pb-3 sm:pb-4 px-3 sm:px-6">
           <div className="flex flex-col gap-3 sm:gap-4">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
@@ -544,7 +532,6 @@ function AdminOverview() {
                   <CardTitle className="text-base sm:text-lg lg:text-xl">
                     <div className="flex flex-col gap-1">
                       <span className="text-gray-900 dark:text-gray-100 text-sm sm:text-base">
-                        {/* ✅ KEEP ORIGINAL: Use overview.data not overview directly */}
                         {overview?.manager?.jobPosition?.position?.description || "No Position"}:
                       </span>
                       <span className="font-bold text-blue-600 dark:text-blue-400 truncate">
@@ -572,7 +559,7 @@ function AdminOverview() {
             </div>
           </div>
         </CardHeader>
-      </Card>
+      </Card> */}
 
       <div className="px-1 sm:px-0 transition-opacity duration-300" style={{ opacity: isStoreRefreshing ? 0.7 : 1 }}>
         <HierarchySummaryCards 
@@ -728,7 +715,7 @@ export default function AdminOverviewPage() {
         fallback={
           <ScreenLoading
             size="lg"
-            variant="corner-squares"
+            variant="grid"
             fullScreen
             backdrop
           />
