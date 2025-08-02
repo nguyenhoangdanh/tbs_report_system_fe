@@ -3,6 +3,8 @@ import { Inter } from 'next/font/google'
 import { ThemeProvider } from '@/components/providers/theme-provider'
 import { QueryProvider } from '@/components/providers/query-provider'
 import { AuthGuard } from '@/components/providers/auth-guard'
+import { AppHeader } from '@/components/layout/app-header'
+import { AppFooter } from '@/components/layout/app-footer'
 import './globals.css'
 import { ClientToastProvider } from '@/components/providers/client-toast-provider'
 
@@ -34,7 +36,13 @@ export default function RootLayout({
           >
             <QueryProvider>
               <AuthGuard>
-                {children}
+                <div className="min-h-screen bg-background flex flex-col">
+                  <AppHeader />
+                  <main className="flex-1">
+                    {children}
+                  </main>
+                  <AppFooter />
+                </div>
               </AuthGuard>
             </QueryProvider>
           </ThemeProvider>

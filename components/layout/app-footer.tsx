@@ -5,8 +5,9 @@ import Image from "next/image"
 import { motion } from "framer-motion"
 import { Mail, Phone, MapPin, Heart } from "lucide-react"
 import { useAuth } from "../providers/auth-provider"
+import { memo } from "react"
 
-export function AppFooter() {
+export const AppFooter = memo(function AppFooter() {
   const currentYear = new Date().getFullYear();
   const { user } = useAuth();
 
@@ -164,5 +165,5 @@ export function AppFooter() {
       </div>
     </motion.footer>
   )
-}
+})
 

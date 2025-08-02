@@ -1,11 +1,11 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, memo } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 
-export function UserNav() {
+export const UserNav = memo(function UserNav() {
   const { user, logout } = useAuth()
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
 
@@ -246,4 +246,4 @@ export function UserNav() {
       </AnimatePresence>
     </div>
   )
-}
+})

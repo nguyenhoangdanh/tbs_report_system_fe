@@ -10,7 +10,7 @@ import { motion } from "framer-motion"
 import { usePathname } from "next/navigation"
 import { toast } from "react-toast-kit"
 import { HelpCircle } from "lucide-react"
-import { useState } from "react"
+import { useState, memo } from "react"
 import dynamic from "next/dynamic"
 
 // Dynamic import PDF viewer để tránh SSR issues
@@ -19,7 +19,7 @@ const PDFViewer = dynamic(() => import("./pdf-viewer"), {
   loading: () => <div>Loading...</div>
 })
 
-export function AppHeader() {
+export const AppHeader = memo(function AppHeader() {
   const { user } = useAuth()
   const pathname = usePathname()
   const [showGuideDialog, setShowGuideDialog] = useState(false)
@@ -290,4 +290,4 @@ export function AppHeader() {
       />
     </>
   )
-}
+})

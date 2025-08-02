@@ -200,6 +200,7 @@ export default function HomePage() {
         showBreadcrumb={false}
         enableBackgroundAnimation={!shouldReduceMotion}
         backgroundIntensity="subtle"
+        className="min-h-screen"
       >
         {/* Hero Section */}
         <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden">

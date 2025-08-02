@@ -2,8 +2,6 @@
 
 import type React from "react"
 
-import { AppHeader } from "./app-header"
-import { AppFooter } from "./app-footer"
 import { useThemeBackground } from "@/hooks/use-theme-background"
 import { motion, useReducedMotion } from "framer-motion"
 import { BreadcrumbItem, Breadcrumbs } from "./breadcrumbs"
@@ -18,6 +16,7 @@ interface MainLayoutProps {
   enableBackgroundAnimation?: boolean
   backgroundVariant?: "default" | "login" | "hero"
   backgroundIntensity?: "subtle" | "normal" | "vibrant"
+  className?: string
 }
 
 export function MainLayout({
@@ -29,6 +28,7 @@ export function MainLayout({
   enableBackgroundAnimation = true,
   backgroundVariant = "default",
   backgroundIntensity = "subtle",
+  className = "",
 }: MainLayoutProps) {
   const { enableAnimation, particleCount, canAnimate, performanceMode } = useThemeBackground()
   const shouldReduceMotion = useReducedMotion()
@@ -37,7 +37,7 @@ export function MainLayout({
   const optimizedParticleCount = shouldReduceMotion ? 0 : Math.min(particleCount, 6)
 
   return (
-    <div className="min-h-screen bg-background flex flex-col relative">
+    <div className={`relative ${className}`}>
       {/* Enhanced Modern Animated Background - with performance optimization */}
       {enableBackgroundAnimation && canAnimate && !shouldReduceMotion && (
         <div className="fixed inset-0 z-0">
@@ -63,9 +63,6 @@ export function MainLayout({
         </div>
       )}
 
-      {/* Header */}
-      <AppHeader />  
-        
       {/* Breadcrumbs with reduced animation */}
       {showBreadcrumb && breadcrumbItems.length > 0 && (
         <motion.div
@@ -79,19 +76,14 @@ export function MainLayout({
       )}
 
       {/* Main content with optimized animation */}
-      <motion.main
-        className="flex-1 container mx-auto px-0 sm:px-2 md:px-4 lg:px-6 py-2 sm:py-4 md:py-6 lg:py-8 relative z-10"
+      <motion.div
+        className="container mx-auto px-0 sm:px-2 md:px-4 lg:px-6 py-2 sm:py-4 md:py-6 lg:py-8 relative z-10"
         initial={{ opacity: 0, y: shouldReduceMotion ? 0 : 10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: shouldReduceMotion ? 0 : 0.2, duration: shouldReduceMotion ? 0 : 0.4 }}
       >
         {children}
-      </motion.main>
-
-      {/* Footer */}
-      <div className="relative z-50">
-        <AppFooter />
-      </div>
+      </motion.div>
     </div>
   )
 }
