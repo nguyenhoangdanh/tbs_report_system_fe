@@ -13,10 +13,20 @@ import { HelpCircle } from "lucide-react"
 import { useState, memo } from "react"
 import dynamic from "next/dynamic"
 
-// Dynamic import PDF viewer để tránh SSR issues
+// Dynamic import PDF viewer with better error handling
 const PDFViewer = dynamic(() => import("./pdf-viewer"), {
   ssr: false,
   loading: () => <div>Loading...</div>
+  // loading: () => (
+  //   <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+  //     <div className="bg-white dark:bg-gray-900 rounded-lg p-6">
+  //       <div className="flex items-center gap-3">
+  //         <div className="w-6 h-6 border-2 border-green-500 border-t-transparent rounded-full animate-spin"></div>
+  //         <span>Đang tải PDF viewer...</span>
+  //       </div>
+  //     </div>
+  //   </div>
+  // )
 })
 
 export const AppHeader = memo(function AppHeader() {
@@ -43,6 +53,17 @@ export const AppHeader = memo(function AppHeader() {
     } catch (error) {
       console.error('Error opening guide:', error)
       toast.error('Không thể mở hướng dẫn')
+      // Fallback to direct download
+      try {
+        const link = document.createElement('a')
+        link.href = '/huong_dan.pdf'
+        link.download = 'huong_dan.pdf'
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+      } catch (downloadError) {
+        console.error('Fallback download failed:', downloadError)
+      }
     }
   }
 
@@ -227,7 +248,7 @@ export const AppHeader = memo(function AppHeader() {
                   variant="ghost"
                   size="sm"
                   className="relative w-8 h-8 sm:w-9 sm:h-9 p-0 rounded-full hover:bg-green-500/10 hover:text-green-600 transition-all duration-200 group"
-                  title="Tải hướng dẫn sử dụng"
+                  title="Xem hướng dẫn sử dụng"
                 >
                   <HelpCircle className="w-4 h-4 sm:w-5 sm:h-5" />
 
@@ -245,12 +266,6 @@ export const AppHeader = memo(function AppHeader() {
                       repeatType: "loop"
                     }}
                   />
-
-                  {/* Tooltip */}
-                  <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 text-xs bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap pointer-events-none z-50">
-                    Xem hướng dẫn sử dụng
-                    <div className="absolute top-full left-1/2 transform -translate-x-1/2 border-2 border-transparent border-t-gray-900 dark:border-t-gray-100"></div>
-                  </div>
                 </Button>
               </motion.div>
 

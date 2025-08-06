@@ -11,7 +11,8 @@
     "type-check": "tsc --noEmit",
     "build:analyze": "ANALYZE=true next build",
     "build:prod": "NODE_ENV=production next build",
-    "predeploy": "npm run lint:check && npm run type-check"
+    "predeploy": "npm run lint:check && npm run type-check",
+    "postinstall": "cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs && cp -r node_modules/pdfjs-dist/cmaps public/ && cp -r node_modules/pdfjs-dist/standard_fonts public/"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",

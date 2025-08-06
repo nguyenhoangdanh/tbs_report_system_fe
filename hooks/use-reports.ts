@@ -1,6 +1,6 @@
-'use client'
+"use client"
 
-import { useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from "@tanstack/react-query"
 import { ReportService, CreateWeeklyReportDto, UpdateReportDto, PaginationParams, TaskEvaluationsService } from '@/services/report.service'
 import { toast } from 'react-toast-kit'
 import { WeeklyReport, PaginatedResponse, TaskEvaluation, EvaluationType, Task } from '@/types'
@@ -11,7 +11,7 @@ import type { ApiResult, ProjectApiError  } from '@/lib/api'
 import { QUERY_KEYS, INVALIDATION_PATTERNS } from './query-key'
 import { hierarchyStoreActions } from '@/store/hierarchy-store'
 import { adminOverviewStoreActions } from '@/store/admin-overview-store'
-import { useCallback } from 'react'
+import { useCallback, useRef } from "react"
 
 // Clear user caches
 export const clearUserCaches = (queryClient: any, userId?: string) => {
@@ -444,113 +444,54 @@ export function useDeleteReport() {
   })
 }
 
-// ✅ NEW: Function to invalidate hierarchy queries when dialog closes
+// ✅ ENHANCED: Throttled invalidation to prevent excessive re-renders
 export function useInvalidateHierarchyQueries() {
   const queryClient = useQueryClient()
-  const { user } = useAuth()
-
+  const throttleRef = useRef<NodeJS.Timeout | null>(null)
+  
   const invalidateHierarchyQueries = useCallback(() => {
-    if (!user?.id) return
-
-    console.log('🔄 Invalidating hierarchy queries after dialog close...')
-
-    setTimeout(() => {
-      queryClient.invalidateQueries({ 
-        queryKey: INVALIDATION_PATTERNS.adminOverview.all(),
+    // ✅ THROTTLE: Prevent rapid successive invalidations
+    if (throttleRef.current) {
+      clearTimeout(throttleRef.current)
+    }
+    
+    throttleRef.current = setTimeout(() => {
+      
+      queryClient.invalidateQueries({
+        queryKey: ['hierarchy'],
         exact: false,
         refetchType: 'all'
       })
       
-      queryClient.invalidateQueries({ 
-        queryKey: INVALIDATION_PATTERNS.reports.userSpecific(user.id),
+      // ✅ SELECTIVE: Only invalidate specific patterns
+      queryClient.invalidateQueries({
+        queryKey: ['reports'],
         exact: false,
-        refetchType: 'all'
+        refetchType: 'active' // Only active queries
       })
       
-      hierarchyStoreActions.forceRefresh()
-      adminOverviewStoreActions.forceRefresh()
-    }, 50)
-  }, [queryClient, user?.id])
-
+      throttleRef.current = null
+    }, 300) // 300ms throttle - enough time for scroll position saving
+  }, [queryClient])
+  
   return { invalidateHierarchyQueries }
 }
 
+// ✅ Task approval/rejection hooks
 export function useApproveTask() {
-  const queryClient = useQueryClient()
-  const { user } = useAuth()
-  
-  return useApiMutation<void, string, Error>({
-    mutationFn: (taskId: string) => ReportService.approveTask(taskId),
-    onMutate: async (taskId) => {
-      if (!user?.id) return
-    },
-    onSuccess: (result, taskId) => {
-      if (!user?.id) return
-      
-      // ✅ REMOVED: Don't invalidate queries immediately - wait for dialog close
-      // setTimeout(() => {
-        queryClient.invalidateQueries({ 
-          queryKey: INVALIDATION_PATTERNS.adminOverview.all(),
-          exact: false,
-          refetchType: 'all'
-        })
-        
-        queryClient.invalidateQueries({ 
-          queryKey: INVALIDATION_PATTERNS.reports.userSpecific(user.id),
-          exact: false,
-          refetchType: 'all'
-        })
-        
-        hierarchyStoreActions.forceRefresh()
-        adminOverviewStoreActions.forceRefresh()
-      // }, 50)
-      
-      // toast.success('Task approved successfully!')
-    },
-    onError: (error) => {
-      console.error('❌ Approve task failed:', error)
-      handleError(error, 'Failed to approve task')
-    },
-    retry: 1,
+  return useApiMutation({
+    mutationFn: async (taskId: string) => await ReportService.approveTask(taskId),
+    invalidation: {
+      type: 'report'
+    }
   })
 }
 
 export function useRejectTask() {
-  const queryClient = useQueryClient()
-  const { user } = useAuth()
-  
-  return useApiMutation<void, string, Error>({
-    mutationFn: (taskId: string) => ReportService.rejectTask(taskId),
-    onMutate: async (taskId) => {
-      if (!user?.id) return
-    },
-    onSuccess: (result, taskId) => {
-      if (!user?.id) return
-
-      // ✅ REMOVED: Don't invalidate queries immediately - wait for dialog close
-      // setTimeout(() => {
-        queryClient.invalidateQueries({ 
-          queryKey: INVALIDATION_PATTERNS.adminOverview.all(),
-          exact: false,
-          refetchType: 'all'
-        })
-        
-        queryClient.invalidateQueries({ 
-          queryKey: INVALIDATION_PATTERNS.reports.userSpecific(user.id),
-          exact: false,
-          refetchType: 'all'
-        })
-        
-        hierarchyStoreActions.forceRefresh()
-        adminOverviewStoreActions.forceRefresh()
-      // }, 50)
-      
-      // toast.success('Task rejected successfully!')
-    },
-    onError: (error) => {
-      console.error('❌ Reject task failed:', error)
-      handleError(error, 'Failed to reject task')
-    },
-    retry: 1,
+  return useApiMutation({
+    mutationFn: async (taskId: string) => await ReportService.rejectTask(taskId),
+    invalidation: {
+      type: 'report'
+    }
   })
 }

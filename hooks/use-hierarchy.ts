@@ -14,49 +14,11 @@ import { useAuth } from "@/components/providers/auth-provider"
 import React, { useMemo, useState, useCallback, useEffect } from 'react'
 import useHierarchyStore from '@/store/hierarchy-store'
 import useAdminOverviewStore from '@/store/admin-overview-store'
+import { useQueryClient } from '@tanstack/react-query'
 
 /**
  * Hook for manager reports - Force fresh data every time
  */
-export function useManagerReports(filters?: {
-  weekNumber?: number
-  year?: number
-  userId?: string
-}) {
-  const { user } = useAuth()
-
- const currentWeek = getCurrentWeek()
-  const safeFilters = {
-    weekNumber: filters?.weekNumber || currentWeek.weekNumber,
-    year: filters?.year || currentWeek.year,
-    userId: filters?.userId || user?.id
-  }
-  
-  
-  return useApiQuery({
-    // queryKey: [...QUERY_KEYS.hierarchy.managerReports(user?.id || 'anonymous', filters)],
-         queryKey: [
-      ...QUERY_KEYS.hierarchy.managerReports(user?.id || 'anonymous', safeFilters), 
-    ],
-    queryFn: async () => {
-      try {
-        const result = await HierarchyService.getManagerReports(safeFilters)
-        return result
-      } catch (error) {
-        console.error('❌ useManagerReports: Fetch failed:', error)
-        throw error
-      }
-    },
-    enabled: !!user?.id,
-    cacheStrategy: 'realtime',
-    throwOnError: false,
-    refetchOnMount: true,
-    refetchOnWindowFocus: true,
-    refetchOnReconnect: true,
-    staleTime: 0, // ✅ Always stale
-    gcTime: 0, // ✅ No cache retention
-  })
-}
 
 export function useMyHierarchyView(filters?: {
   weekNumber?: number
@@ -64,8 +26,9 @@ export function useMyHierarchyView(filters?: {
   month?: number
 }) {
   const { user } = useAuth()
+  const queryClient = useQueryClient()
   
-  // ✅ FIXED: Also update HierarchyDashboard to use custom events
+  // ✅ SIMPLIFIED: Remove complex evaluation change handling
   React.useEffect(() => {
     const handleCustomEvent = (e: CustomEvent) => {
       useHierarchyStore.getState().forceRefresh()
@@ -76,7 +39,7 @@ export function useMyHierarchyView(filters?: {
         useHierarchyStore.getState().forceRefresh()
       }
     }
-    
+
     window.addEventListener('evaluation-changed', handleCustomEvent as EventListener)
     window.addEventListener('storage', handleStorageEvent)
     
@@ -84,7 +47,7 @@ export function useMyHierarchyView(filters?: {
       window.removeEventListener('evaluation-changed', handleCustomEvent as EventListener)
       window.removeEventListener('storage', handleStorageEvent)
     }
-  }, [])
+  }, []) // ✅ REMOVE: queryClient dependency
 
   const {
     hierarchyData,
@@ -125,7 +88,6 @@ export function useMyHierarchyView(filters?: {
         
         const result = await HierarchyService.getMyHierarchyView(filters)
         
-        
         if (result?.success && result.data) {
           setHierarchyData(result.data, filters)
           setRefreshing(false)
@@ -141,22 +103,14 @@ export function useMyHierarchyView(filters?: {
         throw error
       }
     },
-     enabled: !!user?.id && needsRefetch && isInitialized,
-    cacheStrategy: 'realtime',
+    enabled: !!user?.id && needsRefetch && isInitialized,
+    cacheStrategy: 'realtime', // ✅ SIMPLIFIED: Use simple realtime like AdminOverview
     throwOnError: false,
-    refetchOnMount: 'always', // ✅ CRITICAL: Always refetch on mount
+    refetchOnMount: 'always',
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    staleTime: 0, // ✅ CRITICAL: Always consider data stale
-    gcTime: 0, // ✅ CRITICAL: Don't cache data between mounts
-    // enabled: !!user?.id && needsRefetch && isInitialized,
-    // cacheStrategy: 'realtime',
-    // throwOnError: false,
-    // refetchOnMount: false, // ✅ CRITICAL: Don't auto refetch on mount
-    // refetchOnWindowFocus: false,
-    // refetchOnReconnect: true,
-    // staleTime: 5000, // ✅ Increase stale time to reduce refetches
-    // gcTime: 10000, // ✅ Increase gc time
+    staleTime: 0,
+    gcTime: 0, // ✅ SIMPLIFIED: Don't cache like AdminOverview
   })
 
   const finalData = queryResult.data;

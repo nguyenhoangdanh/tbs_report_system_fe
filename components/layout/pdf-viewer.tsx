@@ -8,11 +8,26 @@ import { Button } from "@/components/ui/button"
 import { X, Download, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react"
 import { toast } from "react-toast-kit"
 
-// Setup worker
-pdfjs.GlobalWorkerOptions.workerSrc = new URL(
-  'pdfjs-dist/build/pdf.worker.min.mjs',
-  import.meta.url,
-).toString()
+// Simple worker setup that works in all environments
+if (typeof window !== 'undefined') {
+  // Try local worker first (from postinstall script)
+  const localWorkerPath = '/pdf.worker.min.mjs'
+  
+  // Check if local worker exists
+  fetch(localWorkerPath, { method: 'HEAD' })
+    .then(response => {
+      if (response.ok) {
+        pdfjs.GlobalWorkerOptions.workerSrc = localWorkerPath
+      } else {
+        throw new Error('Local worker not found')
+      }
+    })
+    .catch(() => {
+      // Fallback to CDN
+      const cdnUrl = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
+      pdfjs.GlobalWorkerOptions.workerSrc = cdnUrl
+    })
+}
 
 const options = {
   cMapUrl: '/cmaps/',
@@ -106,7 +121,7 @@ export default function PDFViewer({ isOpen, onClose }: PDFViewerProps) {
                 </span>
                 <Button
                   onClick={zoomIn}
-                  variant="ghost" 
+                  variant="ghost"
                   size="sm"
                   className="w-8 h-8 p-0 rounded-full hover:bg-gray-100 dark:hover:bg-gray-800"
                   title="Phóng to"
@@ -151,7 +166,7 @@ export default function PDFViewer({ isOpen, onClose }: PDFViewerProps) {
             >
               <Download className="w-4 h-4" />
             </Button>
-            
+
             <Button
               onClick={handleOpenInNewTab}
               variant="ghost"
@@ -161,7 +176,7 @@ export default function PDFViewer({ isOpen, onClose }: PDFViewerProps) {
             >
               <ExternalLink className="w-4 h-4" />
             </Button>
-            
+
             <Button
               onClick={onClose}
               variant="ghost"
@@ -177,9 +192,9 @@ export default function PDFViewer({ isOpen, onClose }: PDFViewerProps) {
         <div className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-800 p-4">
           {!pdfError ? (
             <div className="flex justify-center">
-              <Document 
-                file="/huong_dan.pdf" 
-                onLoadSuccess={onDocumentLoadSuccess} 
+              <Document
+                file="/huong_dan.pdf"
+                onLoadSuccess={onDocumentLoadSuccess}
                 onLoadError={onDocumentLoadError}
                 options={options}
               >
@@ -199,15 +214,15 @@ export default function PDFViewer({ isOpen, onClose }: PDFViewerProps) {
                 <div className="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
                   <X className="w-8 h-8 text-red-600 dark:text-red-400" />
                 </div>
-                
+
                 <h3 className="text-lg font-semibold mb-4 text-gray-700 dark:text-gray-300">
                   Không thể tải PDF
                 </h3>
-                
+
                 <p className="text-gray-600 dark:text-gray-400 mb-6 text-sm">
                   Vui lòng thử các phương án bên dưới:
                 </p>
-                
+
                 <div className="flex flex-col sm:flex-row gap-3 justify-center">
                   <Button
                     onClick={handleOpenInNewTab}

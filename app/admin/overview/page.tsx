@@ -519,48 +519,6 @@ function AdminOverview() {
         onRefresh={handleRefresh}
       />
 
-      {/* ✅ OPTIMIZED: Add smooth transitions */}
-      {/* <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 dark:from-blue-900/20 dark:to-indigo-900/20 border-blue-200 dark:border-blue-800 transition-all duration-300">
-        <CardHeader className="pb-3 sm:pb-4 px-3 sm:px-6">
-          <div className="flex flex-col gap-3 sm:gap-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-              <div className="flex items-start sm:items-center gap-3 min-w-0">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-100 dark:bg-blue-900/30 rounded-full flex items-center justify-center flex-shrink-0 transition-colors duration-200">
-                  <Users className="w-5 h-5 sm:w-6 sm:h-6 text-blue-600 dark:text-blue-400" />
-                </div>
-                <div className="min-w-0 flex-1">
-                  <CardTitle className="text-base sm:text-lg lg:text-xl">
-                    <div className="flex flex-col gap-1">
-                      <span className="text-gray-900 dark:text-gray-100 text-sm sm:text-base">
-                        {overview?.manager?.jobPosition?.position?.description || "No Position"}:
-                      </span>
-                      <span className="font-bold text-blue-600 dark:text-blue-400 truncate">
-                        {`${overview?.manager?.firstName || "N/A"} ${overview?.manager?.lastName || ""}`}
-                      </span>
-                    </div>
-                  </CardTitle>
-                  <div className="flex flex-col gap-2 mt-2">
-                    <Badge variant="outline" className="w-fit text-xs transition-colors">
-                      {overview?.manager?.office?.name || "No Office"}
-                    </Badge>
-                    <span className="text-xs sm:text-sm text-muted-foreground truncate">
-                      {overview?.manager?.jobPosition?.department?.name || "No Department"}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="flex justify-end sm:justify-start">
-                <Badge variant="secondary" className="flex items-center gap-1 text-xs px-2 py-1 transition-colors">
-                  <Calendar className="w-3 h-3" />
-                  <span className="whitespace-nowrap">{filterDisplayText}</span>
-                </Badge>
-              </div>
-            </div>
-          </div>
-        </CardHeader>
-      </Card> */}
-
       <div className="px-1 sm:px-0 transition-opacity duration-300" style={{ opacity: isStoreRefreshing ? 0.7 : 1 }}>
         <HierarchySummaryCards 
           // ✅ KEEP ORIGINAL: Use overview.data not overview directly

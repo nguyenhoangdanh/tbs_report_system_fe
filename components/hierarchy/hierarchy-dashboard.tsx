@@ -1,6 +1,6 @@
 "use client"
 
-import { memo, useState, useCallback, useMemo } from "react"
+import React, { memo, useState, useCallback, useMemo, useEffect } from "react"
 import { motion, useReducedMotion } from "framer-motion"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -17,6 +17,11 @@ import { HierarchyHeader } from "./hierarchy-header"
 import { AlertTriangle, BarChart3, Crown, Users, ArrowLeft, ChevronRight } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { OverviewCard } from "./hierarchy-overview-card"
+import useUIStateStore from "@/store/ui-state-store"
+import { useScrollPreservation, usePageNavigationScroll } from "@/hooks/use-scroll-preservation"
+import { toast } from "react-toast-kit"
+import useHierarchyStore from "@/store/hierarchy-store"
+import { ScreenLoading } from "../loading/screen-loading"
 
 interface TabConfig {
   id: string
@@ -32,7 +37,7 @@ const HierarchyDashboard = memo(() => {
   const userPermissions = useUserPermissions(user?.role)
   const { filters, apiFilters, filterDisplayText, handleFiltersChange } = useHierarchyFilters()
   const [activeTab, setActiveTab] = useState<string>("overview")
-  const [isRefreshing, setIsRefreshing] = useState<boolean>(false)
+  const [isManualRefreshing, setIsManualRefreshing] = useState<boolean>(false) // ✅ ADD: Manual refresh state
   const shouldReduceMotion = useReducedMotion()
   const queryClient = useQueryClient()
 
@@ -40,26 +45,50 @@ const HierarchyDashboard = memo(() => {
     data: hierarchyData,
     isLoading: hierarchyLoading,
     error: hierarchyError,
-    refetch: refetchHierarchy, // ✅ NOW: This will work with the fixed hook
+    refetch: refetchHierarchy,
+    isStoreRefreshing,
   } = useMyHierarchyView(apiFilters)
+
+  // ✅ SIMPLIFIED: Remove complex evaluation listener, use simple store refresh
+  React.useEffect(() => {
+    const handleCustomEvent = (e: CustomEvent) => {
+      useHierarchyStore.getState().forceRefresh()
+    }
+    
+    const handleStorageEvent = (e: StorageEvent) => {
+      if (e.key === 'evaluation-broadcast' && e.newValue) {
+        useHierarchyStore.getState().forceRefresh()
+      }
+    }
+
+    window.addEventListener('evaluation-changed', handleCustomEvent as EventListener)
+    window.addEventListener('storage', handleStorageEvent)
+    
+    return () => {
+      window.removeEventListener('evaluation-changed', handleCustomEvent as EventListener)
+      window.removeEventListener('storage', handleStorageEvent)
+    }
+  }, []) // ✅ REMOVE: queryClient dependency
 
   const handleFiltersChangeWithRefetch = useCallback(
     (newFilters: any) => {
       handleFiltersChange(newFilters)
-      setTimeout(() => {
-        refetchHierarchy()
-      }, 100)
+      // ✅ REMOVE: Automatic refetch, let hook handle it
     },
-    [handleFiltersChange, refetchHierarchy],
+    [handleFiltersChange],
   )
 
-  const handleRefresh = useCallback(() => {
-    refetchHierarchy()
-    setIsRefreshing(true)
-    setTimeout(() => {
-      setIsRefreshing(false)
-    }, 1000)
-  }, [refetchHierarchy, setIsRefreshing])
+  const handleRefresh = useCallback(async () => {
+    setIsManualRefreshing(true) // ✅ ADD: Manual refresh state
+    try {
+      await refetchHierarchy()
+    } finally {
+      // ✅ OPTIMIZED: Shorter manual refresh state
+      setTimeout(() => {
+        setIsManualRefreshing(false)
+      }, 500)
+    }
+  }, [refetchHierarchy])
 
   const { positions, jobPositions, summary } = useHierarchyData(hierarchyData, userPermissions)
 
@@ -177,17 +206,35 @@ const HierarchyDashboard = memo(() => {
     return availableTabs.find((tab) => tab.id === effectiveActiveTab)
   }, [availableTabs, effectiveActiveTab])
 
+  // ✅ ENHANCED: Handle back to overview with complete reset and broadcast
+  const { clearAllExpandedForPage } = useUIStateStore()
+  const { resetAllScrollPositions } = usePageNavigationScroll()
+
   const handleBackToOverview = useCallback(() => {
+    
+    // 1. ✅ BROADCAST: Notify all tables to reset
+    window.dispatchEvent(new CustomEvent('hierarchy-tab-change', {
+      detail: { resetUI: true, targetTab: 'overview' }
+    }))
+    
+    // 2. ✅ CLEAR: Clear all expanded states
+    clearAllExpandedForPage()
+    
+    // 3. ✅ SCROLL: Reset scroll to top
+    resetAllScrollPositions()
+    
+    // 4. ✅ NAVIGATE: Change tab
     setActiveTab("overview")
-  }, [])
+    
+    // 5. ✅ FEEDBACK: Optional visual feedback
+    toast.success("🏠 Đã quay về trang tổng quan")
+    
+  }, [clearAllExpandedForPage, resetAllScrollPositions])
 
-  // Handler to be passed to children for evaluation actions
-  const handleEvaluationChange = () => {
-    // Invalidate hierarchy data to force refetch after evaluation
-    queryClient.invalidateQueries({ queryKey: ['hierarchy', 'my-view'], refetchType: 'all' })
-  }
+  const isActuallyLoading = hierarchyLoading || isStoreRefreshing || isManualRefreshing
 
-  if (hierarchyLoading || isRefreshing) {
+  // ✅ FIXED: Show loading only when really loading and no data
+  if (isActuallyLoading && !hierarchyData) {
     return <HierarchyLoadingSkeleton />
   }
 
@@ -226,10 +273,22 @@ const HierarchyDashboard = memo(() => {
   return (
     <motion.div
       className="space-y-4 sm:space-y-6 p-2 sm:p-0"
-      initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }} // Reduced from y: 20
+      initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }}
       animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
-      transition={shouldReduceMotion ? {} : { duration: 0.2 }} // Reduced duration
+      transition={shouldReduceMotion ? {} : { duration: 0.2 }}
     >
+      {/* ✅ ADD: Loading overlay like AdminOverview */}
+      {isManualRefreshing && (
+        <div className="fixed inset-0 bg-background/50 backdrop-blur-sm z-[60] flex items-center justify-center">
+          <ScreenLoading 
+            size="md" 
+            variant="dual-ring" 
+            text="Đang làm mới dữ liệu..." 
+            fullScreen={false}
+          />
+        </div>
+      )}
+
       <HierarchyHeader
         filterDisplayText={filterDisplayText}
         filters={filters}
@@ -237,9 +296,13 @@ const HierarchyDashboard = memo(() => {
         onRefresh={handleRefresh}
       />
 
-      {summary && <HierarchySummaryCards summary={summary} />}
+      {/* ✅ ADD: Opacity transition like AdminOverview */}
+      <div className="px-1 sm:px-0 transition-opacity duration-300" style={{ opacity: isStoreRefreshing ? 0.7 : 1 }}>
+        {summary && <HierarchySummaryCards summary={summary} />}
+      </div>
 
-      <Card className="border-border/50 dark:border-border/90 shadow-green-glow/20">
+      {/* ✅ OPTIMIZED: Main content with smooth transitions */}
+      <Card className="border-border/50 dark:border-border/90 shadow-green-glow/20 transition-all duration-300">
         <CardHeader className="px-3 sm:px-6 py-3 sm:py-6">
           {effectiveActiveTab !== "overview" && (
             <motion.div
@@ -256,8 +319,8 @@ const HierarchyDashboard = memo(() => {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={handleBackToOverview}
-                  className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground w-fit text-sm transition-colors duration-150" // Reduced transition
+                  onClick={handleBackToOverview} // ✅ ENHANCED: Now includes reset logic
+                  className="flex items-center gap-2 hover:bg-green-500/10 bg-green-gradient text-foreground w-fit text-sm transition-colors duration-150"
                 >
                   <ArrowLeft className="w-4 h-4" />
                   <span className="hidden xs:inline">Quay lại tổng quan</span>
@@ -269,127 +332,130 @@ const HierarchyDashboard = memo(() => {
         </CardHeader>
         
         <CardContent className="px-3 sm:px-6 pb-4 sm:pb-6">
-          {effectiveActiveTab === "overview" ? (
-            <motion.div
-              initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }} // Reduced from y: 20
-              animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
-              transition={shouldReduceMotion ? {} : { duration: 0.15 }} // Reduced duration
-              className="space-y-4 sm:space-y-6"
-            >
-              {/* Management positions cards - Mobile optimized */}
-              {managementTabs.length > 0 && userPermissions.canViewPositions && (
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                    <div className="p-1.5 sm:p-2 rounded-lg bg-warm-gradient shadow-green-glow">
-                      <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+          {/* ✅ ADD: Opacity transition for content */}
+          <div className="transition-opacity duration-300" style={{ opacity: isStoreRefreshing ? 0.7 : 1 }}>
+            {effectiveActiveTab === "overview" ? (
+              <motion.div
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }} // Reduced from y: 20
+                animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+                transition={shouldReduceMotion ? {} : { duration: 0.15 }} // Reduced duration
+                className="space-y-4 sm:space-y-6"
+              >
+                {/* Management positions cards - Mobile optimized */}
+                {managementTabs.length > 0 && userPermissions.canViewPositions && (
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                      <div className="p-1.5 sm:p-2 rounded-lg bg-warm-gradient shadow-green-glow">
+                        <Crown className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      </div>
+                      <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Cấp quản lý</h3>
+                      <Badge variant="outline" className="glass-green border-green-500/30 text-xs">
+                        {managementPositions.length}
+                      </Badge>
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Cấp quản lý</h3>
-                    <Badge variant="outline" className="glass-green border-green-500/30 text-xs">
-                      {managementPositions.length}
-                    </Badge>
-                  </div>
-                  
-                  {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                    {managementTabs.map((tab) => (
-                      <OverviewCard
-                        key={tab.id}
-                        title={tab.label}
-                        count={tab.positions?.length || 0}
-                        icon={Crown}
-                        onClick={() => setActiveTab(tab.id)}
-                        description="Cấp quản lý"
-                        variant="management"
-                        positions={tab.positions || []}
-                        isJobPosition={false}
-                      />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Employee job positions card - Mobile optimized */}
-              {employeeJobPositions.length > 0 && userPermissions.canViewJobPositions && (
-                <div className="space-y-3 sm:space-y-4">
-                  <div className="flex items-center gap-2 mb-3 sm:mb-4">
-                    <div className="p-1.5 sm:p-2 rounded-lg bg-green-gradient shadow-green-glow">
-                      <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                    
+                    {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                      {managementTabs.map((tab) => (
+                        <OverviewCard
+                          key={tab.id}
+                          title={tab.label}
+                          count={tab.positions?.length || 0}
+                          icon={Crown}
+                          onClick={() => setActiveTab(tab.id)}
+                          description="Cấp quản lý"
+                          variant="management"
+                          positions={tab.positions || []}
+                          isJobPosition={false}
+                        />
+                      ))}
                     </div>
-                    <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Vị trí công việc</h3>
-                    <Badge variant="outline" className="glass-green border-green-500/30 text-xs">
-                      {employeeJobPositions.length}
-                    </Badge>
                   </div>
-                  
-                  {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
-                    {employeeJobPositions.map((pos, index) => (
-                      <OverviewCard
-                        key={pos.position?.id || `job-${index}`}
-                        title={pos.jobPosition?.jobName || pos.position?.name || "Vị trí công việc"}
-                        count={1}
-                        icon={Users}
-                        onClick={() => setActiveTab(`job-position-${pos.position?.id || index}`)}
-                        description=""
-                        variant="employee"
-                        positions={[pos]}
-                        isJobPosition={true}
-                      />
-                    ))}
+                )}
+
+                {/* Employee job positions card - Mobile optimized */}
+                {employeeJobPositions.length > 0 && userPermissions.canViewJobPositions && (
+                  <div className="space-y-3 sm:space-y-4">
+                    <div className="flex items-center gap-2 mb-3 sm:mb-4">
+                      <div className="p-1.5 sm:p-2 rounded-lg bg-green-gradient shadow-green-glow">
+                        <Users className="w-4 h-4 sm:w-5 sm:h-5 text-white" />
+                      </div>
+                      <h3 className="text-base sm:text-lg font-semibold text-green-gradient">Vị trí công việc</h3>
+                      <Badge variant="outline" className="glass-green border-green-500/30 text-xs">
+                        {employeeJobPositions.length}
+                      </Badge>
+                    </div>
+                    
+                    {/* Mobile: Single column, Tablet: 2 columns, Desktop: 3 columns */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-4">
+                      {employeeJobPositions.map((pos, index) => (
+                        <OverviewCard
+                          key={pos.position?.id || `job-${index}`}
+                          title={pos.jobPosition?.jobName || pos.position?.name || "Vị trí công việc"}
+                          count={1}
+                          icon={Users}
+                          onClick={() => setActiveTab(`job-position-${pos.position?.id || index}`)}
+                          description=""
+                          variant="employee"
+                          positions={[pos]}
+                          isJobPosition={true}
+                        />
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {/* Fallback if no data - Mobile optimized */}
-              {managementTabs.length === 0 && employeeJobPositions.length === 0 && (
-                <motion.div
-                  className="text-center py-8 sm:py-12 px-4"
-                  initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.95 }} // Reduced scale
-                  animate={shouldReduceMotion ? false : { opacity: 1, scale: 1 }}
-                  transition={shouldReduceMotion ? {} : { duration: 0.2 }} // Reduced duration
-                >
-                  <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground mx-auto mb-3 sm:mb-4" />
-                  <h3 className="text-base sm:text-lg font-semibold mb-2">Không có dữ liệu</h3>
-                  <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
-                    Không tìm thấy dữ liệu hierarchy với bộ lọc hiện tại
-                  </p>
-                </motion.div>
-              )}
-            </motion.div>
-          ) : (
-            <motion.div
-              initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }} // Reduced from y: 20
-              animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
-              transition={shouldReduceMotion ? {} : { duration: 0.15 }} // Reduced duration
-              className="space-y-3 sm:space-y-4"
-            >
-              {/* Detail view for management positions */}
-              {(currentTab?.isManagement && hierarchyData) && (
-                <PositionGroupsList
-                  positions={currentTab.positions || []}
-                  filterDisplayText={filterDisplayText}
-                  isManagement={true}
-                  weekNumber={hierarchyData.weekNumber}
-                  year={hierarchyData.year || new Date().getFullYear()}
-                  canEvaluation={user?.isManager}
-                  onEvaluationChange={handleEvaluationChange}
-                />
-              )}
+                {/* Fallback if no data - Mobile optimized */}
+                {managementTabs.length === 0 && employeeJobPositions.length === 0 && (
+                  <motion.div
+                    className="text-center py-8 sm:py-12 px-4"
+                    initial={shouldReduceMotion ? false : { opacity: 0, scale: 0.95 }} // Reduced scale
+                    animate={shouldReduceMotion ? false : { opacity: 1, scale: 1 }}
+                    transition={shouldReduceMotion ? {} : { duration: 0.2 }} // Reduced duration
+                  >
+                    <AlertTriangle className="w-12 h-12 sm:w-16 sm:h-16 text-muted-foreground mx-auto mb-3 sm:mb-4" />
+                    <h3 className="text-base sm:text-lg font-semibold mb-2">Không có dữ liệu</h3>
+                    <p className="text-sm sm:text-base text-muted-foreground max-w-md mx-auto">
+                      Không tìm thấy dữ liệu hierarchy với bộ lọc hiện tại
+                    </p>
+                  </motion.div>
+                )}
+              </motion.div>
+            ) : (
+              <motion.div
+                initial={shouldReduceMotion ? false : { opacity: 0, y: 15 }} // Reduced from y: 20
+                animate={shouldReduceMotion ? false : { opacity: 1, y: 0 }}
+                transition={shouldReduceMotion ? {} : { duration: 0.15 }} // Reduced duration
+                className="space-y-3 sm:space-y-4"
+              >
+                {/* Detail view for management positions */}
+                {(currentTab?.isManagement && hierarchyData) && (
+                  <PositionGroupsList
+                    positions={currentTab.positions || []}
+                    filterDisplayText={filterDisplayText}
+                    isManagement={true}
+                    weekNumber={hierarchyData.weekNumber}
+                    year={hierarchyData.year || new Date().getFullYear()}
+                    canEvaluation={user?.isManager}
+                    // ✅ REMOVE: onEvaluationChange prop, let component handle itself
+                  />
+                )}
 
-              {/* Detail view for job positions */}
-              {(!currentTab?.isManagement && currentTab?.id?.startsWith("job-position-") && hierarchyData) && (
-                <PositionGroupsList
-                  positions={currentTab.positions || []}
-                  filterDisplayText={filterDisplayText}
-                  isJobPosition={true}
-                  weekNumber={hierarchyData.weekNumber}
-                  year={hierarchyData.year || new Date().getFullYear()}
-                  canEvaluation={user?.isManager}
-                  onEvaluationChange={handleEvaluationChange}
-                />
-              )}
-            </motion.div>
-          )}
+                {/* Detail view for job positions */}
+                {(!currentTab?.isManagement && currentTab?.id?.startsWith("job-position-") && hierarchyData) && (
+                  <PositionGroupsList
+                    positions={currentTab.positions || []}
+                    filterDisplayText={filterDisplayText}
+                    isJobPosition={true}
+                    weekNumber={hierarchyData.weekNumber}
+                    year={hierarchyData.year || new Date().getFullYear()}
+                    canEvaluation={user?.isManager}
+                    // ✅ REMOVE: onEvaluationChange prop, let component handle itself
+                  />
+                )}
+              </motion.div>
+            )}
+          </div>
         </CardContent>
       </Card>
     </motion.div>

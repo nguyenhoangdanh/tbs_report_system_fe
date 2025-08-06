@@ -1,6 +1,6 @@
 import { PositionData } from "@/utils/hierarchy-utils"
 import { useReducedMotion, motion } from "framer-motion"
-import { memo, useMemo } from "react"
+import { memo, useMemo, useCallback } from "react"
 
 interface OverviewCardProps {
   title: string
@@ -75,6 +75,20 @@ export const OverviewCard = memo(
       }
     }, [positions, isJobPosition])
 
+    // ✅ ENHANCED: Handle click with state clearing notification
+    const handleClick = useCallback(() => {
+      console.log(`🔄 OverviewCard: Navigating to detail view for: ${title}`)
+
+      // Broadcast that we're navigating to detail (don't reset UI here)
+      window.dispatchEvent(
+        new CustomEvent("hierarchy-tab-change", {
+          detail: { resetUI: false, targetTab: "detail", title },
+        }),
+      )
+
+      onClick()
+    }, [onClick, title])
+
     return (
       <motion.div
         whileHover={shouldReduceMotion ? {} : { scale: 1.01, y: -2 }} // Reduced from scale: 1.02, y: -5
@@ -82,8 +96,8 @@ export const OverviewCard = memo(
         transition={shouldReduceMotion ? {} : { type: "spring", stiffness: 400, damping: 25 }} // Faster spring
       >
         <Card
-          className="border-border/50 dark:border-border/90 hover:shadow-green-glow transition-all duration-200 cursor-pointer group" // Reduced from 300ms
-          onClick={onClick}
+          className="border-border/50 dark:border-border/90 hover:shadow-green-glow transition-all duration-200 cursor-pointer group"
+          onClick={handleClick} // ✅ CHANGED: Use enhanced handler
         >
           <CardContent className="p-3 sm:p-4 lg:p-6">
             <div className="space-y-3 sm:space-y-4">

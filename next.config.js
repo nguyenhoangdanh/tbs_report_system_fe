@@ -32,6 +32,34 @@ const nextConfig = {
           },
         ],
       },
+      // Add headers for PDF.js worker and assets
+      {
+        source: '/pdf.worker.min.mjs',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/javascript',
+          },
+        ],
+      },
+      {
+        source: '/cmaps/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
+      {
+        source: '/standard_fonts/(.*)',
+        headers: [
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
     ]
   },
 
@@ -70,6 +98,13 @@ const nextConfig = {
         tls: false,
       }
     }
+
+    // Ignore PDF.js worker during build to avoid resolution issues
+    config.externals = config.externals || []
+    config.externals.push({
+      'pdfjs-dist/build/pdf.worker.min.mjs': 'commonjs pdfjs-dist/build/pdf.worker.min.js'
+    })
+
     return config
   },
 }

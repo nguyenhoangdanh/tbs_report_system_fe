@@ -6,34 +6,48 @@ import { toast } from "react-toast-kit"
 import { useApiMutation, useApiQuery } from "./use-api-query"
 import { useAuth } from "@/components/providers/auth-provider"
 import { useQueryClient } from "@tanstack/react-query"
+import { INVALIDATION_PATTERNS } from "./query-key"
 
 const handleError = (error: any, defaultMessage: string) => {
   const message = error?.message || defaultMessage
   toast.error(message)
 }
 
-// ✅ SIMPLE: Back to basic broadcast like HierarchyDashboard
+// ✅ FIXED: Add proper Window interface declaration
+declare global {
+  interface Window {
+    __EVALUATION_SESSION_ID__?: string;
+    __EVALUATION_DIALOG_ACTIVE__?: boolean;
+  }
+}
+
+// ✅ ENHANCED: Safer broadcast with dialog protection
 export const broadcastEvaluationChange = () => {
   try {
     const broadcastData = {
       type: 'evaluation-change',
-      timestamp: Date.now()
+      timestamp: Date.now(),
+      source: window.location.pathname,
+      userId: localStorage.getItem('currentUserId'),
+      protectDialogs: true,
+      sessionId: typeof window !== 'undefined' ? window.__EVALUATION_SESSION_ID__ : null
     }
     
-    
-    // ✅ PRIMARY: Custom event for same-tab
+    // ✅ SAME-TAB COMMUNICATION - Immediate
     window.dispatchEvent(new CustomEvent('evaluation-changed', {
       detail: broadcastData
     }))
     
-    // ✅ SECONDARY: localStorage for cross-tab
+    // ✅ CROSS-TAB COMMUNICATION
     localStorage.setItem('evaluation-broadcast', JSON.stringify(broadcastData))
     
+    // ✅ CLEANUP
     setTimeout(() => {
       localStorage.removeItem('evaluation-broadcast')
     }, 2000)
+    
   } catch (error) {
-    console.error('❌ Failed to broadcast evaluation change:', error)
+    console.warn('⚠️ Failed to broadcast evaluation change:', error)
   }
 }
 
@@ -44,16 +58,8 @@ export function useCreateTaskEvaluation() {
   return useApiMutation<TaskEvaluation, CreateEvaluationDto, Error>({
     mutationFn: async (data: CreateEvaluationDto) => await TaskEvaluationsService.createTaskEvaluation(data),
     onSuccess: (newEvaluation, variables) => {
-      
-      // ✅ KEEP: Only broadcast for real-time updates, don't invalidate queries
+      // ✅ IMMEDIATE: Broadcast change for real-time updates
       broadcastEvaluationChange()
-      
-      // ✅ REMOVED: Don't invalidate queries immediately - let dialog close handle it
-      // queryClient.invalidateQueries({
-      //   queryKey: ['admin-overview', 'manager-reports'],
-      //   exact: false,
-      //   refetchType: 'all'
-      // })
       
       toast.success("Đánh giá nhiệm vụ thành công!")
     },
@@ -69,20 +75,32 @@ export function useUpdateTaskEvaluation() {
   const { user } = useAuth()
   const queryClient = useQueryClient()
   
+  
   return useApiMutation<TaskEvaluation, { evaluationId: string; data: UpdateEvaluationDto }, Error>({
     mutationFn: async ({ evaluationId, data }) => await TaskEvaluationsService.updateTaskEvaluation(evaluationId, data),
     onSuccess: (updatedEvaluation, variables) => {
-      // ✅ KEEP: Only broadcast for real-time updates, don't invalidate queries
-      broadcastEvaluationChange()
 
-      // ✅ REMOVED: Don't invalidate queries immediately - let dialog close handle it
-      // queryClient.invalidateQueries({
-      //   queryKey: ['admin-overview', 'manager-reports'],
-      //   exact: false,
-      //   refetchType: 'all'
-      // })
+      if (!user?.id) return
+      // ✅ IMMEDIATE: Cache updates first
+      queryClient.invalidateQueries({
+        queryKey: ["task-evaluations"]
+      })
       
-      // toast.success("Cập nhật đánh giá thành công!")
+      queryClient.invalidateQueries({
+        queryKey: ["hierarchy"]
+      })
+
+      queryClient.invalidateQueries({ 
+          queryKey: INVALIDATION_PATTERNS.reports.userSpecific(user.id),
+          exact: false,
+          refetchType: 'all'
+        })
+      
+      // ✅ IMMEDIATE: Broadcast for real-time updates
+      broadcastEvaluationChange()
+      
+      // ✅ SUCCESS FEEDBACK
+      toast.success("Cập nhật đánh giá thành công!")
     },
     onError: (error) => {
       console.error('❌ UPDATE evaluation FAILED:', error)
@@ -99,15 +117,28 @@ export function useDeleteTaskEvaluation() {
   return useApiMutation<{ message: string }, string, Error>({
     mutationFn: async (evaluationId: string) => await TaskEvaluationsService.deleteTaskEvaluation(evaluationId),
     onSuccess: (result, deletedId) => {
-      // ✅ KEEP: Only broadcast for real-time updates, don't invalidate queries
-      broadcastEvaluationChange()
+      if (!user?.id) return
+      // ✅ IMMEDIATE: Cache updates first
+      queryClient.invalidateQueries({
+        queryKey: ["task-evaluations"]
+      })
       
-      // ✅ REMOVED: Don't invalidate queries immediately - let dialog close handle it
-      // queryClient.invalidateQueries({
-      //   queryKey: ['admin-overview', 'manager-reports'],
-      //   exact: false,
-      //   refetchType: 'all'
-      // })
+      queryClient.invalidateQueries({
+        queryKey: ["hierarchy"]
+      })
+
+      queryClient.invalidateQueries({
+        queryKey: ["reports"]
+      })
+
+      queryClient.invalidateQueries({
+          queryKey: INVALIDATION_PATTERNS.reports.userSpecific(user.id),
+          exact: false,
+          refetchType: 'all'
+        })
+      
+      // ✅ IMMEDIATE: Broadcast for real-time updates
+      broadcastEvaluationChange()
       
       toast.success("Xóa đánh giá thành công!")
     },
