@@ -180,12 +180,12 @@ class EnhancedApiClient {
         
         if (cookieFallback && fallbackToken && typeof window !== 'undefined') {
           console.log('🔄 Production cookie fallback - storing token in localStorage');
-          localStorage.setItem('access_token', fallbackToken);
+          // localStorage.setItem('access_token', fallbackToken);
           
           // Also try to read any existing cookies
           const existingCookie = document.cookie.match(/access_token=([^;]+)/);
           if (existingCookie) {
-            localStorage.setItem('access_token', existingCookie[1]);
+            // localStorage.setItem('access_token', existingCookie[1]);
           }
         }
         
@@ -235,12 +235,12 @@ class EnhancedApiClient {
         const fallbackToken = response.headers.get('x-access-token');
         
         if (data.access_token) {
-          localStorage.setItem('access_token', data.access_token);
+          // localStorage.setItem('access_token', data.access_token);
         }
         
         if (cookieFallback && fallbackToken) {
           console.log('🔄 Production refresh fallback - storing token');
-          localStorage.setItem('access_token', fallbackToken);
+          // localStorage.setItem('access_token', fallbackToken);
         }
         
         return { success: true };
