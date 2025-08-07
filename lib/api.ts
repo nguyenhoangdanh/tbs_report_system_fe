@@ -188,7 +188,7 @@ class EnhancedApiClient {
           // ✅ CRITICAL: Always store fallback token in production
           if (fallbackToken && (cookieFallback || process.env.NODE_ENV === 'production')) {
             console.log('🔄 Production cookie fallback - storing token in localStorage');
-            localStorage.setItem('access_token', fallbackToken);
+            // localStorage.setItem('access_token', fallbackToken);
             
             // Debug cookie settings in production
             if (cookieSettings) {
@@ -199,7 +199,7 @@ class EnhancedApiClient {
           // ✅ Also try to read any existing cookies
           const existingCookie = document.cookie.match(/access_token=([^;]+)/);
           if (existingCookie) {
-            localStorage.setItem('access_token', existingCookie[1]);
+            // localStorage.setItem('access_token', existingCookie[1]);
             console.log('✅ Found existing cookie, stored in localStorage');
           } else if (process.env.NODE_ENV === 'production') {
             console.warn('⚠️ No access_token cookie found in production');
