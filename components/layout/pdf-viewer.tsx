@@ -15,7 +15,7 @@ if (typeof window !== 'undefined') {
     pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`
   } else {
     // Local development - try local worker first, fallback to CDNJS
-    const localWorkerPath = '/pdf.worker.min.js' // Changed to .js instead of .mjs
+    const localWorkerPath = '/pdf.worker.min.mjs' // Changed to .js instead of .mjs
     
     // Set default to CDNJS first
     pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`

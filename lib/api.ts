@@ -77,22 +77,31 @@ class EnhancedApiClient {
   private cleanupInterval: ReturnType<typeof setInterval> | null = null
 
   constructor(config: ApiConfig = {}) {
-    // Create fetch-api-client instance with CORS-friendly headers
+    // Create fetch-api-client instance with iOS-specific configuration
     this.client = createClient({
       baseURL: API_BASE_URL,
       timeout: 8000,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        // ✅ Remove Pragma and Cache-Control headers that cause CORS issues
-        // 'Cache-Control': 'no-cache',
-        // 'Pragma': 'no-cache',
+        // iOS-specific headers
+        ...(this.isIOSDevice() && {
+          'X-iOS-Device': 'true',
+          'X-iOS-Version': this.getIOSVersion(),
+        })
       },
-      credentials: 'include', // ✅ Correct for fetch API - always include cookies
+      credentials: 'include', // ✅ Critical: Always include cookies
       validateStatus: (status) => status < 500,
       getToken: () => {
-        // Optional: JWT token from localStorage (fallback)
+        // Enhanced token retrieval for iOS
         if (typeof window !== 'undefined') {
+          // First try iOS-specific tokens
+          if (this.isIOSDevice()) {
+            const iosToken = this.getIOSToken();
+            if (iosToken) return iosToken;
+          }
+          
+          // Fallback to standard tokens
           const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
           return token;
         }
@@ -105,11 +114,62 @@ class EnhancedApiClient {
     this.startCleanupTimer()
   }
 
+  // iOS Detection utilities
+  private isIOSDevice(): boolean {
+    if (typeof window === 'undefined') return false;
+    const userAgent = window.navigator.userAgent;
+    return /iPad|iPhone|iPod|Mac.*OS.*X/i.test(userAgent) && 
+           /Safari/i.test(userAgent) && 
+           !/Chrome|CriOS|EdgiOS/i.test(userAgent);
+  }
+
+  private getIOSVersion(): string {
+    if (typeof window === 'undefined') return 'unknown';
+    const userAgent = window.navigator.userAgent;
+    const versionMatch = userAgent.match(/OS (\d+)_(\d+)/);
+    return versionMatch ? `${versionMatch[1]}.${versionMatch[2]}` : 'unknown';
+  }
+
+  private getIOSToken(): string | null {
+    if (typeof window === 'undefined') return null;
+    
+    // Try to get from iOS-specific cookie
+    const iosTokenMatch = document.cookie.match(/ios_access_token=([^;]+)/);
+    if (iosTokenMatch) {
+      return iosTokenMatch[1];
+    }
+    
+    // Try auth_token cookie
+    const authTokenMatch = document.cookie.match(/auth_token=([^;]+)/);
+    if (authTokenMatch) {
+      return authTokenMatch[1];
+    }
+    
+    // Try localStorage with iOS prefix
+    return localStorage.getItem('ios_access_token') || localStorage.getItem('access_token');
+  }
+
   private setupInterceptors() {
-    // Request interceptor
+    // Request interceptor with iOS-specific handling
     this.client.interceptors.request.use((config) => {
       config.credentials = 'include';
       
+      // iOS-specific request setup
+      if (this.isIOSDevice()) {
+        config.headers = {
+          ...config.headers,
+          'X-iOS-Device': 'true',
+          'X-iOS-Version': this.getIOSVersion(),
+        };
+        
+        // Try to add iOS token to header as backup
+        const iosToken = this.getIOSToken();
+        if (iosToken && !config.headers?.['Authorization']) {
+          config.headers['X-Access-Token'] = iosToken;
+        }
+      }
+      
+      // Remove problematic headers
       if (config.headers) {
         delete config.headers['Pragma'];
         delete config.headers['pragma'];
@@ -120,39 +180,37 @@ class EnhancedApiClient {
       return config
     })
 
-    // Response interceptor with iOS fallback handling
+    // Response interceptor with enhanced iOS handling
     this.client.interceptors.response.use({
       onFulfilled: (response) => {
-        // Auto-detect iOS fallback from backend
+        // Enhanced iOS fallback handling
         const iosDetected = response.headers.get('x-ios-fallback') === 'true';
         const fallbackToken = response.headers.get('x-access-token');
         
         if (iosDetected && fallbackToken && typeof window !== 'undefined') {
           console.log('📱 iOS detected by backend - storing fallback token');
           localStorage.setItem('access_token', fallbackToken);
+          localStorage.setItem('ios_access_token', fallbackToken);
           
-          // Also try to read from ios_auth_token cookie if available
-          const iosTokenMatch = document.cookie.match(/ios_auth_token=([^;]+)/);
-          if (iosTokenMatch) {
-            localStorage.setItem('access_token', iosTokenMatch[1]);
+          // Also read from all possible iOS cookies
+          const cookieTokens = [
+            document.cookie.match(/ios_access_token=([^;]+)/)?.[1],
+            document.cookie.match(/auth_token=([^;]+)/)?.[1],
+            document.cookie.match(/access_token=([^;]+)/)?.[1]
+          ].filter(Boolean);
+          
+          if (cookieTokens.length > 0) {
+            localStorage.setItem('access_token', cookieTokens[0]!);
+            localStorage.setItem('ios_access_token', cookieTokens[0]!);
           }
         }
         
         return response
       },
       onRejected: async (error: ApiError) => {
-        // console.error('❌ API Error:', {
-        //   status: error.status,
-        //   message: error.message,
-        //   url: error.config?.url,
-        //   method: error.config?.method,
-        //   isAuth: error.status === 401,
-        //   timestamp: new Date().toISOString()
-        // });
-
-        // Handle 401 with automatic token refresh
+        // Enhanced iOS-specific 401 handling
         if (error.status === 401) {
-          console.warn('🔐 Authentication failed - attempting token refresh');
+          console.warn('🔐 Authentication failed - attempting token refresh with iOS support');
           
           try {
             const refreshResult = await this.attemptTokenRefresh();
@@ -160,7 +218,7 @@ class EnhancedApiClient {
               return Promise.reject(error);
             }
           } catch (refreshError) {
-            // console.error('❌ Token refresh failed:', refreshError);
+            console.error('❌ Token refresh failed:', refreshError);
           }
           
           this.clearAuthTokens();
@@ -181,28 +239,37 @@ class EnhancedApiClient {
 
   private async attemptTokenRefresh(): Promise<{ success: boolean }> {
     try {
+      // Enhanced iOS refresh with multiple cookie attempts
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
-        credentials: 'include',
+        credentials: 'include', // ✅ Critical
         headers: {
           'Content-Type': 'application/json',
+          ...(this.isIOSDevice() && {
+            'X-iOS-Device': 'true',
+            'X-iOS-Version': this.getIOSVersion(),
+          })
         },
       });
 
       if (response.ok) {
         const data = await response.json();
         
-        // Auto-handle iOS fallback from backend
+        // Enhanced iOS fallback handling
         const iosDetected = response.headers.get('x-ios-fallback') === 'true';
         const fallbackToken = response.headers.get('x-access-token');
         
         if (data.access_token) {
           localStorage.setItem('access_token', data.access_token);
+          if (this.isIOSDevice()) {
+            localStorage.setItem('ios_access_token', data.access_token);
+          }
         }
         
         if (iosDetected && fallbackToken) {
           console.log('📱 iOS refresh detected - storing fallback token');
           localStorage.setItem('access_token', fallbackToken);
+          localStorage.setItem('ios_access_token', fallbackToken);
         }
         
         return { success: true };
@@ -210,22 +277,31 @@ class EnhancedApiClient {
       
       return { success: false };
     } catch (error) {
-      // console.error('🔄 Token refresh error:', error);
+      console.error('🔄 Token refresh error:', error);
       return { success: false };
     }
   }
 
   private clearAuthTokens() {
     if (typeof window !== 'undefined') {
+      // Clear localStorage
       localStorage.removeItem('access_token');
+      localStorage.removeItem('ios_access_token');
       sessionStorage.removeItem('access_token');
       
-      // Enhanced cookie clearing
-      const cookiesToClear = ['access_token', 'ios_auth_token', 'refresh_token'];
+      // Enhanced cookie clearing for iOS
+      const cookiesToClear = ['access_token', 'ios_access_token', 'auth_token', 'refresh_token'];
+      const domains = ['', `.${window.location.hostname}`, '.vercel.app'];
+      const sameSiteOptions = ['Lax', 'Strict', 'None'];
+      
       cookiesToClear.forEach(cookieName => {
-        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
-        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax;`;
+        domains.forEach(domain => {
+          sameSiteOptions.forEach(sameSite => {
+            // Clear with different combinations
+            const domainPart = domain ? `domain=${domain};` : '';
+            document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; ${domainPart} SameSite=${sameSite};`;
+          });
+        });
       });
     }
   }
