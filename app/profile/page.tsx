@@ -14,10 +14,10 @@ import { useProfileManagement } from '@/hooks/use-profile'
 import { type UpdateProfileFormData, type ChangePasswordFormData } from '@/lib/validations/profile'
 
 // Import components
-import { UserAvatar } from './components/user-avatar'
-import { SidebarNav } from './components/sidebar-nav'
-import { ProfileForm } from './components/profile-form'
-import { PasswordForm } from './components/password-form'
+import { UserAvatar } from '@/components/profile/user-avatar'
+import { SidebarNav } from '@/components/profile/sidebar-nav'
+import { ProfileForm } from '@/components/profile/profile-form'
+import { PasswordForm } from '@/components/profile/password-form'
 import { ScreenLoading } from '@/components/loading/screen-loading'
 
 function ProfileContent() {

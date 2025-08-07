@@ -8,37 +8,38 @@ import { Button } from "@/components/ui/button"
 import { X, Download, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react"
 import { toast } from "react-toast-kit"
 
-// Production-ready worker setup for Vercel - using jsDelivr instead of unpkg
+// Production-ready worker setup for Vercel - using CDNJS instead of jsDelivr
 if (typeof window !== 'undefined') {
-  // Use jsDelivr CDN for production (better CORS support than unpkg)
+  // Always use CDNJS for production (most reliable CDN for PDF.js)
   if (process.env.NODE_ENV === 'production') {
-    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`
   } else {
-    // Local development - try local worker first, fallback to jsDelivr
-    const localWorkerPath = '/pdf.worker.min.mjs'
+    // Local development - try local worker first, fallback to CDNJS
+    const localWorkerPath = '/pdf.worker.min.js' // Changed to .js instead of .mjs
     
-    // Test if local worker exists
+    // Set default to CDNJS first
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/pdf.worker.min.mjs`
+    
+    // Try to use local worker if available (async, won't block)
     fetch(localWorkerPath, { method: 'HEAD' })
       .then(response => {
         if (response.ok) {
           pdfjs.GlobalWorkerOptions.workerSrc = localWorkerPath
-        } else {
-          throw new Error('Local worker not found')
+          console.log('Using local PDF.js worker')
         }
       })
       .catch(() => {
-        // Fallback to jsDelivr CDN
-        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
+        console.log('Using CDNJS PDF.js worker')
       })
   }
 }
 
 const options = {
   cMapUrl: process.env.NODE_ENV === 'production' 
-    ? `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/` 
+    ? `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/cmaps/` 
     : '/cmaps/',
   standardFontDataUrl: process.env.NODE_ENV === 'production'
-    ? `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/standard_fonts/`
+    ? `https://cdnjs.cloudflare.com/ajax/libs/pdf.js/${pdfjs.version}/standard_fonts/`
     : '/standard_fonts/',
   defaultScale: 1.0,
 }

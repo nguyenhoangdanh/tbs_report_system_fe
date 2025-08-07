@@ -152,7 +152,7 @@ const nextConfig = {
   // Output config cho static export nếu cần
   output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
   
-  // Webpack config - cải thiện cho iOS và handle missing PDF.js files
+  // Webpack config - simplified for better Vercel compatibility
   webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -163,7 +163,7 @@ const nextConfig = {
       }
     }
 
-    // Fix PDF.js worker for all environments
+    // Simple PDF.js worker handling without complex aliases
     config.module.rules.push({
       test: /pdf\.worker\.(min\.)?(js|mjs)$/,
       type: 'asset/resource',
@@ -172,14 +172,11 @@ const nextConfig = {
       }
     })
 
-    // Handle pdfjs-dist imports - better CDN support
-    if (!isServer) {
+    // Remove problematic aliases that cause issues on Vercel
+    if (!isServer && !dev) {
+      // Only add basic alias in production to avoid conflicts
       config.resolve.alias = {
         ...config.resolve.alias,
-        // Use jsDelivr instead of unpkg for better CORS support
-        'pdfjs-dist/build/pdf.worker.min.js': dev 
-          ? require.resolve('pdfjs-dist/build/pdf.worker.min.mjs')
-          : `https://cdn.jsdelivr.net/npm/pdfjs-dist@${require('pdfjs-dist/package.json').version}/build/pdf.worker.min.js`,
       }
     }
 
