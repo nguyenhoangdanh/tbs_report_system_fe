@@ -94,4 +94,25 @@ export class UserService {
     const query = params.toString() ? `?${params}` : ''
     return api.get<any>(`/users/with-ranking${query}`)
   }
+
+  /**
+   * Upload avatar for current user
+   */
+  static async uploadAvatar(file: File): Promise<ApiResult<{ avatarUrl: string }>> {
+    const formData = new FormData()
+    formData.append('file', file)
+
+    return api.post<{ avatarUrl: string }>('/users/avatar', formData, {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    })
+  }
+
+  /**
+   * Remove avatar for current user
+   */
+  static async removeAvatar(): Promise<ApiResult<void>> {
+    return api.delete<void>('/users/avatar')
+  }
 }

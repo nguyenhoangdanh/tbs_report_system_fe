@@ -1,3 +1,4 @@
+"use client"
 import { useMemo } from 'react'
 
 export interface PositionStats {
@@ -55,6 +56,7 @@ export interface PositionData {
     firstName: string
     lastName: string
     fullName?: string
+    avatar?: string
     email: string
     office: {
       id: string

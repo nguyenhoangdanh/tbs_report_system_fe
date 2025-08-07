@@ -91,12 +91,92 @@ export function useChangePassword() {
 }
 
 /**
+ * Upload avatar mutation
+ */
+export function useUploadAvatar() {
+  const queryClient = useQueryClient()
+  const { checkAuth } = useAuth()
+  
+  return useApiMutation({
+    mutationFn: (file: File) => UserService.uploadAvatar(file),
+    onSuccess: async (response) => {
+      const avatarUrl = response.avatarUrl 
+      
+      if (avatarUrl) {
+        // 1. Update profile with new avatar URL
+        const updateResult = await UserService.updateProfile({ avatar: avatarUrl })
+        
+        if (updateResult.success) {
+          // 2. Update React Query cache
+          const profileKey = QUERY_KEYS.auth.profile()
+          queryClient.setQueryData(profileKey, updateResult.data)
+          
+          // 3. Force AuthProvider to refetch
+          await checkAuth()
+          
+          // 4. Final cache invalidation
+          await queryClient.invalidateQueries({ queryKey: ['auth'] })
+          
+          toast.success('Cập nhật ảnh đại diện thành công!')
+        } else {
+          throw new Error('Failed to update profile with new avatar')
+        }
+      } else {
+        throw new Error('No avatar URL returned from server')
+      }
+    },
+    onError: (error: any) => {
+      console.error('❌ Upload avatar error:', error)
+      toast.error(error.message || 'Không thể tải lên ảnh đại diện')
+    },
+    retry: 1,
+  })
+}
+
+/**
+ * Remove avatar mutation
+ */
+export function useRemoveAvatar() {
+  const queryClient = useQueryClient()
+  const { checkAuth } = useAuth()
+  
+  return useApiMutation({
+    mutationFn: () => UserService.removeAvatar(),
+    onSuccess: async () => {
+      // Update profile to remove avatar
+      const updateResult = await UserService.updateProfile({ avatar: null })
+      
+      if (updateResult.success) {
+        // Update React Query cache
+        const profileKey = QUERY_KEYS.auth.profile()
+        queryClient.setQueryData(profileKey, updateResult.data)
+        
+        // Force AuthProvider to refetch
+        await checkAuth()
+        
+        // Final cache invalidation
+        await queryClient.invalidateQueries({ queryKey: ['auth'] })
+        
+        toast.success('Đã xóa ảnh đại diện!')
+      }
+    },
+    onError: (error: any) => {
+      console.error('❌ Remove avatar error:', error)
+      toast.error(error.message || 'Không thể xóa ảnh đại diện')
+    },
+    retry: 1,
+  })
+}
+
+/**
  * Combined hook for profile management
  */
 export function useProfileManagement() {
   const profile = useProfile()
   const updateProfileMutation = useUpdateProfile()
   const changePasswordMutation = useChangePassword()
+  const uploadAvatarMutation = useUploadAvatar()
+  const removeAvatarMutation = useRemoveAvatar()
   
   return {
     user: profile.data,
@@ -104,8 +184,12 @@ export function useProfileManagement() {
     error: profile.error,
     updateProfile: updateProfileMutation.mutateAsync,
     changePassword: changePasswordMutation.mutateAsync,
+    uploadAvatar: uploadAvatarMutation.mutateAsync,
+    removeAvatar: removeAvatarMutation.mutateAsync,
     isUpdating: updateProfileMutation.isPending,
     isChangingPassword: changePasswordMutation.isPending,
+    isUploadingAvatar: uploadAvatarMutation.isPending,
+    isRemovingAvatar: removeAvatarMutation.isPending,
     refetch: profile.refetch,
     
     // Status tracking
@@ -118,6 +202,11 @@ export function useProfileManagement() {
       isSuccess: changePasswordMutation.isSuccess,
       isError: changePasswordMutation.isError,
       error: changePasswordMutation.error,
+    },
+    avatarStatus: {
+      isSuccess: uploadAvatarMutation.isSuccess,
+      isError: uploadAvatarMutation.isError,
+      error: uploadAvatarMutation.error,
     }
   }
 }

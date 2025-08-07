@@ -465,6 +465,7 @@ export interface PositionUser {
   firstName: string
   lastName: string
   fullName: string
+  avatar?: string
   email: string
   office: Office
   position?: {

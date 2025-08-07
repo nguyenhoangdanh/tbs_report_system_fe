@@ -1,3 +1,4 @@
+"use client"
 import { memo } from 'react'
 import { Badge } from '@/components/ui/badge'
 import { Trophy, Award, Medal, Target, AlertTriangle } from 'lucide-react'

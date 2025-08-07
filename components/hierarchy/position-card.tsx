@@ -94,6 +94,7 @@ export const PositionCard = memo(({ position, weekNumber, year, canEvaluation }:
       firstName: user.firstName,
       lastName: user.lastName,
       fullName: user.fullName || `${user.firstName} ${user.lastName}`,
+      avatar: user.avatar || "", // Ensure avatar is included
       email: user.email,
       office: {
         id: user.office?.id || "",

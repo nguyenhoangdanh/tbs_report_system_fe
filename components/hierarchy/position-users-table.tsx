@@ -14,6 +14,7 @@ import { useUserDetails } from "@/hooks/use-hierarchy"
 import { useInvalidateHierarchyQueries } from "@/hooks/use-reports"
 import useUIStateStore from "@/store/ui-state-store"
 import { useEvaluationScrollPreservation } from "@/hooks/use-scroll-preservation"
+import { AvatarDisplay } from "../ui/avatar-display"
 
 interface PositionUsersTableProps {
   users: PositionUser[]
@@ -198,7 +199,7 @@ export const PositionUsersTable = memo(
       `position-${positionName}-${weekNumber}-${year}`.replace(/\s+/g, '-').toLowerCase(),
       [positionName, weekNumber, year]
     )
-    
+
     // ✅ NEW: Add scroll preservation with reset capability
     const { saveCurrentPosition, resetScrollPosition } = useEvaluationScrollPreservation(tableId)
     
@@ -298,7 +299,7 @@ export const PositionUsersTable = memo(
                       <div className="flex items-center justify-center w-5 h-5 sm:w-6 sm:h-6 bg-muted rounded-full text-xs font-medium text-muted-foreground flex-shrink-0">
                         {index + 1}
                       </div>
-                      <div className="min-w-0 flex-1">
+                      {/* <div className="min-w-0 flex-1">
                         <div className="flex items-center gap-1 sm:gap-2">
                           <h5 className="font-medium text-sm truncate">
                             {userItem.firstName} {userItem.lastName}
@@ -313,6 +314,40 @@ export const PositionUsersTable = memo(
                         <p className="text-xs text-muted-foreground truncate">
                           {userItem.employeeCode} - {userItem.office?.name}
                         </p>
+                      </div> */}
+                      <div className="flex items-center gap-2 sm:gap-3 flex-1 min-w-0">
+                        {/* <AvatarDisplay 
+                          src={userItem.avatar || ""}
+                          fallbackText="Avatar"
+                          className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0"
+                        /> */}
+                        {userItem.avatar ? (
+                          <AvatarDisplay 
+                            src={userItem.avatar}
+                            fallbackText={`${userItem.firstName[0]}${userItem.lastName[0]}`}
+                            className="w-8 h-8 sm:w-10 sm:h-10 flex-shrink-0"
+                          />
+                        ) : (
+                          <div className="w-8 h-8 sm:w-10 sm:h-10 bg-muted rounded-full flex items-center justify-center text-xs font-medium text-muted-foreground">
+                            {userItem.firstName[0]}{userItem.lastName[0]}
+                          </div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-1 sm:gap-2">
+                            <h5 className="font-medium text-sm truncate">
+                              {userItem.firstName} {userItem.lastName}
+                            </h5>
+                            <ChevronDown
+                              className={cn(
+                                "h-3 w-3 text-muted-foreground transition-transform duration-150 flex-shrink-0",
+                                expandedState === 'detail' && "rotate-180",
+                              )}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground truncate">
+                            {userItem.employeeCode} - {userItem.office?.name}
+                          </p>
+                        </div>
                       </div>
                     </div>
 

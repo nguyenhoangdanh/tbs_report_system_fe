@@ -206,6 +206,8 @@ const HierarchyDashboard = memo(() => {
     return availableTabs.find((tab) => tab.id === effectiveActiveTab)
   }, [availableTabs, effectiveActiveTab])
 
+  console.log("Current active tab:", effectiveActiveTab, "Current tab data:", currentTab)
+
   // ✅ ENHANCED: Handle back to overview with complete reset and broadcast
   const { clearAllExpandedForPage } = useUIStateStore()
   const { resetAllScrollPositions } = usePageNavigationScroll()

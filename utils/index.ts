@@ -285,7 +285,7 @@ export const exportToExcel = async (report: WeeklyReport) => {
     document.body.removeChild(link)
     URL.revokeObjectURL(link.href)
   } catch (error) {
-    console.error("Error exporting to Excel:", error)
-    throw new Error("Có lỗi xảy ra khi xuất file Excel")
+    // console.error("Error exporting to Excel:", error)
+    // throw new Error("Có lỗi xảy ra khi xuất file Excel")
   }
 }

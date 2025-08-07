@@ -36,6 +36,7 @@ export interface User {
   lastName: string
   email: string
   phone: string
+  avatar?: string  // ✅ Add avatar field
   role:  Role
   isActive: boolean
   office: {
@@ -64,6 +65,13 @@ export interface User {
       description?: string
     }
   }
+  stats: {
+      hasReport: boolean
+      isCompleted: boolean
+      totalTasks: number
+      completedTasks: number
+      taskCompletionRate: number
+    }
   isManager: boolean
   createdAt: string
   updatedAt: string
@@ -87,6 +95,7 @@ export interface UpdateProfileDto {
   lastName?: string
   email?: string
   phone?: string
+  avatar?: string  | null // Allow null for removing avatar
   jobPositionId?: string
   officeId?: string
   // role: Role

@@ -1,3 +1,4 @@
+"use client"
 import { memo } from 'react'
 
 type TabType = 'info' | 'password'

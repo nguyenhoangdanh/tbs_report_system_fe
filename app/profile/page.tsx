@@ -22,15 +22,20 @@ import { ScreenLoading } from '@/components/loading/screen-loading'
 
 function ProfileContent() {
   const {
+    user,
     isLoading,
     updateProfile,
     changePassword,
+    uploadAvatar,
+    removeAvatar,
     isUpdating,
     isChangingPassword,
+    isUploadingAvatar,
+    isRemovingAvatar,
     refetch,
   } = useProfileManagement();
 
-  const { isAuthenticated, checkAuth, user } = useAuth()
+  const { isAuthenticated, checkAuth } = useAuth()
   const router = useRouter();
 
   const [activeTab, setActiveTab] = useState<'info' | 'password'>('info')
@@ -129,6 +134,26 @@ function ProfileContent() {
     }
   }, [changePassword])
 
+  const handleAvatarUpload = useCallback(async (file: File) => {
+    try {
+      await uploadAvatar(file)
+      // Success message is handled in the hook
+    } catch (error: any) {
+      // Error message is handled in the hook, but we can add additional handling here
+      console.error('Avatar upload failed:', error)
+    }
+  }, [uploadAvatar])
+
+  const handleAvatarRemove = useCallback(async () => {
+    try {
+      await removeAvatar()
+      // Success message is handled in the hook
+    } catch (error: any) {
+      // Error message is handled in the hook
+      console.error('Avatar remove failed:', error)
+    }
+  }, [removeAvatar])
+
   if (isLoading) {
     return <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
   }
@@ -151,21 +176,20 @@ function ProfileContent() {
   }
 
   return (
-    <MainLayout
-      title="Thông tin cá nhân"
-      // subtitle="Quản lý thông tin tài khoản và cài đặt bảo mật"
-      // showBreadcrumb
-      // breadcrumbItems={[
-      //   { label: 'Trang chủ', href: user?.role === 'USER' ? "/dashboard" : "/admin/hierarchy" },
-      //   { label: 'Thông tin cá nhân' }
-      // ]}
-    >
+    <MainLayout title="Thông tin cá nhân">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           <div className="lg:col-span-1">
             <Card>
               <CardContent className="p-6">
-                <UserAvatar user={user} />
+                <UserAvatar 
+                  user={user} 
+                  onAvatarUpload={handleAvatarUpload}
+                  onAvatarRemove={handleAvatarRemove}
+                  allowEdit={true}
+                  isUploading={isUploadingAvatar}
+                  isRemoving={isRemovingAvatar}
+                />
                 <SidebarNav activeTab={activeTab} setActiveTab={setActiveTab} />
               </CardContent>
             </Card>

@@ -106,14 +106,11 @@ class EnhancedApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor - Enhanced for credentials debugging
+    // Request interceptor
     this.client.interceptors.request.use((config) => {
-      // Ensure credentials are always included
       config.credentials = 'include';
       
-      // ✅ Remove problematic headers that cause CORS issues
       if (config.headers) {
-        // Remove headers that might cause CORS preflight issues
         delete config.headers['Pragma'];
         delete config.headers['pragma'];
         delete config.headers['Cache-Control'];
@@ -123,56 +120,53 @@ class EnhancedApiClient {
       return config
     })
 
-    // Response interceptor - Enhanced for auto token refresh
+    // Response interceptor with iOS fallback handling
     this.client.interceptors.response.use({
       onFulfilled: (response) => {
+        // Auto-detect iOS fallback from backend
+        const iosDetected = response.headers.get('x-ios-fallback') === 'true';
+        const fallbackToken = response.headers.get('x-access-token');
+        
+        if (iosDetected && fallbackToken && typeof window !== 'undefined') {
+          console.log('📱 iOS detected by backend - storing fallback token');
+          localStorage.setItem('access_token', fallbackToken);
+          
+          // Also try to read from ios_auth_token cookie if available
+          const iosTokenMatch = document.cookie.match(/ios_auth_token=([^;]+)/);
+          if (iosTokenMatch) {
+            localStorage.setItem('access_token', iosTokenMatch[1]);
+          }
+        }
         
         return response
       },
       onRejected: async (error: ApiError) => {
-        console.error('❌ API Error:', {
-          status: error.status,
-          message: error.message,
-          url: error.config?.url,
-          method: error.config?.method,
-          isAuth: error.status === 401,
-          isCORS: error.message?.includes('CORS') || error.message?.includes('cors'),
-          hasCookies: typeof document !== 'undefined' ? document.cookie.includes('access_token') : false,
-          timestamp: new Date().toISOString()
-        });
+        // console.error('❌ API Error:', {
+        //   status: error.status,
+        //   message: error.message,
+        //   url: error.config?.url,
+        //   method: error.config?.method,
+        //   isAuth: error.status === 401,
+        //   timestamp: new Date().toISOString()
+        // });
 
-        // Handle CORS errors
-        if (error.message?.includes('CORS') || error.message?.includes('cors')) {
-          console.error('🚨 CORS Error detected:', {
-            message: error.message,
-            url: error.config?.url,
-            method: error.config?.method,
-            headers: error.config?.headers
-          });
-        }
-
-        // Handle 401 Unauthorized errors with auto-refresh attempt
+        // Handle 401 with automatic token refresh
         if (error.status === 401) {
           console.warn('🔐 Authentication failed - attempting token refresh');
           
-          // Try to refresh token first
           try {
             const refreshResult = await this.attemptTokenRefresh();
             if (refreshResult.success) {
-              // For now, just reject the promise to prevent infinite loops
-              // You can implement retry logic here if needed
               return Promise.reject(error);
             }
           } catch (refreshError) {
-            console.error('❌ Token refresh failed:', refreshError);
+            // console.error('❌ Token refresh failed:', refreshError);
           }
           
-          // If refresh fails, clear tokens and redirect
           this.clearAuthTokens();
           this.redirectToLogin();
         }
 
-        // Enhanced error handling
         const enhancedError: ProjectApiError = {
           ...error,
           isNetworkError: error.code === 'NETWORK_ERROR',
@@ -189,19 +183,26 @@ class EnhancedApiClient {
     try {
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
-        credentials: 'include', // Include cookies for refresh
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          // ✅ Only essential headers to avoid CORS issues
         },
       });
 
       if (response.ok) {
         const data = await response.json();
         
-        // Optionally store new token in localStorage as backup
+        // Auto-handle iOS fallback from backend
+        const iosDetected = response.headers.get('x-ios-fallback') === 'true';
+        const fallbackToken = response.headers.get('x-access-token');
+        
         if (data.access_token) {
           localStorage.setItem('access_token', data.access_token);
+        }
+        
+        if (iosDetected && fallbackToken) {
+          console.log('📱 iOS refresh detected - storing fallback token');
+          localStorage.setItem('access_token', fallbackToken);
         }
         
         return { success: true };
@@ -209,7 +210,7 @@ class EnhancedApiClient {
       
       return { success: false };
     } catch (error) {
-      console.error('🔄 Token refresh error:', error);
+      // console.error('🔄 Token refresh error:', error);
       return { success: false };
     }
   }
@@ -219,8 +220,13 @@ class EnhancedApiClient {
       localStorage.removeItem('access_token');
       sessionStorage.removeItem('access_token');
       
-      // Clear cookies (best effort - httpOnly cookies can't be cleared from JS)
-      document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=None; Secure';
+      // Enhanced cookie clearing
+      const cookiesToClear = ['access_token', 'ios_auth_token', 'refresh_token'];
+      cookiesToClear.forEach(cookieName => {
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax;`;
+      });
     }
   }
 
@@ -480,7 +486,7 @@ class EnhancedApiClient {
   async getLegacy<T>(endpoint: string, config?: RequestConfig): Promise<T | null> {
     const result = await this.get<T>(endpoint, config)
     if (!result.success) {
-      console.error(`[API Error] GET ${endpoint}:`, result.error)
+      // console.error(`[API Error] GET ${endpoint}:`, result.error)
       return null
     }
     return result.data || null
@@ -489,7 +495,7 @@ class EnhancedApiClient {
   async postLegacy<T>(endpoint: string, data?: any, config?: RequestConfig): Promise<T | null> {
     const result = await this.post<T>(endpoint, data, config)
     if (!result.success) {
-      console.error(`[API Error] POST ${endpoint}:`, result.error)
+      // console.error(`[API Error] POST ${endpoint}:`, result.error)
       return null
     }
     return result.data || null
@@ -498,7 +504,7 @@ class EnhancedApiClient {
   async putLegacy<T>(endpoint: string, data?: any, config?: RequestConfig): Promise<T | null> {
     const result = await this.put<T>(endpoint, data, config)
     if (!result.success) {
-      console.error(`[API Error] PUT ${endpoint}:`, result.error)
+      // console.error(`[API Error] PUT ${endpoint}:`, result.error)
       return null
     }
     return result.data || null
@@ -507,7 +513,7 @@ class EnhancedApiClient {
   async patchLegacy<T>(endpoint: string, data?: any, config?: RequestConfig): Promise<T | null> {
     const result = await this.patch<T>(endpoint, data, config)
     if (!result.success) {
-      console.error(`[API Error] PATCH ${endpoint}:`, result.error)
+      // console.error(`[API Error] PATCH ${endpoint}:`, result.error)
       return null
     }
     return result.data || null
@@ -516,22 +522,22 @@ class EnhancedApiClient {
   async deleteLegacy<T = void>(endpoint: string, config?: RequestConfig): Promise<T | null> {
     const result = await this.delete<T>(endpoint, config)
     if (!result.success) {
-      console.error(`[API Error] DELETE ${endpoint}:`, result.error)
+      // console.error(`[API Error] DELETE ${endpoint}:`, result.error)
       return null
     }
     return result.data || null
   }
 
-  // Health check method
-  async checkHealth(): Promise<boolean> {
-    try {
-      const result = await this.get('/health', { timeout: 3000 })
-      return result.success
-    } catch (error) {
-      console.error('[API] Health check failed:', error)
-      return false
-    }
-  }
+  // // Health check method
+  // async checkHealth(): Promise<boolean> {
+  //   try {
+  //     const result = await this.get('/health', { timeout: 3000 })
+  //     return result.success
+  //   } catch (error) {
+  //     // console.error('[API] Health check failed:', error)
+  //     return false
+  //   }
+  // }
 
   // Enhanced auth check with cookie debugging
   async checkAuth(): Promise<{ isAuthenticated: boolean; user?: any }> {
@@ -549,7 +555,7 @@ class EnhancedApiClient {
       
       return { isAuthenticated: false }
     } catch (error) {
-      console.error('[API] Auth check failed:', error)
+      // console.error('[API] Auth check failed:', error)
       return { isAuthenticated: false }
     }
   }
@@ -564,7 +570,7 @@ class EnhancedApiClient {
       
       return result.success
     } catch (error) {
-      console.error('[API] Auth refresh failed:', error)
+      // console.error('[API] Auth refresh failed:', error)
       return false
     }
   }
@@ -632,7 +638,7 @@ export const legacyApi = {
 }
 
 // Export utility functions
-export const checkApiHealth = () => apiClient.checkHealth()
+// export const checkApiHealth = () => apiClient.checkHealth()
 export const clearApiCache = () => apiClient.clearCache()
 export const getApiCacheStats = () => apiClient.getCacheStats()
 
@@ -658,7 +664,7 @@ if (typeof window !== 'undefined') {
   })
   
   // Pre-warm connection
-  apiClient.checkHealth().catch(() => {
-    // Ignore health check failures during initialization
-  })
+  // apiClient.checkHealth().catch(() => {
+  //   // Ignore health check failures during initialization
+  // })
 }

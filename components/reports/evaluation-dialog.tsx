@@ -1,3 +1,4 @@
+"use client"
 import { memo, useCallback, useMemo, useEffect } from "react"
 import { format } from "date-fns"
 import { vi } from "date-fns/locale"

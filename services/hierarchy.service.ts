@@ -106,7 +106,7 @@ export class HierarchyService {
           // throw new Error(`Unknown response viewType: ${response.viewType}`)
       }
     } catch (error) {
-      console.error('HierarchyService.getMyHierarchyView error:', error)
+      // console.error('HierarchyService.getMyHierarchyView error:', error)
       
       if (error instanceof Error) {
         throw error
@@ -409,7 +409,7 @@ export class HierarchyService {
       const response = await api.get(`/hierarchy-reports/user/${userId}/report/${reportId}`)
       return response
     } catch (error) {
-      console.error('[HIERARCHY] Get report details error:', error)
+      // console.error('[HIERARCHY] Get report details error:', error)
       throw error
     }
   }

@@ -144,7 +144,7 @@ const useReportStore = create<ReportState>()(
           if (report) {
             // ✅ ENHANCED: Validate report data before syncing
             if (!report.id) {
-              console.error('❌ Invalid report data - missing id:', report);
+              // console.error('❌ Invalid report data - missing id:', report);
               return;
             }
             

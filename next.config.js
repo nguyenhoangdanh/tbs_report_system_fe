@@ -6,9 +6,46 @@ const nextConfig = {
   
   // Tối ưu images - production ready
   images: {
-    formats: ['image/webp', 'image/avif'],
-    deviceSizes: [640, 750, 828, 1080, 1200, 1920],
-    imageSizes: [16, 32, 48, 64, 96, 128, 256],
+    remotePatterns: [
+      // Cloudflare R2 domain
+      {
+        protocol: 'https',
+        hostname: 'pub-f7d08fc103f64cd0b3851f92368c01fb.r2.dev',
+        port: '',
+        pathname: '/**',
+      },
+      // Generic R2.dev pattern for other buckets
+      {
+        protocol: 'https',
+        hostname: '*.r2.dev',
+        port: '',
+        pathname: '/**',
+      },
+      // Cloudflare R2 custom domains (if using custom domain later)
+      {
+        protocol: 'https',
+        hostname: '*.cloudflarestorage.com',
+        port: '',
+        pathname: '/**',
+      },
+      // Local development server (for local avatar fallback)
+      {
+        protocol: 'http',
+        hostname: 'localhost',
+        port: '8080',
+        pathname: '/uploads/**',
+      },
+      {
+        protocol: 'http',
+        hostname: '127.0.0.1',
+        port: '8080',
+        pathname: '/uploads/**',
+      }
+    ],
+    // Optional: Configure image optimization
+    formats: ['image/avif', 'image/webp'],
+    deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+    imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
     minimumCacheTTL: 60,
   },
   

@@ -1,14 +1,37 @@
 'use client'
 
-import { Suspense, memo } from 'react'
+import { Suspense, memo, useEffect, useState } from 'react'
 import { motion, useScroll, useTransform, useSpring, useReducedMotion, Variants } from 'framer-motion'
 import Link from 'next/link'
 import { MainLayout } from '@/components/layout/main-layout'
 import { ScreenLoading } from '@/components/loading/screen-loading'
 
-// Optimized StatCard component with reduced animations
+// iOS-safe loading fallback
+const IOSFallbackLoading = () => (
+  <div className="min-h-screen flex items-center justify-center bg-background">
+    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600"></div>
+  </div>
+);
+
+// Optimized StatCard component with iOS compatibility
 const StatCard = memo(({ number, label, delay }: { number: string; label: string; delay: number }) => {
   const shouldReduceMotion = useReducedMotion()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <div className="text-center p-6 rounded-xl bg-card/50 backdrop-blur-sm border border-border/50">
+        <div className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 dark:from-green-400 dark:to-emerald-400 bg-clip-text text-transparent mb-2">
+          {number}
+        </div>
+        <div className="text-muted-foreground text-sm md:text-base">{label}</div>
+      </div>
+    )
+  }
 
   return (
     <motion.div
@@ -29,7 +52,7 @@ const StatCard = memo(({ number, label, delay }: { number: string; label: string
 
 StatCard.displayName = 'StatCard'
 
-// Optimized FeatureCard component with lighter animations
+// iOS-safe FeatureCard component
 const FeatureCard = memo(({ icon, title, description, delay }: {
   icon: string
   title: string
@@ -37,6 +60,27 @@ const FeatureCard = memo(({ icon, title, description, delay }: {
   delay: number
 }) => {
   const shouldReduceMotion = useReducedMotion()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted) {
+    return (
+      <div className="group relative">
+        <div className="relative p-8 bg-card/80 backdrop-blur-sm rounded-2xl shadow-lg border border-border/50">
+          <div className="w-14 h-14 bg-gradient-to-br from-green-500 to-emerald-600 dark:from-green-400 dark:to-emerald-500 rounded-xl flex items-center justify-center mb-6 shadow-lg">
+            <span className="text-2xl">{icon}</span>
+          </div>
+          <h3 className="text-xl font-semibold text-card-foreground mb-4">
+            {title}
+          </h3>
+          <p className="text-muted-foreground leading-relaxed">{description}</p>
+        </div>
+      </div>
+    )
+  }
 
   return (
     <motion.div
@@ -70,17 +114,30 @@ const FeatureCard = memo(({ icon, title, description, delay }: {
 
 FeatureCard.displayName = 'FeatureCard'
 
-// Simplified floating element component with reduced animation complexity
+// iOS-safe floating element component
 const FloatingElement = memo(({ children, delay = 0, className = "" }: {
   children: React.ReactNode
   delay?: number
   className?: string
 }) => {
   const shouldReduceMotion = useReducedMotion()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  if (!mounted || shouldReduceMotion) {
+    return (
+      <div className={`absolute opacity-20 dark:opacity-10 ${className}`}>
+        {children}
+      </div>
+    )
+  }
 
   return (
     <motion.div
-      animate={shouldReduceMotion ? {} : {
+      animate={{
         y: [-5, 5, -5],
       }}
       transition={{
@@ -98,13 +155,18 @@ const FloatingElement = memo(({ children, delay = 0, className = "" }: {
 
 FloatingElement.displayName = 'FloatingElement'
 
-// Simplified background decorations with performance focus
+// iOS-safe background decorations
 const BackgroundDecorations = memo(() => {
   const shouldReduceMotion = useReducedMotion()
+  const [mounted, setMounted] = useState(false)
+
+  useEffect(() => {
+    setMounted(true)
+  }, [])
 
   return (
     <div className="absolute inset-0 overflow-hidden pointer-events-none">
-      {/* Simplified floating background blobs - reduced count */}
+      {/* Simplified floating background blobs */}
       <FloatingElement delay={0} className="top-20 left-10">
         <div className="w-24 h-24 bg-gradient-to-br from-green-400 to-emerald-500 rounded-full blur-2xl" />
       </FloatingElement>
@@ -112,8 +174,8 @@ const BackgroundDecorations = memo(() => {
         <div className="w-20 h-20 bg-gradient-to-br from-blue-400 to-cyan-500 rounded-full blur-xl" />
       </FloatingElement>
 
-      {/* Static floating icons on mobile, animated on desktop */}
-      {!shouldReduceMotion && [
+      {/* Static floating icons on mobile/iOS, animated on desktop */}
+      {mounted && !shouldReduceMotion && [
         { icon: "📊", delay: 0.5, className: "top-40 left-12 text-2xl" },
         { icon: "⚡", delay: 2, className: "bottom-56 right-16 text-2xl" },
       ].map((item, index) => (
@@ -136,7 +198,7 @@ const BackgroundDecorations = memo(() => {
       ))}
 
       {/* Simplified geometric shapes - only essential ones */}
-      {!shouldReduceMotion && (
+      {mounted && !shouldReduceMotion && (
         <motion.div
           className="absolute top-36 left-32 w-5 h-5 border-green-400 rounded-full border-2 opacity-20 dark:opacity-10"
           animate={{
@@ -156,9 +218,17 @@ const BackgroundDecorations = memo(() => {
 
 BackgroundDecorations.displayName = 'BackgroundDecorations'
 
+// Main component with iOS safety
 export default function HomePage() {
+  const [mounted, setMounted] = useState(false)
   const { scrollYProgress } = useScroll()
   const shouldReduceMotion = useReducedMotion()
+  
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  // iOS-safe transforms
   const y = useTransform(scrollYProgress, [0, 1], [0, shouldReduceMotion ? 0 : -30])
   const opacity = useTransform(scrollYProgress, [0, 0.3], [1, 0.9])
   const springY = useSpring(y, { stiffness: 100, damping: 30, restDelta: 0.001 })
@@ -190,10 +260,45 @@ export default function HomePage() {
     }
   }
 
+  // Show fallback on iOS until mounted
+  if (!mounted) {
+    return (
+      <MainLayout 
+        title={undefined} 
+        subtitle={undefined} 
+        showBreadcrumb={false}
+        enableBackgroundAnimation={false}
+        backgroundIntensity="subtle"
+        className="min-h-screen"
+      >
+        <div className="relative pt-16 pb-20 md:pt-24 md:pb-32">
+          <div className="relative max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="text-center max-w-4xl mx-auto">
+              <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-foreground mb-6 leading-tight">
+                Hệ thống báo cáo <br />
+                <span className="bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 dark:from-green-400 dark:via-emerald-400 dark:to-green-400 bg-clip-text text-transparent">
+                  công việc hàng tuần
+                </span>
+              </h1>
+              <p className="text-xl md:text-2xl text-muted-foreground mb-10 leading-relaxed">
+                Quản lý tiến độ công việc thông minh, tăng năng suất và minh bạch cho doanh nghiệp
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <Link href="/login">
+                  <button className="px-8 py-4 text-lg font-semibold text-foreground bg-card/80 backdrop-blur-sm border-2 border-border/50 rounded-lg hover:bg-accent hover:border-green-500/50 transition-all duration-200 w-full sm:w-auto shadow-lg">
+                    Đăng nhập
+                  </button>
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </MainLayout>
+    )
+  }
+
   return (
-    <Suspense fallback={
-      <ScreenLoading size="lg" variant="grid" fullScreen backdrop />
-    }>
+    <Suspense fallback={<IOSFallbackLoading />}>
       <MainLayout 
         title={undefined} 
         subtitle={undefined} 
@@ -204,14 +309,13 @@ export default function HomePage() {
       >
         {/* Hero Section */}
         <section className="relative pt-16 pb-20 md:pt-24 md:pb-32 overflow-hidden">
-          {/* Simplified background */}
           <div className="absolute inset-0 bg-gradient-to-br from-green-50/30 via-background to-emerald-50/20 dark:from-green-950/10 dark:via-background dark:to-emerald-950/5" />
 
           <BackgroundDecorations />
 
           <motion.div
             className="relative max-w-8xl mx-auto px-4 sm:px-6 lg:px-8"
-            style={{ y: springY, opacity }}
+            style={mounted ? { y: springY, opacity } : {}}
             variants={containerVariants}
             initial="hidden"
             animate="visible"
@@ -224,7 +328,7 @@ export default function HomePage() {
                 Hệ thống báo cáo <br />
                 <motion.span
                   className="bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 dark:from-green-400 dark:via-emerald-400 dark:to-green-400 bg-clip-text text-transparent"
-                  animate={shouldReduceMotion ? {} : {
+                  animate={shouldReduceMotion || !mounted ? {} : {
                     backgroundPosition: ["0% 50%", "100% 50%", "0% 50%"]
                   }}
                   transition={{
@@ -261,7 +365,7 @@ export default function HomePage() {
               </motion.div>
             </div>
 
-            {/* Stats Section with reduced animation */}
+            {/* Stats Section with mounted check */}
             <motion.div
               className="mt-20 grid grid-cols-2 md:grid-cols-4 gap-4 max-w-4xl mx-auto"
               variants={itemVariants}
@@ -274,7 +378,7 @@ export default function HomePage() {
           </motion.div>
         </section>
 
-        {/* Features Section with optimized animations */}
+        {/* Features Section */}
         <section id="features" className="py-20 md:py-32 bg-muted/20 backdrop-blur-sm relative overflow-hidden">
           <div className="relative max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-16">
@@ -348,7 +452,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* Benefits Section with simplified animations */}
+        {/* Benefits Section */}
         <section id="benefits" className="py-20 md:py-32 relative overflow-hidden">
           <div className="max-w-8xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 lg:gap-20 items-center">
@@ -468,7 +572,7 @@ export default function HomePage() {
           </div>
         </section>
 
-        {/* CTA Section with simplified background */}
+        {/* CTA Section */}
         <section className="py-20 md:py-32 bg-gradient-to-br from-green-600 to-emerald-700 dark:from-green-800 dark:to-emerald-900 relative overflow-hidden">
           <div className="absolute inset-0">
             <FloatingElement delay={0}>

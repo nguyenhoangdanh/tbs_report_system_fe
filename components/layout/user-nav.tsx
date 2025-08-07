@@ -4,6 +4,7 @@ import { useState, memo } from 'react'
 import { useAuth } from '@/components/providers/auth-provider'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { AvatarDisplay } from '@/components/ui/avatar-display'
 
 export const UserNav = memo(function UserNav() {
   const { user, logout } = useAuth()
@@ -64,16 +65,6 @@ export const UserNav = memo(function UserNav() {
           })
         }
         break
-
-      // case 'ADMIN':
-      //   links.push({
-      //     href: '/admin/users',
-      //     icon: '👥',
-      //     label: 'Quản lý Users',
-      //     description: 'Quản lý người dùng'
-      //   })
-      //   break
-
     }
 
     return links
@@ -93,11 +84,15 @@ export const UserNav = memo(function UserNav() {
           onClick={() => setIsDropdownOpen(!isDropdownOpen)}
           className="flex items-center space-x-2 sm:space-x-3 p-1 sm:p-2 rounded-lg hover:bg-accent transition-colors"
         >
-          <div className="w-7 h-7 sm:w-8 sm:h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-            <span className="text-white text-xs sm:text-sm font-medium">
-              {userInitials}
-            </span>
-          </div>
+          {/* Avatar with R2 support */}
+          <AvatarDisplay
+            src={user.avatar}
+            fallbackText={userInitials}
+            size="sm"
+            alt={`${user.firstName} ${user.lastName}`}
+            className="ring-2 ring-green-500/20 hover:ring-green-500/40 transition-all duration-200"
+          />
+          
           <div className="hidden lg:block text-left">
             <p className="text-sm font-medium text-foreground">
               {userFullName || user.employeeCode}
@@ -135,14 +130,15 @@ export const UserNav = memo(function UserNav() {
               transition={{ duration: 0.15 }}
               className="absolute right-0 top-full mt-2 w-64 sm:w-72 bg-card border border-border rounded-lg shadow-lg z-50 max-h-[calc(100vh-120px)] overflow-y-auto"
             >
-
-              {  /* User Info */}
+              {/* User Info with Avatar */}
               <div className="flex items-center p-3 border-b border-border">
-                <div className="w-10 h-10 sm:w-12 sm:h-12 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
-                  <span className="text-white text-sm sm:text-base font-medium">
-                    {userInitials}
-                  </span>
-                </div>
+                <AvatarDisplay
+                  src={user.avatar}
+                  fallbackText={userInitials}
+                  size="md"
+                  alt={`${user.firstName} ${user.lastName}`}
+                  className="ring-2 ring-green-500/30 hover:ring-green-500/50 transition-all duration-200"
+                />
                 <div className="ml-3">
                   <p className="text-sm font-medium text-foreground">
                     {userFullName || user.employeeCode}
@@ -150,6 +146,11 @@ export const UserNav = memo(function UserNav() {
                   <p className="text-xs text-muted-foreground">
                     {user.jobPosition?.position?.description || user.role}
                   </p>
+                  {/* {user.avatar && (
+                    <p className="text-xs text-green-600 dark:text-green-400 mt-0.5">
+                      📷 Có ảnh đại diện
+                    </p>
+                  )} */}
                 </div>
               </div>
 
@@ -165,7 +166,9 @@ export const UserNav = memo(function UserNav() {
                     <span className="text-base sm:text-lg">👤</span>
                     <div className="min-w-0 flex-1">
                       <div className="text-sm font-medium truncate">Thông tin cá nhân</div>
-                      <div className="text-xs text-muted-foreground truncate">Cập nhật hồ sơ</div>
+                      <div className="text-xs text-muted-foreground truncate">
+                        {user.avatar ? 'Cập nhật hồ sơ & ảnh đại diện' : 'Cập nhật hồ sơ'}
+                      </div>
                     </div>
                   </Link>
                   {user.role !== 'SUPERADMIN' && user.role !== 'ADMIN' && (

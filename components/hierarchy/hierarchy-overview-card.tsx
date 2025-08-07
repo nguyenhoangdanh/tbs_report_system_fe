@@ -1,3 +1,4 @@
+"use client"
 import { PositionData } from "@/utils/hierarchy-utils"
 import { useReducedMotion, motion } from "framer-motion"
 import { memo, useMemo, useCallback } from "react"
