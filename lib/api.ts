@@ -77,18 +77,15 @@ class EnhancedApiClient {
   private cleanupInterval: ReturnType<typeof setInterval> | null = null
 
   constructor(config: ApiConfig = {}) {
-    // Create fetch-api-client instance with iOS-specific configuration
+    // Create fetch-api-client instance with CORS-friendly configuration
     this.client = createClient({
       baseURL: API_BASE_URL,
       timeout: 8000,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        // iOS-specific headers
-        ...(this.isIOSDevice() && {
-          'X-iOS-Device': 'true',
-          'X-iOS-Version': this.getIOSVersion(),
-        })
+        // ✅ Remove iOS headers from default config to avoid CORS preflight
+        // iOS detection will be done in request interceptor only when needed
       },
       credentials: 'include', // ✅ Critical: Always include cookies
       validateStatus: (status) => status < 500,
@@ -150,31 +147,36 @@ class EnhancedApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor with iOS-specific handling
+    // Request interceptor with CORS-safe iOS handling
     this.client.interceptors.request.use((config) => {
       config.credentials = 'include';
       
-      // iOS-specific request setup
+      // ✅ Only add iOS headers for non-preflight requests to avoid CORS issues
+      // Most browsers won't preflight simple requests with these specific headers
       if (this.isIOSDevice()) {
-        config.headers = {
-          ...config.headers,
-          'X-iOS-Device': 'true',
-          'X-iOS-Version': this.getIOSVersion(),
-        };
-        
-        // Try to add iOS token to header as backup
+        // Only add headers that don't trigger CORS preflight
+        // Avoid X-iOS-Device as it triggers preflight - use User-Agent detection on backend instead
         const iosToken = this.getIOSToken();
         if (iosToken && !config.headers?.['Authorization']) {
-          config.headers['X-Access-Token'] = iosToken;
+          // Use Authorization header instead of custom headers to avoid CORS
+          config.headers = {
+            ...config.headers,
+            'Authorization': `Bearer ${iosToken}`,
+          };
         }
       }
       
-      // Remove problematic headers
+      // Remove problematic headers that trigger CORS preflight
       if (config.headers) {
+        // Clean up headers that cause CORS issues
         delete config.headers['Pragma'];
         delete config.headers['pragma'];
         delete config.headers['Cache-Control'];
         delete config.headers['cache-control'];
+        delete config.headers['X-iOS-Device'];
+        delete config.headers['X-iOS-Version'];
+        delete config.headers['X-Platform'];
+        delete config.headers['X-Device-Type'];
       }
       
       return config
@@ -239,16 +241,14 @@ class EnhancedApiClient {
 
   private async attemptTokenRefresh(): Promise<{ success: boolean }> {
     try {
-      // Enhanced iOS refresh with multiple cookie attempts
+      // ✅ Use simple fetch to avoid CORS issues with custom headers
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
         credentials: 'include', // ✅ Critical
         headers: {
           'Content-Type': 'application/json',
-          ...(this.isIOSDevice() && {
-            'X-iOS-Device': 'true',
-            'X-iOS-Version': this.getIOSVersion(),
-          })
+          // ✅ Removed iOS-specific headers to avoid CORS preflight
+          // Backend will detect iOS from User-Agent instead
         },
       });
 

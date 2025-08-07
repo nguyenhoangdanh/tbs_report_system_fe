@@ -35,7 +35,7 @@
     "clsx": "^2.0.0",
     "date-fns": "^3.6.0",
     "exceljs": "^4.4.0",
-    "fetch-api-client": "^1.0.1",
+    "fetch-api-client": "^1.0.3",
     "framer-motion": "^12.19.1",
     "jwt-decode": "^4.0.0",
     "lucide-react": "^0.522.0",
