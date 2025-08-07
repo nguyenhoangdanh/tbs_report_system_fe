@@ -127,8 +127,8 @@ const nextConfig = {
   // Output config cho static export nếu cần
   output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
   
-  // Webpack config - cải thiện cho iOS
-  webpack: (config, { isServer }) => {
+  // Webpack config - cải thiện cho iOS và handle missing PDF.js files
+  webpack: (config, { isServer, dev }) => {
     if (!isServer) {
       config.resolve.fallback = {
         ...config.resolve.fallback,
@@ -138,14 +138,23 @@ const nextConfig = {
       }
     }
 
-    // Fix PDF.js worker for iOS
+    // Fix PDF.js worker for iOS - with error handling
     config.module.rules.push({
-      test: /pdf\.worker\.(min\.)?js/,
+      test: /pdf\.worker\.(min\.)?(js|mjs)$/,
       type: 'asset/resource',
       generator: {
         filename: 'static/worker/[hash][ext][query]'
       }
     })
+
+    // Handle pdfjs-dist imports
+    if (!isServer) {
+      config.resolve.alias = {
+        ...config.resolve.alias,
+        'pdfjs-dist/build/pdf.worker.min.js': require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),
+        'pdfjs-dist/build/pdf.worker.js': require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),
+      }
+    }
 
     return config
   },
