@@ -8,30 +8,30 @@ import { Button } from "@/components/ui/button"
 import { X, Download, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react"
 import { toast } from "react-toast-kit"
 
-// Simple worker setup that works in all environments
+// Production-ready worker setup for Vercel
 if (typeof window !== 'undefined') {
-  // Try local worker first (from postinstall script)
-  const localWorkerPath = '/pdf.worker.min.mjs'
-  
-  // Check if local worker exists
-  fetch(localWorkerPath, { method: 'HEAD' })
-    .then(response => {
-      if (response.ok) {
-        pdfjs.GlobalWorkerOptions.workerSrc = localWorkerPath
-      } else {
-        throw new Error('Local worker not found')
-      }
+  // Use CDN worker for production (more reliable on Vercel)
+  if (process.env.NODE_ENV === 'production') {
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
+  } else {
+    // Local development - try local worker first, fallback to CDN
+    const localWorkerPath = '/pdf.worker.min.mjs'
+    pdfjs.GlobalWorkerOptions.workerSrc = localWorkerPath
+    
+    // Test if local worker works, if not fallback to CDN
+    fetch(localWorkerPath, { method: 'HEAD' }).catch(() => {
+      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
     })
-    .catch(() => {
-      // Fallback to CDN
-      const cdnUrl = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
-      pdfjs.GlobalWorkerOptions.workerSrc = cdnUrl
-    })
+  }
 }
 
 const options = {
-  cMapUrl: '/cmaps/',
-  standardFontDataUrl: '/standard_fonts/',
+  cMapUrl: process.env.NODE_ENV === 'production' 
+    ? `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/` 
+    : '/cmaps/',
+  standardFontDataUrl: process.env.NODE_ENV === 'production'
+    ? `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`
+    : '/standard_fonts/',
   defaultScale: 1.0,
 }
 
@@ -45,16 +45,24 @@ export default function PDFViewer({ isOpen, onClose }: PDFViewerProps) {
   const [pageNumber, setPageNumber] = useState(1)
   const [scale, setScale] = useState(1.0)
   const [pdfError, setPdfError] = useState(false)
+  const [isLoading, setIsLoading] = useState(false)
 
   const onDocumentLoadSuccess = useCallback(({ numPages }: { numPages: number }) => {
     setNumPages(numPages)
     setPdfError(false)
+    setIsLoading(false)
   }, [])
 
   const onDocumentLoadError = useCallback((error: Error) => {
     console.error('Error loading PDF:', error)
     setPdfError(true)
+    setIsLoading(false)
     toast.error('Không thể tải file PDF')
+  }, [])
+
+  const onDocumentLoadStart = useCallback(() => {
+    setIsLoading(true)
+    setPdfError(false)
   }, [])
 
   const handleDownloadPDF = () => {
@@ -190,13 +198,31 @@ export default function PDFViewer({ isOpen, onClose }: PDFViewerProps) {
 
         {/* PDF Content */}
         <div className="flex-1 overflow-auto bg-gray-100 dark:bg-gray-800 p-4">
-          {!pdfError ? (
+          {isLoading && (
+            <div className="flex items-center justify-center h-full">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                <p className="text-gray-600 dark:text-gray-400">Đang tải PDF...</p>
+              </div>
+            </div>
+          )}
+          
+          {!pdfError && !isLoading ? (
             <div className="flex justify-center">
               <Document
                 file="/huong_dan.pdf"
                 onLoadSuccess={onDocumentLoadSuccess}
                 onLoadError={onDocumentLoadError}
+                onLoadStart={onDocumentLoadStart}
                 options={options}
+                loading={
+                  <div className="flex items-center justify-center h-96">
+                    <div className="text-center">
+                      <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                      <p className="text-gray-600 dark:text-gray-400">Đang tải PDF...</p>
+                    </div>
+                  </div>
+                }
               >
                 <Page
                   pageNumber={pageNumber}
@@ -208,7 +234,7 @@ export default function PDFViewer({ isOpen, onClose }: PDFViewerProps) {
                 />
               </Document>
             </div>
-          ) : (
+          ) : pdfError ? (
             <div className="flex flex-col items-center justify-center h-full text-center">
               <div className="max-w-md">
                 <div className="w-16 h-16 mx-auto mb-4 bg-red-100 dark:bg-red-900/20 rounded-full flex items-center justify-center">
@@ -242,7 +268,7 @@ export default function PDFViewer({ isOpen, onClose }: PDFViewerProps) {
                 </div>
               </div>
             </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

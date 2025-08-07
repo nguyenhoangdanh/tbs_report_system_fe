@@ -72,13 +72,30 @@ const nextConfig = {
           },
         ],
       },
-      // Add headers for PDF.js worker and assets
+      // Add headers for PDF.js worker and assets - support both formats
+      {
+        source: '/pdf.worker.min.js',
+        headers: [
+          {
+            key: 'Content-Type',
+            value: 'application/javascript',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
+          },
+        ],
+      },
       {
         source: '/pdf.worker.min.mjs',
         headers: [
           {
             key: 'Content-Type',
             value: 'application/javascript',
+          },
+          {
+            key: 'Cache-Control',
+            value: 'public, max-age=31536000, immutable',
           },
         ],
       },
@@ -138,7 +155,7 @@ const nextConfig = {
       }
     }
 
-    // Fix PDF.js worker for iOS - with error handling
+    // Fix PDF.js worker for all environments
     config.module.rules.push({
       test: /pdf\.worker\.(min\.)?(js|mjs)$/,
       type: 'asset/resource',
@@ -147,12 +164,11 @@ const nextConfig = {
       }
     })
 
-    // Handle pdfjs-dist imports
-    if (!isServer) {
+    // Handle pdfjs-dist imports - remove problematic aliases for Vercel
+    if (!isServer && dev) {
       config.resolve.alias = {
         ...config.resolve.alias,
         'pdfjs-dist/build/pdf.worker.min.js': require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),
-        'pdfjs-dist/build/pdf.worker.js': require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),
       }
     }
 
