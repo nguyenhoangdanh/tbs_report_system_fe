@@ -130,30 +130,14 @@ class EnhancedApiClient {
   private getIOSToken(): string | null {
     if (typeof window === 'undefined') return null;
     
-    // Try multiple cookie strategies for iOS
-    const cookieStrategies = [
-      'access_token',
-      'ios_access_token', 
-      'auth_token',
-      'session_token'
-    ];
-    
-    for (const cookieName of cookieStrategies) {
-      const cookieMatch = document.cookie.match(new RegExp(`${cookieName}=([^;]+)`));
-      if (cookieMatch) {
-        return cookieMatch[1];
-      }
+    // ✅ SIMPLE: Only check access_token cookie and localStorage
+    const cookieMatch = document.cookie.match(/access_token=([^;]+)/);
+    if (cookieMatch) {
+      return cookieMatch[1];
     }
     
-    // Try localStorage as final fallback
-    for (const cookieName of cookieStrategies) {
-      const stored = localStorage.getItem(cookieName);
-      if (stored) {
-        return stored;
-      }
-    }
-    
-    return null;
+    // Fallback to localStorage
+    return localStorage.getItem('access_token');
   }
 
   private setupInterceptors() {
@@ -161,7 +145,7 @@ class EnhancedApiClient {
     this.client.interceptors.request.use((config) => {
       config.credentials = 'include';
       
-      // For iOS devices, try to add token as Authorization header if cookies fail
+      // ✅ For iOS devices, add token as Authorization header if available
       if (this.isIOSDevice()) {
         const iosToken = this.getIOSToken();
         if (iosToken && !config.headers?.['Authorization']) {
@@ -174,7 +158,6 @@ class EnhancedApiClient {
       
       // Remove problematic headers that trigger CORS preflight
       if (config.headers) {
-        // Clean up headers that cause CORS issues
         delete config.headers['Pragma'];
         delete config.headers['pragma'];
         delete config.headers['Cache-Control'];
@@ -188,29 +171,22 @@ class EnhancedApiClient {
       return config
     })
 
-    // Response interceptor with enhanced iOS handling
+    // Response interceptor with simplified iOS handling
     this.client.interceptors.response.use({
       onFulfilled: (response) => {
-        // Enhanced iOS fallback handling
+        // ✅ SIMPLE: Handle iOS fallback token
         const iosDetected = response.headers.get('x-ios-fallback') === 'true';
         const fallbackToken = response.headers.get('x-access-token');
         
         if (iosDetected && fallbackToken && typeof window !== 'undefined') {
           console.log('📱 iOS detected by backend - storing fallback token');
+          localStorage.setItem('access_token', fallbackToken);
           
-          // Store in multiple strategies for iOS
-          const strategies = ['access_token', 'ios_access_token', 'auth_token', 'session_token'];
-          strategies.forEach(strategy => {
-            localStorage.setItem(strategy, fallbackToken);
-          });
-          
-          // Also read from all possible iOS cookies and store
-          strategies.forEach(strategy => {
-            const cookieMatch = document.cookie.match(new RegExp(`${strategy}=([^;]+)`));
-            if (cookieMatch) {
-              localStorage.setItem(strategy, cookieMatch[1]);
-            }
-          });
+          // Also check if access_token cookie exists
+          const cookieMatch = document.cookie.match(/access_token=([^;]+)/);
+          if (cookieMatch) {
+            localStorage.setItem('access_token', cookieMatch[1]);
+          }
         }
         
         return response
@@ -290,23 +266,33 @@ class EnhancedApiClient {
 
   private clearAuthTokens() {
     if (typeof window !== 'undefined') {
-      // Clear localStorage
+      // ✅ SIMPLE: Clear only access_token
       localStorage.removeItem('access_token');
-      localStorage.removeItem('ios_access_token');
       sessionStorage.removeItem('access_token');
       
-      // Enhanced cookie clearing for iOS
-      const cookiesToClear = ['access_token', 'ios_access_token', 'auth_token', 'refresh_token'];
-      const domains = ['', `.${window.location.hostname}`, '.vercel.app'];
-      const sameSiteOptions = ['Lax', 'Strict', 'None'];
+      // ✅ Enhanced cookie clearing - try multiple approaches to ensure cleanup
+      const cookiesToClear = ['access_token'];
       
       cookiesToClear.forEach(cookieName => {
-        domains.forEach(domain => {
-          sameSiteOptions.forEach(sameSite => {
-            // Clear with different combinations
-            const domainPart = domain ? `domain=${domain};` : '';
-            document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; ${domainPart} SameSite=${sameSite};`;
-          });
+        // Method 1: Simple clear
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        
+        // Method 2: With domain
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
+        
+        // Method 3: With parent domain (for .vercel.app)
+        if (window.location.hostname.includes('.')) {
+          const domain = '.' + window.location.hostname.split('.').slice(-2).join('.');
+          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${domain};`;
+        }
+        
+        // Method 4: With SameSite variations
+        const sameSiteOptions = ['Lax', 'Strict', 'None'];
+        sameSiteOptions.forEach(sameSite => {
+          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=${sameSite};`;
+          if (window.location.protocol === 'https:') {
+            document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=${sameSite}; Secure;`;
+          }
         });
       });
     }
