@@ -8,29 +8,37 @@ import { Button } from "@/components/ui/button"
 import { X, Download, ExternalLink, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from "lucide-react"
 import { toast } from "react-toast-kit"
 
-// Production-ready worker setup for Vercel
+// Production-ready worker setup for Vercel - using jsDelivr instead of unpkg
 if (typeof window !== 'undefined') {
-  // Use CDN worker for production (more reliable on Vercel)
+  // Use jsDelivr CDN for production (better CORS support than unpkg)
   if (process.env.NODE_ENV === 'production') {
-    pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
+    pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
   } else {
-    // Local development - try local worker first, fallback to CDN
+    // Local development - try local worker first, fallback to jsDelivr
     const localWorkerPath = '/pdf.worker.min.mjs'
-    pdfjs.GlobalWorkerOptions.workerSrc = localWorkerPath
     
-    // Test if local worker works, if not fallback to CDN
-    fetch(localWorkerPath, { method: 'HEAD' }).catch(() => {
-      pdfjs.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
-    })
+    // Test if local worker exists
+    fetch(localWorkerPath, { method: 'HEAD' })
+      .then(response => {
+        if (response.ok) {
+          pdfjs.GlobalWorkerOptions.workerSrc = localWorkerPath
+        } else {
+          throw new Error('Local worker not found')
+        }
+      })
+      .catch(() => {
+        // Fallback to jsDelivr CDN
+        pdfjs.GlobalWorkerOptions.workerSrc = `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`
+      })
   }
 }
 
 const options = {
   cMapUrl: process.env.NODE_ENV === 'production' 
-    ? `https://unpkg.com/pdfjs-dist@${pdfjs.version}/cmaps/` 
+    ? `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/cmaps/` 
     : '/cmaps/',
   standardFontDataUrl: process.env.NODE_ENV === 'production'
-    ? `https://unpkg.com/pdfjs-dist@${pdfjs.version}/standard_fonts/`
+    ? `https://cdn.jsdelivr.net/npm/pdfjs-dist@${pdfjs.version}/standard_fonts/`
     : '/standard_fonts/',
   defaultScale: 1.0,
 }

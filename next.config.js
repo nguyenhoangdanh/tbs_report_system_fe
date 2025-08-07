@@ -72,7 +72,7 @@ const nextConfig = {
           },
         ],
       },
-      // Add headers for PDF.js worker and assets - support both formats
+      // Add CORS headers for PDF worker files
       {
         source: '/pdf.worker.min.js',
         headers: [
@@ -83,6 +83,10 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
           },
         ],
       },
@@ -96,6 +100,10 @@ const nextConfig = {
           {
             key: 'Cache-Control',
             value: 'public, max-age=31536000, immutable',
+          },
+          {
+            key: 'Access-Control-Allow-Origin',
+            value: '*',
           },
         ],
       },
@@ -164,11 +172,14 @@ const nextConfig = {
       }
     })
 
-    // Handle pdfjs-dist imports - remove problematic aliases for Vercel
-    if (!isServer && dev) {
+    // Handle pdfjs-dist imports - better CDN support
+    if (!isServer) {
       config.resolve.alias = {
         ...config.resolve.alias,
-        'pdfjs-dist/build/pdf.worker.min.js': require.resolve('pdfjs-dist/build/pdf.worker.min.mjs'),
+        // Use jsDelivr instead of unpkg for better CORS support
+        'pdfjs-dist/build/pdf.worker.min.js': dev 
+          ? require.resolve('pdfjs-dist/build/pdf.worker.min.mjs')
+          : `https://cdn.jsdelivr.net/npm/pdfjs-dist@${require('pdfjs-dist/package.json').version}/build/pdf.worker.min.js`,
       }
     }
 
