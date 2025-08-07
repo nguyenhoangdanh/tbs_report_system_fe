@@ -4,6 +4,9 @@ const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
   
+  // Thêm transpile packages cho iOS compatibility
+  transpilePackages: ['pdfjs-dist'],
+
   // Tối ưu images - production ready
   images: {
     remotePatterns: [
@@ -112,10 +115,9 @@ const nextConfig = {
   // },
 
   // Loại bỏ experimental features gây conflict
-  // experimental: {
-  //   optimizeCss: true,
-  //   optimizePackageImports: ['@tanstack/react-query', 'framer-motion'],
-  // },
+  experimental: {
+    esmExternals: 'loose',
+  },
 
   // Compiler options - đơn giản hóa
   compiler: {
@@ -125,7 +127,7 @@ const nextConfig = {
   // Output config cho static export nếu cần
   output: process.env.BUILD_STANDALONE === 'true' ? 'standalone' : undefined,
   
-  // Webpack config để tránh module resolution issues
+  // Webpack config - cải thiện cho iOS
   webpack: (config, { isServer }) => {
     if (!isServer) {
       config.resolve.fallback = {
@@ -136,10 +138,13 @@ const nextConfig = {
       }
     }
 
-    // Ignore PDF.js worker during build to avoid resolution issues
-    config.externals = config.externals || []
-    config.externals.push({
-      'pdfjs-dist/build/pdf.worker.min.mjs': 'commonjs pdfjs-dist/build/pdf.worker.min.js'
+    // Fix PDF.js worker for iOS
+    config.module.rules.push({
+      test: /pdf\.worker\.(min\.)?js/,
+      type: 'asset/resource',
+      generator: {
+        filename: 'static/worker/[hash][ext][query]'
+      }
     })
 
     return config
