@@ -266,35 +266,30 @@ class EnhancedApiClient {
 
   private clearAuthTokens() {
     if (typeof window !== 'undefined') {
-      // ✅ SIMPLE: Clear only access_token
+      // ✅ Clear localStorage
       localStorage.removeItem('access_token');
       sessionStorage.removeItem('access_token');
       
-      // ✅ Enhanced cookie clearing - try multiple approaches to ensure cleanup
-      const cookiesToClear = ['access_token'];
+      // ✅ SIMPLE cookie clearing - no domain complications
+      const cookieName = 'access_token';
       
-      cookiesToClear.forEach(cookieName => {
-        // Method 1: Simple clear
-        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-        
-        // Method 2: With domain
-        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${window.location.hostname};`;
-        
-        // Method 3: With parent domain (for .vercel.app)
-        if (window.location.hostname.includes('.')) {
-          const domain = '.' + window.location.hostname.split('.').slice(-2).join('.');
-          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${domain};`;
-        }
-        
-        // Method 4: With SameSite variations
-        const sameSiteOptions = ['Lax', 'Strict', 'None'];
-        sameSiteOptions.forEach(sameSite => {
-          document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=${sameSite};`;
-          if (window.location.protocol === 'https:') {
-            document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=${sameSite}; Secure;`;
-          }
-        });
-      });
+      // Method 1: Simple clear (most reliable)
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+      
+      // Method 2: With secure for HTTPS
+      if (window.location.protocol === 'https:') {
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; Secure;`;
+      }
+      
+      // Method 3: With SameSite=Lax (matching backend)
+      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax;`;
+      
+      // Method 4: With both Secure and SameSite for HTTPS
+      if (window.location.protocol === 'https:') {
+        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; Secure; SameSite=Lax;`;
+      }
+      
+      // ✅ NO DOMAIN SETTING AT ALL - let browser handle it
     }
   }
 
