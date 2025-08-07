@@ -171,39 +171,30 @@ class EnhancedApiClient {
       return config
     })
 
-    // Response interceptor with simplified iOS handling
+    // Response interceptor with production-ready fallback
     this.client.interceptors.response.use({
       onFulfilled: (response) => {
-        // ✅ SIMPLE: Handle iOS fallback token
-        const iosDetected = response.headers.get('x-ios-fallback') === 'true';
+        // ✅ PRODUCTION FIX: Enhanced fallback handling
+        const cookieFallback = response.headers.get('x-cookie-fallback') === 'true';
         const fallbackToken = response.headers.get('x-access-token');
         
-        if (iosDetected && fallbackToken && typeof window !== 'undefined') {
-          console.log('📱 iOS detected by backend - storing fallback token');
+        if (cookieFallback && fallbackToken && typeof window !== 'undefined') {
+          console.log('🔄 Production cookie fallback - storing token in localStorage');
           localStorage.setItem('access_token', fallbackToken);
           
-          // Also check if access_token cookie exists
-          const cookieMatch = document.cookie.match(/access_token=([^;]+)/);
-          if (cookieMatch) {
-            localStorage.setItem('access_token', cookieMatch[1]);
+          // Also try to read any existing cookies
+          const existingCookie = document.cookie.match(/access_token=([^;]+)/);
+          if (existingCookie) {
+            localStorage.setItem('access_token', existingCookie[1]);
           }
         }
         
         return response
       },
       onRejected: async (error: ApiError) => {
-        // Enhanced iOS-specific 401 handling
+        // ✅ Enhanced 401 handling for production
         if (error.status === 401) {
-          console.warn('🔐 Authentication failed - attempting token refresh with iOS support');
-          
-          try {
-            const refreshResult = await this.attemptTokenRefresh();
-            if (refreshResult.success) {
-              return Promise.reject(error);
-            }
-          } catch (refreshError) {
-            console.error('❌ Token refresh failed:', refreshError);
-          }
+          console.warn('🔐 Authentication failed in production - clearing all tokens');
           
           this.clearAuthTokens();
           this.redirectToLogin();
@@ -223,35 +214,33 @@ class EnhancedApiClient {
 
   private async attemptTokenRefresh(): Promise<{ success: boolean }> {
     try {
-      // ✅ Use simple fetch to avoid CORS issues with custom headers
+      // ✅ PRODUCTION FIX: Enhanced refresh with fallback support
       const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
         method: 'POST',
-        credentials: 'include', // ✅ Critical
+        credentials: 'include',
         headers: {
           'Content-Type': 'application/json',
-          // ✅ Removed iOS-specific headers to avoid CORS preflight
-          // Backend will detect iOS from User-Agent instead
+          // Add Authorization header as backup in production
+          ...(localStorage.getItem('access_token') && {
+            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
+          })
         },
       });
 
       if (response.ok) {
         const data = await response.json();
         
-        // Enhanced iOS fallback handling
-        const iosDetected = response.headers.get('x-ios-fallback') === 'true';
+        // Enhanced fallback handling for production
+        const cookieFallback = response.headers.get('x-cookie-fallback') === 'true';
         const fallbackToken = response.headers.get('x-access-token');
         
         if (data.access_token) {
           localStorage.setItem('access_token', data.access_token);
-          if (this.isIOSDevice()) {
-            localStorage.setItem('ios_access_token', data.access_token);
-          }
         }
         
-        if (iosDetected && fallbackToken) {
-          console.log('📱 iOS refresh detected - storing fallback token');
+        if (cookieFallback && fallbackToken) {
+          console.log('🔄 Production refresh fallback - storing token');
           localStorage.setItem('access_token', fallbackToken);
-          localStorage.setItem('ios_access_token', fallbackToken);
         }
         
         return { success: true };
