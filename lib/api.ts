@@ -130,14 +130,19 @@ class EnhancedApiClient {
   private getIOSToken(): string | null {
     if (typeof window === 'undefined') return null;
     
-    // ✅ SIMPLE: Only check access_token cookie and localStorage
+    // ✅ PRODUCTION FIX: Try localStorage first since cookies might not work
+    const storedToken = localStorage.getItem('access_token');
+    if (storedToken) {
+      return storedToken;
+    }
+    
+    // Then try cookie
     const cookieMatch = document.cookie.match(/access_token=([^;]+)/);
     if (cookieMatch) {
       return cookieMatch[1];
     }
     
-    // Fallback to localStorage
-    return localStorage.getItem('access_token');
+    return null;
   }
 
   private setupInterceptors() {
@@ -177,15 +182,27 @@ class EnhancedApiClient {
         // ✅ PRODUCTION FIX: Enhanced fallback handling
         const cookieFallback = response.headers.get('x-cookie-fallback') === 'true';
         const fallbackToken = response.headers.get('x-access-token');
+        const cookieSettings = response.headers.get('x-cookie-settings');
         
-        if (cookieFallback && fallbackToken && typeof window !== 'undefined') {
-          console.log('🔄 Production cookie fallback - storing token in localStorage');
-          // localStorage.setItem('access_token', fallbackToken);
+        if (typeof window !== 'undefined') {
+          // ✅ CRITICAL: Always store fallback token in production
+          if (fallbackToken && (cookieFallback || process.env.NODE_ENV === 'production')) {
+            console.log('🔄 Production cookie fallback - storing token in localStorage');
+            localStorage.setItem('access_token', fallbackToken);
+            
+            // Debug cookie settings in production
+            if (cookieSettings) {
+              console.log('🍪 Cookie settings from backend:', cookieSettings);
+            }
+          }
           
-          // Also try to read any existing cookies
+          // ✅ Also try to read any existing cookies
           const existingCookie = document.cookie.match(/access_token=([^;]+)/);
           if (existingCookie) {
-            // localStorage.setItem('access_token', existingCookie[1]);
+            localStorage.setItem('access_token', existingCookie[1]);
+            console.log('✅ Found existing cookie, stored in localStorage');
+          } else if (process.env.NODE_ENV === 'production') {
+            console.warn('⚠️ No access_token cookie found in production');
           }
         }
         
