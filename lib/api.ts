@@ -130,20 +130,30 @@ class EnhancedApiClient {
   private getIOSToken(): string | null {
     if (typeof window === 'undefined') return null;
     
-    // Try to get from iOS-specific cookie
-    const iosTokenMatch = document.cookie.match(/ios_access_token=([^;]+)/);
-    if (iosTokenMatch) {
-      return iosTokenMatch[1];
+    // Try multiple cookie strategies for iOS
+    const cookieStrategies = [
+      'access_token',
+      'ios_access_token', 
+      'auth_token',
+      'session_token'
+    ];
+    
+    for (const cookieName of cookieStrategies) {
+      const cookieMatch = document.cookie.match(new RegExp(`${cookieName}=([^;]+)`));
+      if (cookieMatch) {
+        return cookieMatch[1];
+      }
     }
     
-    // Try auth_token cookie
-    const authTokenMatch = document.cookie.match(/auth_token=([^;]+)/);
-    if (authTokenMatch) {
-      return authTokenMatch[1];
+    // Try localStorage as final fallback
+    for (const cookieName of cookieStrategies) {
+      const stored = localStorage.getItem(cookieName);
+      if (stored) {
+        return stored;
+      }
     }
     
-    // Try localStorage with iOS prefix
-    return localStorage.getItem('ios_access_token') || localStorage.getItem('access_token');
+    return null;
   }
 
   private setupInterceptors() {
@@ -151,14 +161,10 @@ class EnhancedApiClient {
     this.client.interceptors.request.use((config) => {
       config.credentials = 'include';
       
-      // ✅ Only add iOS headers for non-preflight requests to avoid CORS issues
-      // Most browsers won't preflight simple requests with these specific headers
+      // For iOS devices, try to add token as Authorization header if cookies fail
       if (this.isIOSDevice()) {
-        // Only add headers that don't trigger CORS preflight
-        // Avoid X-iOS-Device as it triggers preflight - use User-Agent detection on backend instead
         const iosToken = this.getIOSToken();
         if (iosToken && !config.headers?.['Authorization']) {
-          // Use Authorization header instead of custom headers to avoid CORS
           config.headers = {
             ...config.headers,
             'Authorization': `Bearer ${iosToken}`,
@@ -191,20 +197,20 @@ class EnhancedApiClient {
         
         if (iosDetected && fallbackToken && typeof window !== 'undefined') {
           console.log('📱 iOS detected by backend - storing fallback token');
-          localStorage.setItem('access_token', fallbackToken);
-          localStorage.setItem('ios_access_token', fallbackToken);
           
-          // Also read from all possible iOS cookies
-          const cookieTokens = [
-            document.cookie.match(/ios_access_token=([^;]+)/)?.[1],
-            document.cookie.match(/auth_token=([^;]+)/)?.[1],
-            document.cookie.match(/access_token=([^;]+)/)?.[1]
-          ].filter(Boolean);
+          // Store in multiple strategies for iOS
+          const strategies = ['access_token', 'ios_access_token', 'auth_token', 'session_token'];
+          strategies.forEach(strategy => {
+            localStorage.setItem(strategy, fallbackToken);
+          });
           
-          if (cookieTokens.length > 0) {
-            localStorage.setItem('access_token', cookieTokens[0]!);
-            localStorage.setItem('ios_access_token', cookieTokens[0]!);
-          }
+          // Also read from all possible iOS cookies and store
+          strategies.forEach(strategy => {
+            const cookieMatch = document.cookie.match(new RegExp(`${strategy}=([^;]+)`));
+            if (cookieMatch) {
+              localStorage.setItem(strategy, cookieMatch[1]);
+            }
+          });
         }
         
         return response
