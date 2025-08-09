@@ -137,33 +137,37 @@ export class AuthService {
   /**
    * Get current user profile
    */
-  static async getProfile() {
-    try {
-      const result = await api.get<User>('/users/profile')
+  // static async getProfile() {
+  //   try {
+  //     const result = await api.get<User>('/users/profile')
       
-      if (result.success && result.data) {
-        return {
-          success: true,
-          data: result.data,
-          error: null
-        }
-      }
+  //     if (result.success && result.data) {
+  //       return {
+  //         success: true,
+  //         data: result.data,
+  //         error: null
+  //       }
+  //     }
 
-      return {
-        success: false,
-        data: null,
-        error: result.error
-      }
-    } catch (error: any) {
-      return {
-        success: false,
-        data: null,
-        error: {
-          message: error?.message || 'Lỗi lấy thông tin người dùng',
-          status: error?.status || 500
-        }
-      }
-    }
+  //     return {
+  //       success: false,
+  //       data: null,
+  //       error: result.error
+  //     }
+  //   } catch (error: any) {
+  //     return {
+  //       success: false,
+  //       data: null,
+  //       error: {
+  //         message: error?.message || 'Lỗi lấy thông tin người dùng',
+  //         status: error?.status || 500
+  //       }
+  //     }
+  //   }
+  // }
+
+   static async getProfile(): Promise<ApiResult<User>> {
+    return await api.get<User>('/users/profile')
   }
 
   /**
