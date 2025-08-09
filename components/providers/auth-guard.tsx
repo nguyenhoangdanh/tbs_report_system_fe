@@ -10,6 +10,7 @@ import { AlertCircle, RefreshCw } from "lucide-react"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import { Button } from "@/components/ui/button"
 import { ScreenLoading } from "../loading/screen-loading"
+import { User } from "@/types"
 
 const PUBLIC_ROUTES = ["/", "/login", "/register", "/forgot-password", "/reset-password"]
 
@@ -31,7 +32,9 @@ const ROLE_ROUTES = {
   USER: ["/dashboard", "/reports", "/profile", "/images", "/admin/overview", "/loading"],
 }
 
-const getDefaultRouteForUser = (user: any): string => {
+// ✅ Fix type issue in getDefaultRouteForUser function
+const getDefaultRouteForUser = (user: User | null): string => {
+  // ✅ Handle null user case
   if (!user) return "/"
 
   const userRole = user.role as string;
@@ -48,7 +51,9 @@ const getDefaultRouteForUser = (user: any): string => {
   }
 }
 
-const hasAccess = (user: any, path: string): boolean => {
+// ✅ Fix type issue in hasAccess function
+const hasAccess = (user: User | null, path: string): boolean => {
+  // ✅ Handle null user case
   if (!user) return false
 
   const userRole = user.role as string
@@ -296,11 +301,35 @@ function AccessDeniedScreen({
   pathname,
   onNavigateHome,
 }: {
-  user: any
+  user: User | null // ✅ Allow null user
   pathname: string
   onNavigateHome: () => void
 }) {
-  const userRole = user?.role || "UNKNOWN"
+  // ✅ Handle null user case
+  if (!user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background p-4">
+        <Card className="w-full max-w-lg mx-auto">
+          <CardContent className="p-6">
+            <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Phiên đăng nhập hết hạn</AlertTitle>
+              <AlertDescription className="mt-2">
+                Vui lòng đăng nhập lại để tiếp tục.
+              </AlertDescription>
+            </Alert>
+            <div className="mt-4">
+              <Button onClick={() => window.location.href = '/login'} className="w-full">
+                Đăng nhập
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    )
+  }
+
+  const userRole = user.role || "UNKNOWN"
   const allowedRoutes = ROLE_ROUTES[userRole as keyof typeof ROLE_ROUTES] || []
   const defaultRoute = getDefaultRouteForUser(user)
 
@@ -360,13 +389,11 @@ function AccessDeniedScreen({
   )
 }
 
-export const getPermissionConfig = (role: string) =>
-  ROLE_ROUTES[role as keyof typeof ROLE_ROUTES] || ROLE_ROUTES["USER"]
-
-export const canAccessRoute = (user: any, pathname: string): boolean => {
+// ✅ Update export functions to handle null user
+export const canAccessRoute = (user: User | null, pathname: string): boolean => {
   return hasAccess(user, pathname)
 }
 
-export const getDefaultRouteForRole = (user: any): string => {
+export const getDefaultRouteForRole = (user: User | null): string => {
   return getDefaultRouteForUser(user)
 }

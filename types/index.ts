@@ -261,7 +261,8 @@ export interface ResetPasswordDto {
 
 export interface AuthResponse {
   access_token: string  // Changed from success: boolean
-  user: User
+  refresh_token: string| null
+  user: User | null // Allow user to be null
   message: string
 }
 

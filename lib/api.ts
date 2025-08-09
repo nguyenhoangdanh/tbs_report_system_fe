@@ -3,6 +3,7 @@ import type {
   RequestConfig as BaseRequestConfig,
   ClientConfig,
 } from 'fetch-api-client'
+import { deviceStore } from '@/store/device-store'
 
 // Extended interfaces for your project
 interface ApiConfig extends ClientConfig {
@@ -146,75 +147,69 @@ class EnhancedApiClient {
   }
 
   private setupInterceptors() {
-    // Request interceptor with CORS-safe iOS handling
+    // Request interceptor with dual auth support
     this.client.interceptors.request.use((config) => {
-      config.credentials = 'include';
+      const deviceState = deviceStore.getState()
       
-      // ✅ For iOS devices, add token as Authorization header if available
-      if (this.isIOSDevice()) {
-        const iosToken = this.getIOSToken();
-        if (iosToken && !config.headers?.['Authorization']) {
+      // Always include credentials for cookie-based auth
+      config.credentials = 'include'
+      
+      // iOS/Mac: Add Authorization header if token available
+      if (deviceState.isIOSOrMac) {
+        const accessToken = deviceState.getAccessToken()
+        if (accessToken && !config.headers?.['Authorization']) {
           config.headers = {
             ...config.headers,
-            'Authorization': `Bearer ${iosToken}`,
-          };
+            'Authorization': `Bearer ${accessToken}`,
+            'X-Auth-Mode': 'token' // Flag for backend
+          }
         }
       }
       
-      // Remove problematic headers that trigger CORS preflight
+      // Remove problematic headers for CORS
       if (config.headers) {
-        delete config.headers['Pragma'];
-        delete config.headers['pragma'];
-        delete config.headers['Cache-Control'];
-        delete config.headers['cache-control'];
-        delete config.headers['X-iOS-Device'];
-        delete config.headers['X-iOS-Version'];
-        delete config.headers['X-Platform'];
-        delete config.headers['X-Device-Type'];
+        delete config.headers['Pragma']
+        delete config.headers['Cache-Control']
       }
       
       return config
     })
 
-    // Response interceptor with production-ready fallback
+    // Response interceptor with token management
     this.client.interceptors.response.use({
       onFulfilled: (response) => {
-        // ✅ PRODUCTION FIX: Enhanced fallback handling
-        const cookieFallback = response.headers.get('x-cookie-fallback') === 'true';
-        const fallbackToken = response.headers.get('x-access-token');
-        const cookieSettings = response.headers.get('x-cookie-settings');
+        const deviceState = deviceStore.getState()
         
-        if (typeof window !== 'undefined') {
-          // ✅ CRITICAL: Always store fallback token in production
-          if (fallbackToken && (cookieFallback || process.env.NODE_ENV === 'production')) {
-            console.log('🔄 Production cookie fallback - storing token in localStorage');
-            // localStorage.setItem('access_token', fallbackToken);
-            
-            // Debug cookie settings in production
-            if (cookieSettings) {
-              console.log('🍪 Cookie settings from backend:', cookieSettings);
-            }
-          }
+        // Handle token response for iOS/Mac
+        if (deviceState.isIOSOrMac) {
+          const accessToken = response.headers.get('x-access-token')
+          const refreshToken = response.headers.get('x-refresh-token')
           
-          // ✅ Also try to read any existing cookies
-          const existingCookie = document.cookie.match(/access_token=([^;]+)/);
-          if (existingCookie) {
-            // localStorage.setItem('access_token', existingCookie[1]);
-            console.log('✅ Found existing cookie, stored in localStorage');
-          } else if (process.env.NODE_ENV === 'production') {
-            console.warn('⚠️ No access_token cookie found in production');
+          if (accessToken && refreshToken) {
+            deviceState.setTokens(accessToken, refreshToken)
+            console.log('🔄 iOS/Mac tokens updated from response headers')
           }
         }
         
         return response
       },
       onRejected: async (error: ApiError) => {
-        // ✅ Enhanced 401 handling for production
+        const deviceState = deviceStore.getState()
+        
         if (error.status === 401) {
-          console.warn('🔐 Authentication failed in production - clearing all tokens');
+          console.warn('🔐 Authentication failed - attempting token refresh')
           
-          this.clearAuthTokens();
-          this.redirectToLogin();
+          try {
+            const refreshResult = await this.attemptTokenRefresh()
+            if (!refreshResult.success) {
+              this.clearAuthTokens()
+              this.redirectToLogin()
+            }
+          } catch (refreshError) {
+            console.error('❌ Token refresh failed:', refreshError)
+            this.clearAuthTokens()
+            this.redirectToLogin()
+          }
         }
 
         const enhancedError: ProjectApiError = {
@@ -231,71 +226,72 @@ class EnhancedApiClient {
 
   private async attemptTokenRefresh(): Promise<{ success: boolean }> {
     try {
-      // ✅ PRODUCTION FIX: Enhanced refresh with fallback support
-      const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          // Add Authorization header as backup in production
-          ...(localStorage.getItem('access_token') && {
-            'Authorization': `Bearer ${localStorage.getItem('access_token')}`
-          })
-        },
-      });
+      const deviceState = deviceStore.getState()
+      
+      if (deviceState.isIOSOrMac) {
+        // iOS/Mac: Send refreshToken in body
+        const refreshToken = deviceState.getRefreshToken()
+        if (!refreshToken) {
+          return { success: false }
+        }
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        // Enhanced fallback handling for production
-        const cookieFallback = response.headers.get('x-cookie-fallback') === 'true';
-        const fallbackToken = response.headers.get('x-access-token');
-        
-        if (data.access_token) {
-          // localStorage.setItem('access_token', data.access_token);
+        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Auth-Mode': 'token'
+          },
+          body: JSON.stringify({ refreshToken })
+        })
+
+        if (response.ok) {
+          const data = await response.json()
+          if (data.accessToken && data.refreshToken) {
+            deviceState.setTokens(data.accessToken, data.refreshToken)
+            return { success: true }
+          }
         }
-        
-        if (cookieFallback && fallbackToken) {
-          console.log('🔄 Production refresh fallback - storing token');
-          // localStorage.setItem('access_token', fallbackToken);
+      } else {
+        // Non-iOS: Use cookie-based refresh
+        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
+          method: 'POST',
+          credentials: 'include',
+          headers: {
+            'Content-Type': 'application/json'
+          }
+        })
+
+        if (response.ok) {
+          return { success: true }
         }
-        
-        return { success: true };
       }
       
-      return { success: false };
+      return { success: false }
     } catch (error) {
-      console.error('🔄 Token refresh error:', error);
-      return { success: false };
+      console.error('🔄 Token refresh error:', error)
+      return { success: false }
     }
   }
 
   private clearAuthTokens() {
+    const deviceState = deviceStore.getState()
+    
+    if (deviceState.isIOSOrMac) {
+      // Clear tokens from Zustand
+      deviceState.clearTokens()
+    } else {
+      // Clear cookies
+      if (typeof window !== 'undefined') {
+        document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+        document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
+      }
+    }
+    
+    // Clear localStorage fallback
     if (typeof window !== 'undefined') {
-      // ✅ Clear localStorage
-      localStorage.removeItem('access_token');
-      sessionStorage.removeItem('access_token');
-      
-      // ✅ SIMPLE cookie clearing - no domain complications
-      const cookieName = 'access_token';
-      
-      // Method 1: Simple clear (most reliable)
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
-      
-      // Method 2: With secure for HTTPS
-      if (window.location.protocol === 'https:') {
-        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; Secure;`;
-      }
-      
-      // Method 3: With SameSite=Lax (matching backend)
-      document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; SameSite=Lax;`;
-      
-      // Method 4: With both Secure and SameSite for HTTPS
-      if (window.location.protocol === 'https:') {
-        document.cookie = `${cookieName}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; Secure; SameSite=Lax;`;
-      }
-      
-      // ✅ NO DOMAIN SETTING AT ALL - let browser handle it
+      localStorage.removeItem('access_token')
+      sessionStorage.removeItem('access_token')
     }
   }
 

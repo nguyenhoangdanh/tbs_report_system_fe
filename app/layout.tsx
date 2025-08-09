@@ -7,6 +7,7 @@ import { AppHeader } from '@/components/layout/app-header'
 import { AppFooter } from '@/components/layout/app-footer'
 import './globals.css'
 import { ClientToastProvider } from '@/components/providers/client-toast-provider'
+import { DeviceInitializer } from '@/components/providers/device-initializer'
 
 const inter = Inter({ subsets: ['latin'] })
 
@@ -50,6 +51,7 @@ export default function RootLayout({
             disableTransitionOnChange
           >
             <QueryProvider>
+              <DeviceInitializer />
               <AuthGuard>
                 <div className="min-h-screen bg-background flex flex-col">
                   <AppHeader />

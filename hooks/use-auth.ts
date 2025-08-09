@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'react-toast-kit'
 import { useApiMutation } from './use-api-query'
 import { useMutation, useQueryClient } from '@tanstack/react-query';
+import { useDeviceStore } from '@/store/device-store';
 
 // Query keys for auth
 const AUTH_QUERY_KEYS = {
@@ -88,14 +89,51 @@ export function useRegister() {
 }
 
 /**
- * Logout mutation - delegate to AuthProvider
+ * Logout mutation - delegate to AuthProvider with token cleanup
  */
 export function useLogout() {
   const { logout } = useAuth()
   
   return useMutation<void, Error, void>({
     mutationFn: async (): Promise<void> => {
+      // ✅ Clear device store tokens before calling logout
+      const deviceState = useDeviceStore.getState()
+      if (deviceState.isIOSOrMac) {
+        deviceState.clearTokens()
+        console.log('🧹 useLogout: iOS/Mac tokens cleared from device store')
+      }
+      
+      // Call AuthProvider logout (which also clears tokens but good to be explicit)
       await logout()
+    },
+    onSuccess: () => {
+      // ✅ Additional cleanup to ensure tokens are cleared
+      const deviceState = useDeviceStore.getState()
+      deviceState.clearTokens()
+      
+      // ✅ Also clear any localStorage fallback tokens
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('access_token')
+        sessionStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        sessionStorage.removeItem('refresh_token')
+      }
+      
+      console.log('✅ useLogout: All tokens cleared successfully')
+    },
+    onError: (error) => {
+      // ✅ Even if logout fails, clear local tokens
+      console.warn('⚠️ Logout failed, but clearing tokens anyway:', error)
+      
+      const deviceState = useDeviceStore.getState()
+      deviceState.clearTokens()
+      
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('access_token')
+        sessionStorage.removeItem('access_token')
+        localStorage.removeItem('refresh_token')
+        sessionStorage.removeItem('refresh_token')
+      }
     },
     retry: false,
     mutationKey: ['auth', 'logout'],
@@ -198,6 +236,7 @@ export function useAuthCheck() {
 export function useAuthPermissions() {
   const { user } = useAuth()
   
+  // ✅ Handle null user case properly
   if (!user) {
     return {
       canViewAllReports: false,
@@ -214,6 +253,7 @@ export function useAuthPermissions() {
     }
   }
   
+  // ✅ Now TypeScript knows user is not null
   const userRole = user.role as UserRole;
   
   return {
@@ -235,20 +275,21 @@ export function useAuthPermissions() {
 export function useAuthUser() {
   const { user, isLoading } = useAuth()
   
+  // ✅ Handle null user case and provide safe defaults
   const displayName = user ? `${user.firstName} ${user.lastName}`.trim() || user.employeeCode || 'Người dùng' : 'Người dùng'
   const fullName = user ? `${user.firstName} ${user.lastName}`.trim() : ''
   
   return {
-    user,
+    user, // ✅ This can be null, which is expected
     isLoading,
     error: null,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user, // ✅ Convert to boolean
     displayName,
     fullName,
-    role: user?.role,
-    employeeCode: user?.employeeCode,
-    email: user?.email,
-    office: user?.office,
-    jobPosition: user?.jobPosition,
+    role: user?.role || null, // ✅ Safe access with fallback
+    employeeCode: user?.employeeCode || null,
+    email: user?.email || null,
+    office: user?.office || null,
+    jobPosition: user?.jobPosition || null,
   }
 }
