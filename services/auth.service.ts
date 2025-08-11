@@ -13,18 +13,18 @@ import type {
 
 export class AuthService {
   /**
-   * Login user - store tokens in auth store
+   * Login user - store tokens with rememberMe preference
    */
   static async login(data: LoginDto): Promise<ApiResult<AuthResponse>> {
     const result = await api.post<AuthResponse>('/auth/login', data);
     
-    // ✅ CRITICAL: Store tokens in auth store immediately after successful login
+    // ✅ CRITICAL: Store tokens with rememberMe preference
     if (result.success && result.data) {
       const { access_token, refresh_token, deviceInfo, iosDetected } = result.data;
+      const rememberMe = data.rememberMe || false; // ✅ Get rememberMe from login data
 
-      
       if (access_token && refresh_token) {
-        // Set tokens in auth store (memory only)
+        // Set tokens in auth store with rememberMe preference
         useAuthStore.getState().setAuth({
           access_token,
           refresh_token,
@@ -33,9 +33,9 @@ export class AuthService {
             iosDetected,
             ...deviceInfo
           }
-        });
+        }, rememberMe); // ✅ Pass rememberMe preference
         
-        console.log('✅ Auth tokens stored in memory after login');
+        console.log('✅ Auth tokens stored with rememberMe:', rememberMe);
       }
     }
     

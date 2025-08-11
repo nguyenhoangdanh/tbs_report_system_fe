@@ -57,7 +57,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null)
   }, [])
 
+  // ✅ Simple subscription to auth store
+  const hasValidTokens = useAuthStore((state) => state.hasValidAuth())
+
   const checkAuth = useCallback(async () => {
+    // ✅ If we have valid tokens in localStorage, use them immediately
+    if (hasValidTokens) {
+      try {
+        const result = await AuthService.getProfile()
+        if (result.success && result.data) {
+          setUser(result.data)
+          setError(null)
+          retryCount.current = 0
+          setIsLoading(false)
+          return
+        }
+      } catch (error) {
+        console.warn('⚠️ Token verification failed:', error)
+        useAuthStore.getState().clearAuth()
+      }
+    }
+
     // Prevent concurrent auth checks
     if (isCheckingAuth.current) {
       return
@@ -82,19 +102,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser((prevUser) => {
           const newUser = { 
             ...result.data!, 
-            // Force new timestamp to trigger form updates
             updatedAt: new Date().toISOString() 
           }
           
-          // Always update if ANY user data has changed
           const hasUserDataChanged = !prevUser || 
             JSON.stringify(prevUser) !== JSON.stringify(newUser)
           
           if (hasUserDataChanged) {
-            // Update React Query cache
             const profileKey = ['auth', 'profile']
             queryClient.setQueryData(profileKey, newUser)
-            
             return newUser
           }
           
@@ -104,14 +120,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         retryCount.current = 0
       } else {
         // Auth failed - clear user and tokens
-        setUser((prevUser) => {
-          if (prevUser) {
-            queryClient.clear()
-          }
-          return null
-        })
+        setUser(null)
+        queryClient.clear()
+        useAuthStore.getState().clearAuth()
         
-        // Only show error for server errors
         if (result.error?.status && result.error.status >= 500) {
           setError(result.error.message || "Lỗi server")
         }
@@ -119,15 +131,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (error: any) {
       console.error("Auth check failed:", error)
       
-      // Clear user on any error
-      setUser((prevUser) => {
-        if (prevUser) {
-          queryClient.clear()
-        }
-        return null
-      })
+      setUser(null)
+      queryClient.clear()
+      useAuthStore.getState().clearAuth()
       
-      // Only show network errors to user
       if (error?.message?.includes("Network") || error?.message?.includes("fetch")) {
         setError("Lỗi kết nối mạng")
       }
@@ -135,7 +142,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false)
       isCheckingAuth.current = false
     }
-  }, [queryClient])
+  }, [queryClient, hasValidTokens])
 
   const login = useCallback(
     async (credentials: LoginDto): Promise<boolean> => {
@@ -223,15 +230,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [router, queryClient])
 
-  // Remove device detection initialization
+  // ✅ Simple initialization
   useEffect(() => {
     if (!hasInitialized.current) {
       hasInitialized.current = true
 
-      if (!isCheckingAuth.current) {
+      // Immediate check for valid tokens
+      const store = useAuthStore.getState()
+      if (store.hasValidAuth()) {
+        console.log('🔄 Valid tokens found on init, verifying with server...')
         checkAuth().catch((error) => {
+          console.warn('⚠️ Token verification failed on init:', error)
           setIsLoading(false)
         })
+      } else {
+        console.log('ℹ️ No valid tokens found on init')
+        setIsLoading(false)
       }
     }
   }, [checkAuth])

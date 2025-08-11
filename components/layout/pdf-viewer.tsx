@@ -25,7 +25,6 @@ if (typeof window !== 'undefined') {
       .then(response => {
         if (response.ok) {
           pdfjs.GlobalWorkerOptions.workerSrc = localWorkerPath
-          console.log('Using local PDF.js worker')
         }
       })
       .catch(() => {

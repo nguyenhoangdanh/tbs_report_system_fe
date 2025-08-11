@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation'
 import { toast } from 'react-toast-kit'
 import { useApiMutation } from './use-api-query'
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useDeviceStore } from '@/store/device-store';
 
 // Query keys for auth
 const AUTH_QUERY_KEYS = {
