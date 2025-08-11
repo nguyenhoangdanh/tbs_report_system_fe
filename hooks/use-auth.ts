@@ -89,51 +89,21 @@ export function useRegister() {
 }
 
 /**
- * Logout mutation - delegate to AuthProvider with token cleanup
+ * Logout mutation - clear auth store
  */
 export function useLogout() {
   const { logout } = useAuth()
   
   return useMutation<void, Error, void>({
     mutationFn: async (): Promise<void> => {
-      // ✅ Clear device store tokens before calling logout
-      const deviceState = useDeviceStore.getState()
-      if (deviceState.isIOSOrMac) {
-        deviceState.clearTokens()
-        console.log('🧹 useLogout: iOS/Mac tokens cleared from device store')
-      }
-      
-      // Call AuthProvider logout (which also clears tokens but good to be explicit)
+      // Backend and auth store will be cleared by AuthProvider.logout
       await logout()
     },
     onSuccess: () => {
-      // ✅ Additional cleanup to ensure tokens are cleared
-      const deviceState = useDeviceStore.getState()
-      deviceState.clearTokens()
-      
-      // ✅ Also clear any localStorage fallback tokens
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token')
-        sessionStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        sessionStorage.removeItem('refresh_token')
-      }
-      
-      console.log('✅ useLogout: All tokens cleared successfully')
+      console.log('✅ useLogout: Auth store cleared successfully')
     },
     onError: (error) => {
-      // ✅ Even if logout fails, clear local tokens
-      console.warn('⚠️ Logout failed, but clearing tokens anyway:', error)
-      
-      const deviceState = useDeviceStore.getState()
-      deviceState.clearTokens()
-      
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token')
-        sessionStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        sessionStorage.removeItem('refresh_token')
-      }
+      console.warn('⚠️ Logout failed, but auth store cleared anyway:', error)
     },
     retry: false,
     mutationKey: ['auth', 'logout'],

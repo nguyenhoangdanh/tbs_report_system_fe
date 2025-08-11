@@ -8,7 +8,7 @@ import { AuthService } from "@/services/auth.service"
 import { toast } from "react-toast-kit"
 import type { User, LoginDto } from "@/types"
 import { adminOverviewStoreActions } from "@/store/admin-overview-store"
-import { useDeviceStore } from '@/store/device-store'
+import { useAuthStore } from "@/store/auth-store"
 
 interface AuthContextType {
   user: User | null // ✅ Explicitly allow null
@@ -57,23 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setError(null)
   }, [])
 
-  // Initialize device detection
-  const initializeDevice = useDeviceStore(state => state.initializeDevice)
-  const isHydrated = useDeviceStore(state => state.isHydrated)
-
-  // Initialize device detection on mount
-  useEffect(() => {
-    if (!hasInitialized.current && !isHydrated) {
-      initializeDevice()
-    }
-  }, [initializeDevice, isHydrated])
-
   const checkAuth = useCallback(async () => {
-    // Wait for device detection to complete
-    if (!isHydrated) {
-      return
-    }
-
     // Prevent concurrent auth checks
     if (isCheckingAuth.current) {
       return
@@ -123,11 +107,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser((prevUser) => {
           if (prevUser) {
             queryClient.clear()
-            // Clear tokens based on device
-            const deviceState = useDeviceStore.getState()
-            if (deviceState.isIOSOrMac) {
-              deviceState.clearTokens()
-            }
           }
           return null
         })
@@ -144,7 +123,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setUser((prevUser) => {
         if (prevUser) {
           queryClient.clear()
-          useDeviceStore.getState().clearTokens()
         }
         return null
       })
@@ -157,7 +135,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setIsLoading(false)
       isCheckingAuth.current = false
     }
-  }, [queryClient, isHydrated])
+  }, [queryClient])
 
   const login = useCallback(
     async (credentials: LoginDto): Promise<boolean> => {
@@ -174,12 +152,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (result.success && result.data?.user) {
           const newUser = result.data.user
           
-          // CRITICAL: Clear all cache and store state for new user
+          // ✅ Tokens are already stored in auth store by AuthService.login
+          // Just update user state
           queryClient.clear()
           
-          // Clear zustand store state for user switch
           if (typeof window !== 'undefined') {
-            // Clear report store state
             const { clearAllState } = await import('@/store/report-store')
             clearAllState()
           }
@@ -215,26 +192,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       isLoggingOut.current = true
       
-      // ✅ Clear user and cache immediately
+      // Clear user and cache immediately
       setUser(null)
       queryClient.clear()
       retryCount.current = 0
-
-      // ✅ Clear device store tokens FIRST
-      const deviceState = useDeviceStore.getState()
-      deviceState.clearTokens()
-      
-      // ✅ Clear localStorage/sessionStorage fallback tokens
-      if (typeof window !== 'undefined') {
-        localStorage.removeItem('access_token')
-        sessionStorage.removeItem('access_token')
-        localStorage.removeItem('refresh_token')
-        sessionStorage.removeItem('refresh_token')
-        
-        // Clear any other auth-related data
-        localStorage.removeItem('user')
-        sessionStorage.removeItem('user')
-      }
 
       // Clear zustand store state
       if (typeof window !== 'undefined') {
@@ -243,7 +204,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         adminOverviewStoreActions.clearAll()
       }
 
-      // Try to logout from server (this might fail but tokens are already cleared)
+      // Backend logout will also clear auth store tokens
       try {
         await AuthService.logout()
         console.log('✅ Server logout successful')
@@ -254,7 +215,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       toast.success("Đăng xuất thành công!")
       router.push("/login")
     } catch (error: any) {
-      // Even if logout fails, user and tokens are already cleared
       console.warn('⚠️ Logout process failed, but cleanup completed:', error)
       toast.success("Đã đăng xuất!")
       router.push("/login")
@@ -263,15 +223,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [router, queryClient])
 
+  // Remove device detection initialization
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      if (isLoading && !isCheckingAuth.current) {
-        setIsLoading(false)
-      }
-    }, 10000)
+    if (!hasInitialized.current) {
+      hasInitialized.current = true
 
-    return () => clearTimeout(timeoutId)
-  }, [isLoading])
+      if (!isCheckingAuth.current) {
+        checkAuth().catch((error) => {
+          setIsLoading(false)
+        })
+      }
+    }
+  }, [checkAuth])
 
   // STABLE context value to prevent child rerenders
   const contextValue = useMemo(() => ({
@@ -284,19 +247,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkAuth,
     clearError,
   }), [stableUser, isAuthenticated, isLoading, error, login, logout, checkAuth, clearError])
-
-  // Wait for device detection before initial auth check
-  useEffect(() => {
-    if (!hasInitialized.current && isHydrated) {
-      hasInitialized.current = true
-
-      if (!isCheckingAuth.current) {
-        checkAuth().catch((error) => {
-          setIsLoading(false)
-        })
-      }
-    }
-  }, [checkAuth, isHydrated])
 
   return <AuthContext.Provider value={contextValue}>{children}</AuthContext.Provider>
 }

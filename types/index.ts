@@ -264,6 +264,13 @@ export interface AuthResponse {
   refresh_token: string| null
   user: User | null // Allow user to be null
   message: string
+  deviceInfo?: {
+    isIOS: boolean
+    isIOSSafari: boolean
+    isSafari: boolean
+    version?: string
+  }
+    iosDetected: boolean
 }
 
 export interface ForgotPasswordResponse {

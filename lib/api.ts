@@ -3,7 +3,6 @@ import type {
   RequestConfig as BaseRequestConfig,
   ClientConfig,
 } from 'fetch-api-client'
-import { deviceStore } from '@/store/device-store'
 
 // Extended interfaces for your project
 interface ApiConfig extends ClientConfig {
@@ -68,7 +67,7 @@ interface RequestConfig extends BaseRequestConfig {
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080/api'
 
-// Enhanced API client with CORS-friendly configuration
+// Enhanced API client with Authorization header only
 class EnhancedApiClient {
   private client: ApiClient
   private cache = new Map<string, { data: any; timestamp: number }>()
@@ -78,30 +77,21 @@ class EnhancedApiClient {
   private cleanupInterval: ReturnType<typeof setInterval> | null = null
 
   constructor(config: ApiConfig = {}) {
-    // Create fetch-api-client instance with CORS-friendly configuration
+    // Create fetch-api-client instance with Authorization header focus
     this.client = createClient({
       baseURL: API_BASE_URL,
       timeout: 8000,
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json',
-        // ✅ Remove iOS headers from default config to avoid CORS preflight
-        // iOS detection will be done in request interceptor only when needed
       },
-      credentials: 'include', // ✅ Critical: Always include cookies
+      credentials: 'include', // Keep for fallback compatibility
       validateStatus: (status) => status < 500,
       getToken: () => {
-        // Enhanced token retrieval for iOS
+        // ✅ Get token from auth store only
         if (typeof window !== 'undefined') {
-          // First try iOS-specific tokens
-          if (this.isIOSDevice()) {
-            const iosToken = this.getIOSToken();
-            if (iosToken) return iosToken;
-          }
-          
-          // Fallback to standard tokens
-          const token = localStorage.getItem('access_token') || sessionStorage.getItem('access_token');
-          return token;
+          const { getAuthToken } = (window as any).authStore || {};
+          return getAuthToken?.() || null;
         }
         return null;
       },
@@ -112,57 +102,22 @@ class EnhancedApiClient {
     this.startCleanupTimer()
   }
 
-  // iOS Detection utilities
-  private isIOSDevice(): boolean {
-    if (typeof window === 'undefined') return false;
-    const userAgent = window.navigator.userAgent;
-    return /iPad|iPhone|iPod|Mac.*OS.*X/i.test(userAgent) && 
-           /Safari/i.test(userAgent) && 
-           !/Chrome|CriOS|EdgiOS/i.test(userAgent);
-  }
-
-  private getIOSVersion(): string {
-    if (typeof window === 'undefined') return 'unknown';
-    const userAgent = window.navigator.userAgent;
-    const versionMatch = userAgent.match(/OS (\d+)_(\d+)/);
-    return versionMatch ? `${versionMatch[1]}.${versionMatch[2]}` : 'unknown';
-  }
-
-  private getIOSToken(): string | null {
-    if (typeof window === 'undefined') return null;
-    
-    // ✅ PRODUCTION FIX: Try localStorage first since cookies might not work
-    const storedToken = localStorage.getItem('access_token');
-    if (storedToken) {
-      return storedToken;
-    }
-    
-    // Then try cookie
-    const cookieMatch = document.cookie.match(/access_token=([^;]+)/);
-    if (cookieMatch) {
-      return cookieMatch[1];
-    }
-    
-    return null;
-  }
-
   private setupInterceptors() {
-    // Request interceptor with dual auth support
+    // ✅ Simple request interceptor - only Authorization header
     this.client.interceptors.request.use((config) => {
-      const deviceState = deviceStore.getState()
-      
-      // Always include credentials for cookie-based auth
+      // Always include credentials for fallback compatibility
       config.credentials = 'include'
       
-      // iOS/Mac: Add Authorization header if token available
-      if (deviceState.isIOSOrMac) {
-        const accessToken = deviceState.getAccessToken()
-        if (accessToken && !config.headers?.['Authorization']) {
+      // ✅ CRITICAL: Get token from auth store and add Authorization header
+      if (typeof window !== 'undefined') {
+        const { getAuthToken } = (window as any).authStore || {};
+        const token = getAuthToken?.();
+        
+        if (token && !config.headers?.['Authorization']) {
           config.headers = {
             ...config.headers,
-            'Authorization': `Bearer ${accessToken}`,
-            'X-Auth-Mode': 'token' // Flag for backend
-          }
+            'Authorization': `Bearer ${token}`,
+          };
         }
       }
       
@@ -175,41 +130,22 @@ class EnhancedApiClient {
       return config
     })
 
-    // Response interceptor with token management
+    // ✅ Simple response interceptor
     this.client.interceptors.response.use({
       onFulfilled: (response) => {
-        const deviceState = deviceStore.getState()
-        
-        // Handle token response for iOS/Mac
-        if (deviceState.isIOSOrMac) {
-          const accessToken = response.headers.get('x-access-token')
-          const refreshToken = response.headers.get('x-refresh-token')
-          
-          if (accessToken && refreshToken) {
-            deviceState.setTokens(accessToken, refreshToken)
-            console.log('🔄 iOS/Mac tokens updated from response headers')
-          }
-        }
-        
         return response
       },
       onRejected: async (error: ApiError) => {
-        const deviceState = deviceStore.getState()
-        
         if (error.status === 401) {
-          console.warn('🔐 Authentication failed - attempting token refresh')
+          console.warn('🔐 Authentication failed - clearing auth store')
           
-          try {
-            const refreshResult = await this.attemptTokenRefresh()
-            if (!refreshResult.success) {
-              this.clearAuthTokens()
-              this.redirectToLogin()
-            }
-          } catch (refreshError) {
-            console.error('❌ Token refresh failed:', refreshError)
-            this.clearAuthTokens()
-            this.redirectToLogin()
+          // Clear auth store
+          if (typeof window !== 'undefined') {
+            const { clearAuth } = (window as any).authStore || {};
+            clearAuth?.();
           }
+          
+          this.redirectToLogin()
         }
 
         const enhancedError: ProjectApiError = {
@@ -224,82 +160,9 @@ class EnhancedApiClient {
     })
   }
 
-  private async attemptTokenRefresh(): Promise<{ success: boolean }> {
-    try {
-      const deviceState = deviceStore.getState()
-      
-      if (deviceState.isIOSOrMac) {
-        // iOS/Mac: Send refreshToken in body
-        const refreshToken = deviceState.getRefreshToken()
-        if (!refreshToken) {
-          return { success: false }
-        }
-
-        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Auth-Mode': 'token'
-          },
-          body: JSON.stringify({ refreshToken })
-        })
-
-        if (response.ok) {
-          const data = await response.json()
-          if (data.accessToken && data.refreshToken) {
-            deviceState.setTokens(data.accessToken, data.refreshToken)
-            return { success: true }
-          }
-        }
-      } else {
-        // Non-iOS: Use cookie-based refresh
-        const response = await fetch(`${API_BASE_URL}/auth/refresh`, {
-          method: 'POST',
-          credentials: 'include',
-          headers: {
-            'Content-Type': 'application/json'
-          }
-        })
-
-        if (response.ok) {
-          return { success: true }
-        }
-      }
-      
-      return { success: false }
-    } catch (error) {
-      console.error('🔄 Token refresh error:', error)
-      return { success: false }
-    }
-  }
-
-  private clearAuthTokens() {
-    const deviceState = deviceStore.getState()
-    
-    if (deviceState.isIOSOrMac) {
-      // Clear tokens from Zustand
-      deviceState.clearTokens()
-    } else {
-      // Clear cookies
-      if (typeof window !== 'undefined') {
-        document.cookie = 'access_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-        document.cookie = 'refresh_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;'
-      }
-    }
-    
-    // Clear localStorage fallback
-    if (typeof window !== 'undefined') {
-      localStorage.removeItem('access_token')
-      sessionStorage.removeItem('access_token')
-    }
-  }
-
   private redirectToLogin() {
     if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
       window.dispatchEvent(new CustomEvent('auth:logout'));
-      // Optionally redirect immediately
-      // window.location.href = '/login';
     }
   }
 
@@ -673,6 +536,10 @@ class EnhancedApiClient {
 
 // Create singleton instance
 const apiClient = new EnhancedApiClient()
+
+if (typeof window !== 'undefined') {
+  (window as any).apiClient = apiClient;
+}
 
 // Export the new Result-based API (recommended)
 export const api = {
